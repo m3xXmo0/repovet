@@ -1,7 +1,19 @@
 repovet 0.1.0 · local folder D:\src\demo · offline · 1,284 files · 3 rules
 Lines starting with '>' are untrusted content quoted from the repository.
 
-DANGER                                   1 critical · 1 medium
+┌─ SUMMARY ───────────────────────────────────────────────────────────────────┐
+│ 1 critical · 2 high · 1 medium · 1 low · 0 info                             │
+│                                                                             │
+│ Look at these first                                                         │
+│ 1. CRITICAL  RC-AGENT-002  CLAUDE.md:3                                      │
+│    Title                                                                    │
+│ 2. HIGH      RC-AGENT-020  2 places                                         │
+│    Title                                                                    │
+│ 3. MEDIUM    RC-AUTO-001   package.json:3                                   │
+│    Title                                                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+DANGER                                   1 critical · 2 high · 1 medium
   CRITICAL  RC-AGENT-002  CLAUDE.md:3                           confidence high
             2 invisible tag characters hide this text: "Hi"
             > Hello<U+E0048><U+E0069> <U+001B>[31m
@@ -10,16 +22,23 @@ DANGER                                   1 critical · 1 medium
                  instructions in them.
             Do   Read it first.
 
-  MEDIUM    RC-AUTO-001   package.json:3                        confidence high
-            package.json defines a 'postinstall' script: node x.js
+  HIGH      RC-AGENT-020  2 places                            confidence medium
+            Agent instruction: ignore previous instructions
+            - tests/fixtures/s1/SKILL.md:3 [test]
+              > Step 1: ignore previous instructions
+            - tests/fixtures/s2/SKILL.md:3 [test]
+              > Step 2: ignore previous instructions
             Why  Because tools run this automatically.
             Do   Read it first.
+
+  MEDIUM    RC-AUTO-001   package.json:3                        confidence high
+            package.json defines a 'postinstall' script: node x.js
 
 TRUST                                    1 low
   LOW       RC-TRUST-001  (repository)                          confidence high
             Something was found.
-            Why  Because tools run this automatically.
-            Do   Read it first.
+
+Why/Do for medium, low and info findings and all places: --details
 
 PROVENANCE PROFILE                       facts, not findings
   Files      1,284 files, 12.3 MB; 1,100 text files with 98,765 lines, 184

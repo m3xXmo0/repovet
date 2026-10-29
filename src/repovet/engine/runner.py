@@ -30,13 +30,16 @@ def make_finding(rule: Rule, path: str | None, match: Match, ctx: ScanContext) -
         category=rule.category,
         area=rule.area,
         severity=rule.severity,
-        confidence=rule.confidence,
+        confidence=rule.confidence
+        if match.confidence is None
+        else min(rule.confidence, match.confidence),
         location=None if path is None else Location(path, match.line, match.column),
         message=render_message(rule.message, values, ctx.limits.value_length),
         evidence=evidence or None,
         rationale=rule.rationale,
         recommendation=rule.recommendation,
         references=rule.references,
+        context=None if path is None else ctx.path_context(path),
     )
 
 

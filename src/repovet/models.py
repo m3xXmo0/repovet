@@ -90,6 +90,9 @@ class Finding:
     rationale: str
     recommendation: str
     references: tuple[str, ...] = ()
+    # Where the file sits when that usually means it does not run: vendored, test,
+    # example or docs. A label only; the finding is reported all the same.
+    context: str | None = None
 
 
 @dataclass(frozen=True)

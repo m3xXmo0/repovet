@@ -1,6 +1,6 @@
 [project]
 name = "repovet"
-version = "0.1.0"
+version = "0.2.0"
 description = "Vet a Git repository before you run it."
 readme = "README.md"
 license = "MIT"
@@ -54,6 +54,8 @@ dev = [
     "jsonschema==4.26.0",
     "types-jsonschema==4.26.0.20261006",
 ]
+# Only for scripts/social_preview.py (docs/social-preview.png); not installed by default.
+docs = ["pillow==12.3.0"]
 
 [build-system]
 requires = ["hatchling==1.33.0"]
@@ -76,6 +78,8 @@ include = [
     "/LICENSE",
     "/CHANGELOG.md",
     "/SECURITY.md",
+    "/CONTRIBUTING.md",
+    "/CODE_OF_CONDUCT.md",
     "/pyproject.toml",
     "/uv.lock",
 ]
@@ -187,10 +191,17 @@ strict = true
 warn_unreachable = true
 files = ["src", "tests", "scripts"]
 
+# Pillow is in the optional "docs" group; CI type-checks without it.
+[[tool.mypy.overrides]]
+module = ["PIL", "PIL.*"]
+ignore_missing_imports = true
+
 # --- pytest -----------------------------------------------------------------
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Lets tests import the helper scripts (scripts/ has no package).
+pythonpath = ["scripts"]
 addopts = ["-ra", "--strict-markers"]
 markers = [
     "slow: takes several seconds (performance test); runs by default",

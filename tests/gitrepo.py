@@ -20,6 +20,7 @@ from repovet.sources.remote import GitHubRepo
 AUTHOR = "Test Author <author@example.invalid>"
 BASE_TIME = 1_700_000_000
 _REG = 0o100644
+_EXEC = 0o100755
 _LINK = 0o120000
 _GITLINK = 0o160000
 _DIR = 0o040000
@@ -47,6 +48,8 @@ def _content(rel: str, value: object) -> tuple[int, bytes]:
         return _REG, value
     if isinstance(value, dict) and set(value) == {"base64"}:
         return _REG, base64.b64decode(str(value["base64"]))
+    if isinstance(value, dict) and set(value) == {"executable"}:
+        return _EXEC, str(value["executable"]).encode("utf-8")
     if isinstance(value, dict) and set(value) == {"symlink"}:
         return _LINK, str(value["symlink"]).encode("utf-8")
     if isinstance(value, dict) and set(value) == {"submodule"}:

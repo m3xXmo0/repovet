@@ -3,8 +3,9 @@
 ruff (banned-api, bandit) covers imports like subprocess, pickle and yaml.load. This
 test covers bare builtins that ruff cannot ban and writing calls: repovet only
 reads the scanned folder and writes nothing but its report (stdout/stderr, or the
-file named with -o in the one function listed in REPORT_WRITERS) and, for URL
-targets, the temporary clone folder (only in the functions in CLONE_WORKSPACE).
+file named with -o in the one function listed in REPORT_WRITERS), for URL
+targets the temporary clone folder (only in the functions in CLONE_WORKSPACE), and
+for ``repovet clone`` the new working tree (only in the functions in CHECKOUT).
 """
 
 import ast
@@ -38,7 +39,7 @@ FORBIDDEN_METHODS = {
 }
 WRITE_MODES = ("w", "a", "x", "+")
 # (module, function) allowed to open a file for writing: the -o report file.
-REPORT_WRITERS = {("cli.py", "_write_report")}
+REPORT_WRITERS = {("scanning.py", "write_report")}
 # (module, function) allowed to create, fill and delete the temporary clone folder of a
 # URL target. It is never inside the scanned folder and holds only a pack file.
 CLONE_WORKSPACE = {
@@ -47,6 +48,21 @@ CLONE_WORKSPACE = {
     ("sources/remote.py", "_remove_workspace"),
     ("sources/remote.py", "make_writable"),
 }
+# (module, function) allowed to write the working tree of ``repovet clone``: into a new
+# or empty folder the user named, from Git objects that were checked, after every path
+# was validated.
+CHECKOUT = {
+    ("sources/checkout.py", "_create_file"),
+    ("sources/checkout.py", "_write_tree"),
+    ("sources/checkout.py", "_write_git"),
+    ("sources/checkout.py", "_create_stage"),
+    ("sources/checkout.py", "_move_into_place"),
+    ("sources/checkout.py", "_remove_stage"),
+    ("sources/checkout.py", "make_writable"),
+}
+# Flags of os.open that write, and shutil functions that copy or move files.
+WRITE_FLAGS = {"O_WRONLY", "O_RDWR", "O_CREAT", "O_APPEND", "O_TRUNC"}
+SHUTIL_WRITERS = {"copy", "copy2", "copyfile", "copytree", "copyfileobj", "move"}
 
 
 def python_files() -> list[Path]:
@@ -80,12 +96,22 @@ def offenders() -> list[str]:
             opens = (isinstance(func, ast.Name) and func.id == "open" and _writes(node, 1)) or (
                 isinstance(func, ast.Attribute) and func.attr == "open" and _writes(node, 0)
             )
-            if opens and (module, function) not in REPORT_WRITERS:
+            opens = opens or _os_open_writes(node)
+            allowed = REPORT_WRITERS | CHECKOUT
+            if opens and (module, function) not in allowed:
                 found.append(f"{where} opens a file for writing")
+            if (
+                isinstance(func, ast.Attribute)
+                and func.attr in SHUTIL_WRITERS
+                and isinstance(func.value, ast.Name)
+                and func.value.id == "shutil"
+                and (module, function) not in CHECKOUT
+            ):
+                found.append(f"{where} calls shutil.{func.attr}()")
             if isinstance(func, ast.Attribute) and func.attr in FORBIDDEN_METHODS:
                 if func.attr == "replace" and _is_str_replace(node):
                     continue
-                if (module, function) in CLONE_WORKSPACE:
+                if (module, function) in CLONE_WORKSPACE | CHECKOUT:
                     continue
                 found.append(f"{where} calls .{func.attr}()")
     return found
@@ -102,6 +128,22 @@ def _writes(node: ast.Call, mode_index: int) -> bool:
         and any(c in m.value for c in WRITE_MODES)
         for m in modes
     )
+
+
+def _os_open_writes(node: ast.Call) -> bool:
+    """os.open(path, flags) with a writing flag such as os.O_WRONLY or os.O_CREAT."""
+    func = node.func
+    if not (
+        isinstance(func, ast.Attribute)
+        and func.attr == "open"
+        and isinstance(func.value, ast.Name)
+        and func.value.id == "os"
+        and len(node.args) > 1
+    ):
+        return False
+    names = {n.attr for n in ast.walk(node.args[1]) if isinstance(n, ast.Attribute)}
+    names |= {n.id for n in ast.walk(node.args[1]) if isinstance(n, ast.Name)}
+    return bool(names & WRITE_FLAGS)
 
 
 def _is_str_replace(node: ast.Call) -> bool:
@@ -132,6 +174,14 @@ def test_write_detection_covers_path_open() -> None:
     )
     assert flagged == [2, 3]
     assert {fn for _, fn in calls} == {"f"}
+
+
+def test_write_detection_covers_os_open_flags() -> None:
+    tree = ast.parse(
+        "import os\nos.open(p, os.O_RDONLY)\nos.open(p, os.O_WRONLY | os.O_CREAT, 0o666)\n"
+    )
+    calls = [n for n, _ in _calls_with_function(tree)]
+    assert [n.lineno for n in calls if _os_open_writes(n)] == [3]
 
 
 def _raw_invisible(text: str) -> list[str]:

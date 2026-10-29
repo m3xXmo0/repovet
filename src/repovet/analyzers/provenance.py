@@ -49,6 +49,10 @@ class Marker:
     key: str
     label: str
     globs: GlobSet
+    exclude: GlobSet = field(default_factory=lambda: GlobSet([]))
+
+    def matches(self, path: str) -> bool:
+        return self.globs.matches(path) and not self.exclude.matches(path)
 
 
 @dataclass(frozen=True)
@@ -121,7 +125,12 @@ def _markers(raw: object, filesets: Mapping[str, Sequence[str]]) -> tuple[Marker
     if not isinstance(raw, dict):
         raise ValueError("data/provenance.yaml: markers must be a mapping")
     return tuple(
-        Marker(str(key), str(spec["label"]), _globs(spec["files"], filesets))
+        Marker(
+            str(key),
+            str(spec["label"]),
+            _globs(spec["files"], filesets),
+            _globs(spec.get("exclude", []), filesets),
+        )
         for key, spec in raw.items()
     )
 
@@ -253,10 +262,10 @@ class FileProfiler:
         profile.files += 1
         profile.bytes += file.size
         for marker in data.markers:
-            if marker.globs.matches(path):
+            if marker.matches(path):
                 profile.markers.setdefault(marker.key, []).append(path)
         for marker in data.notable:
-            if marker.globs.matches(path):
+            if marker.matches(path):
                 profile.notable.setdefault(marker.key, []).append(path)
         language = language_of(path, data)
         content = view.content()

@@ -1,0 +1,58 @@
+name: Missed detection
+description: Something risky that repovet did not report.
+title: "Missed detection: "
+labels: ["missed detection"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Please do **not** paste working malware, real secrets or
+        private code. Describe the technique and give a harmless dummy that shows its
+        shape. A vulnerability in repovet itself (for example repovet running code from
+        a repository) belongs in a private report, see SECURITY.md.
+  - type: input
+    id: version
+    attributes:
+      label: repovet version
+      description: Output of `repovet --version`.
+      placeholder: repovet 0.2.0
+    validations:
+      required: true
+  - type: input
+    id: command
+    attributes:
+      label: Command
+      description: The command you ran (remove anything private).
+      placeholder: repovet scan ./downloaded-repo
+    validations:
+      required: true
+  - type: input
+    id: rule
+    attributes:
+      label: Closest rule ID (if any)
+      description: A rule that should have caught it, for example RC-AUTO-003, or "none".
+      placeholder: RC-XXX-000 or none
+  - type: textarea
+    id: technique
+    attributes:
+      label: What should be detected?
+      description: >
+        Which file runs or loads what, and when (on install, on opening the folder,
+        when an AI agent starts, ...). Links to write-ups are welcome.
+    validations:
+      required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: Harmless example
+      description: >
+        File name(s) and content of a dummy that has the same shape but does nothing
+        harmful. Use placeholder domains such as example.invalid.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: legit
+    attributes:
+      label: How common is this in harmless projects?
+      description: Helps to keep false positives low (severity and confidence).

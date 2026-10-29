@@ -1,33 +1,42 @@
-"""Command line: argument parsing, orchestration and exit codes.
+"""Command line: argument parsing, the commands and exit codes.
 
 Exit codes (a stable interface): 0 = no findings at or above --fail-on,
 1 = findings at or above --fail-on, 2 = usage error, 3 = analysis aborted.
+``repovet clone`` returns the result of its scan (0 or 1) whether or not it cloned;
+without a terminal, 1 always means that nothing was cloned.
 """
 
 import argparse
 import io
 import os
 import sys
-import time
 import traceback
 from collections.abc import Sequence
-from datetime import UTC, datetime
 from pathlib import Path
 
-from repovet import __version__
-from repovet.analyzers import run_all
-from repovet.engine.context import ScanContext
-from repovet.engine.loader import RuleError, RuleSet, load_rules
-from repovet.github import target as github_target
-from repovet.limits import DEFAULT_LIMITS, Limits, format_size, parse_size
-from repovet.models import AREAS, CoverageCollector, ScanResult, Severity
-from repovet.report import json_out, sarif, terminal
-from repovet.report.sanitize import sanitize
-from repovet.sources import gitmeta, remote
+from repovet import __version__, interactive
+from repovet.engine.loader import RuleError, RuleSet
+from repovet.limits import DEFAULT_LIMITS, format_size, parse_size
+from repovet.models import AREAS, Severity
+from repovet.report import formats, terminal
+from repovet.report.formats import FORMATS
+from repovet.report.sanitize import sanitize, sanitize_path
+from repovet.scanning import (
+    Scanned,
+    ScanOptions,
+    UsageError,
+    fails,
+    github_repo,
+    is_url,
+    load_rule_dirs,
+    local_root,
+    output_path,
+    scan_local,
+    scan_remote,
+    write_report,
+)
+from repovet.sources import checkout, remote
 from repovet.sources.gitobjects import GitObjectError
-from repovet.sources.gittree import GitTree
-from repovet.sources.local import LocalTree
-from repovet.sources.tree import FileTree
 
 EXIT_OK = 0
 EXIT_FINDINGS = 1
@@ -35,11 +44,8 @@ EXIT_USAGE = 2
 EXIT_ABORTED = 3
 
 _LEVELS = [s.label for s in Severity]
-FORMATS = ("text", "json", "sarif")
 
-
-class UsageError(Exception):
-    pass
+__all__ = ["EXIT_ABORTED", "EXIT_FINDINGS", "EXIT_OK", "EXIT_USAGE", "UsageError", "main"]
 
 
 def _size(value: str) -> int:
@@ -59,39 +65,22 @@ def _seconds(value: str) -> float:
     return seconds
 
 
-def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        prog="repovet",
-        description="Statically check an untrusted Git repository before running anything "
-        "from it. repovet never executes code from the repository.",
-    )
-    parser.add_argument("--version", action="version", version=f"repovet {__version__}")
-    commands = parser.add_subparsers(dest="command", metavar="COMMAND", required=True)
-
-    scan = commands.add_parser("scan", help="check a local folder or a GitHub repository")
-    scan.add_argument(
-        "target",
-        metavar="PATH|URL",
-        help=f"folder to check, or a public GitHub repository as {remote.SUPPORTED}",
-    )
-    scan.add_argument(
+def _common_options() -> argparse.ArgumentParser:
+    """Options that ``scan`` and ``clone`` share."""
+    common = argparse.ArgumentParser(add_help=False)
+    common.add_argument(
         "--offline",
         action="store_true",
         help="no GitHub API queries for the trust area (the analysis itself is always "
         "offline; a URL target is still cloned). An optional token is read from "
         "GITHUB_TOKEN or GH_TOKEN",
     )
-    scan.add_argument(
+    common.add_argument(
         "--ref",
         metavar="REF",
         help="URL targets: branch, tag or full commit id to check (default: default branch)",
     )
-    scan.add_argument(
-        "--keep-clone",
-        action="store_true",
-        help="URL targets: keep the temporary clone folder (its path is printed to stderr)",
-    )
-    scan.add_argument(
+    common.add_argument(
         "--max-clone-size",
         type=_size,
         default=remote.DEFAULT_MAX_CLONE_SIZE,
@@ -99,7 +88,7 @@ def build_parser() -> argparse.ArgumentParser:
         help=f"URL targets: abort if the download is larger (default: "
         f"{format_size(remote.DEFAULT_MAX_CLONE_SIZE).replace(' ', '')})",
     )
-    scan.add_argument(
+    common.add_argument(
         "--clone-timeout",
         type=_seconds,
         default=remote.DEFAULT_CLONE_TIMEOUT,
@@ -107,33 +96,33 @@ def build_parser() -> argparse.ArgumentParser:
         help=f"URL targets: abort the download after this time "
         f"(default: {remote.DEFAULT_CLONE_TIMEOUT:.0f})",
     )
-    scan.add_argument(
+    common.add_argument(
         "--min-severity",
         choices=_LEVELS,
         default="info",
         help="hide findings below this level (default: info)",
     )
-    scan.add_argument(
+    common.add_argument(
         "--fail-on",
         choices=_LEVELS,
         default="high",
         help="exit with 1 if a finding has at least this level (default: high)",
     )
-    scan.add_argument(
+    common.add_argument(
         "--rules",
         action="append",
         default=[],
         metavar="DIR",
         help="additional rules folder (repeatable)",
     )
-    scan.add_argument(
+    common.add_argument(
         "--ignore-rule",
         action="append",
         default=[],
         metavar="ID",
         help="do not run this rule (repeatable)",
     )
-    scan.add_argument(
+    common.add_argument(
         "--max-file-size",
         type=_size,
         default=DEFAULT_LIMITS.max_file_size,
@@ -141,17 +130,52 @@ def build_parser() -> argparse.ArgumentParser:
         help=f"largest file whose content is checked (default: "
         f"{format_size(DEFAULT_LIMITS.max_file_size).replace(' ', '')})",
     )
-    scan.add_argument(
+    common.add_argument(
         "--include-env-dirs",
         action="store_true",
         help="also check environment folders (.venv, venv, node_modules, ...), "
         "which are skipped by default",
     )
+    common.add_argument(
+        "--no-color",
+        action="store_true",
+        help="plain output without colors (NO_COLOR does the same; FORCE_COLOR keeps "
+        "colors when the output is piped, for example into a pager)",
+    )
+    common.add_argument("-v", "--verbose", action="store_true", help="more detail")
+    return common
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="repovet",
+        description="Statically check an untrusted Git repository before running anything "
+        "from it. repovet never executes code from the repository. Run it without "
+        "arguments in a terminal for a menu.",
+    )
+    parser.add_argument("--version", action="version", version=f"repovet {__version__}")
+    commands = parser.add_subparsers(dest="command", metavar="COMMAND", required=True)
+    common = _common_options()
+
+    scan = commands.add_parser(
+        "scan", parents=[common], help="check a local folder or a GitHub repository"
+    )
+    scan.add_argument(
+        "target",
+        metavar="PATH|URL",
+        help=f"folder to check, or a public GitHub repository as {remote.SUPPORTED}",
+    )
+    scan.add_argument(
+        "--keep-clone",
+        action="store_true",
+        help="URL targets: keep the temporary clone folder (its path is printed to stderr)",
+    )
     scan.add_argument(
         "--format",
         choices=FORMATS,
         default="text",
-        help="report format (default: text)",
+        help="report format (default: text); html is one self-contained file without "
+        "scripts or external resources",
     )
     scan.add_argument(
         "-o",
@@ -160,12 +184,33 @@ def build_parser() -> argparse.ArgumentParser:
         help="write the report to FILE instead of stdout (never inside the checked folder)",
     )
     scan.add_argument(
-        "--no-color",
+        "--details",
         action="store_true",
-        help="plain output without colors (NO_COLOR does the same; FORCE_COLOR keeps "
-        "colors when the output is piped, for example into a pager)",
+        help="text report: explain every finding (Why/Do; by default only critical and "
+        "high) and list every place of grouped findings",
     )
-    scan.add_argument("-v", "--verbose", action="store_true", help="more detail")
+
+    clone = commands.add_parser(
+        "clone",
+        parents=[common],
+        help="check a GitHub repository, then clone it if you agree",
+        description="Check a GitHub repository first, show the summary and ask before "
+        "cloning. The clone is written from the checked Git objects: no hooks, filters, "
+        "LFS or submodules, and no symbolic links.",
+    )
+    clone.add_argument("url", metavar="URL", help=f"repository as {remote.SUPPORTED}")
+    clone.add_argument(
+        "directory",
+        metavar="DIR",
+        nargs="?",
+        help="folder to clone into; must not exist or be empty (default: the repository name)",
+    )
+    clone.add_argument(
+        "--yes",
+        "-y",
+        action="store_true",
+        help="clone without asking, but only if no finding is at or above --fail-on",
+    )
 
     rules = commands.add_parser("rules", help="inspect the detection rules")
     rules_commands = rules.add_subparsers(dest="rules_command", metavar="ACTION", required=True)
@@ -180,241 +225,135 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _load(rule_dirs: Sequence[str]) -> RuleSet:
-    dirs = [Path(d) for d in rule_dirs]
-    for directory in dirs:
-        if not directory.is_dir():
-            raise UsageError(f"rules folder not found: {directory}")
-    return load_rules(dirs)
-
-
-def _prepare(args: argparse.Namespace) -> tuple[RuleSet, Limits]:
-    rules = _load(args.rules)
-    unknown = [rule_id for rule_id in args.ignore_rule if rules.get(rule_id) is None]
-    if unknown:
-        raise UsageError(f"unknown rule id(s) for --ignore-rule: {', '.join(unknown)}")
-    limits = Limits(max_file_size=args.max_file_size, skip_env_dirs=not args.include_env_dirs)
-    return rules.without(args.ignore_rule), limits
+def _options(args: argparse.Namespace, target: str) -> ScanOptions:
+    return ScanOptions(
+        target,
+        offline=args.offline,
+        ref=args.ref,
+        keep_clone=getattr(args, "keep_clone", False),
+        max_clone_size=args.max_clone_size,
+        clone_timeout=args.clone_timeout,
+        rules=args.rules,
+        ignore_rules=args.ignore_rule,
+        max_file_size=args.max_file_size,
+        include_env_dirs=args.include_env_dirs,
+        environ=dict(os.environ),
+    )
 
 
 def _scan(args: argparse.Namespace) -> int:
-    target: str = args.target
-    if remote.looks_like_url(target):
-        return _scan_url(args)
-    if args.ref is not None or args.keep_clone:
-        raise UsageError("--ref and --keep-clone only apply to URL targets")
-    root = Path(target)
-    if not root.exists():
-        raise UsageError(f"target not found: {target}")
-    if not root.is_dir():
-        raise UsageError(f"target is not a folder: {target}")
-
-    output = _output_path(args.output, root)
-    rules, limits = _prepare(args)
-    started = datetime.now(UTC)
-    t0 = time.monotonic()
-    coverage = CoverageCollector()
-    tree = LocalTree(root.resolve(), limits, coverage)
-    git = gitmeta.open_local(root.resolve())
-    source = git if isinstance(git, gitmeta.GitSource) else None
-    trust = _local_trust(args, root.resolve(), source)
-    try:
-        return _analyze(
-            args,
-            tree,
-            "local folder",
-            rules,
-            limits,
-            coverage,
-            output,
-            started,
-            t0,
-            git=source,
-            git_note=git if isinstance(git, str) else None,
-            trust=trust,
-        )
-    finally:
-        if source is not None:
-            source.objects.close()
+    options = _options(args, args.target)
+    if is_url(args.target):
+        github_repo(options)  # usage errors before anything else
+        output = None if args.output is None else output_path(args.output, None)
+        with scan_remote(options, _note) as (scanned, _clone):
+            return _emit(args, scanned, output)
+    root = local_root(args.target)
+    output = None if args.output is None else output_path(args.output, root)
+    return _emit(args, scan_local(options), output)
 
 
-def _scan_url(args: argparse.Namespace) -> int:
-    try:
-        repo = remote.parse_github_url(args.target)
-        ref = remote.validate_ref(args.ref) if args.ref is not None else None
-    except remote.UrlError as exc:
-        raise UsageError(str(exc)) from None
-    output = _output_path(args.output, None)
-    rules, limits = _prepare(args)
-    started = datetime.now(UTC)
-    t0 = time.monotonic()
-
-    def cleanup(path: Path, error: str | None) -> None:
-        if args.keep_clone:
-            _note(f"clone kept in {path}")
-        elif error is not None:
-            _note(f"could not delete the temporary clone folder {path}: {error}")
-
-    with remote.clone(
-        repo,
-        ref=ref,
-        max_bytes=args.max_clone_size,
-        timeout=args.clone_timeout,
-        keep=args.keep_clone,
-        on_cleanup=cleanup,
-    ) as cloned:
-        coverage = CoverageCollector()
-        tree = GitTree(cloned.objects, cloned.commit, limits, coverage, cloned.label)
-        commit = cloned.commit.decode("ascii")
-        source: dict[str, object] = {
-            "type": "github",
-            "url": repo.url,
-            "ref": cloned.ref,
-            "commit": commit,
-        }
-        return _analyze(
-            args,
-            tree,
-            "GitHub repository",
-            rules,
-            limits,
-            coverage,
-            output,
-            started,
-            t0,
-            facts={"source": source},
-            root_uri=f"{repo.url}/blob/{commit}/",
-            git=gitmeta.GitSource(cloned.objects, cloned.commit, "clone"),
-            trust=github_target.setup(repo, offline=args.offline, environ=os.environ),
-        )
-
-
-def _local_trust(
-    args: argparse.Namespace, root: Path, source: gitmeta.GitSource | None
-) -> github_target.TrustTarget:
-    """A local folder names its GitHub repository only through a remote in
-    .git/config. That is a claim; the trust area checks whether HEAD exists there."""
-    urls = gitmeta.remote_urls(root)
-    name = "origin" if "origin" in urls else (next(iter(urls)) if len(urls) == 1 else None)
-    if name is None:
-        missing = "no remote 'origin'" if urls else "no Git remote"
-        note = f"no GitHub repository is known for this folder ({missing} in .git/config)"
-        return github_target.setup(None, offline=args.offline, environ=os.environ, note=note)
-    repo = remote.github_repo_from_remote(urls[name])
-    if repo is None:
-        note = f"the remote '{name}' in .git/config is not a GitHub repository"
-        return github_target.setup(None, offline=args.offline, environ=os.environ, note=note)
-    return github_target.setup(
-        repo,
-        offline=args.offline,
-        environ=os.environ,
-        claimed_by=f"remote '{name}' in .git/config",
-        local_head=source.head.decode("ascii") if source is not None else None,
+def _emit(args: argparse.Namespace, scanned: Scanned, output: Path | None) -> int:
+    to_terminal = output is None
+    use_color = (
+        args.format == "text"
+        and to_terminal
+        and not args.no_color
+        and terminal.color_wanted(os.environ)
     )
-
-
-def _analyze(
-    args: argparse.Namespace,
-    tree: FileTree,
-    mode: str,
-    rules: RuleSet,
-    limits: Limits,
-    coverage: CoverageCollector,
-    output: Path | None,
-    started: datetime,
-    t0: float,
-    *,
-    facts: dict[str, object] | None = None,
-    root_uri: str | None = None,
-    git: gitmeta.GitSource | None = None,
-    git_note: str | None = None,
-    trust: github_target.TrustTarget | None = None,
-) -> int:
-    ctx = ScanContext(tree, rules, limits, coverage, git=git, git_note=git_note, trust=trust)
-    results = run_all(ctx)
-    findings = [f for r in results for f in r.findings]
-    all_facts: dict[str, object] = dict(facts or {})
-    summaries: dict[str, list[tuple[str, str]]] = {}
-    for area_result in results:
-        all_facts.update(area_result.facts)
-        if area_result.summary:
-            category = AREAS[area_result.area].category
-            summaries.setdefault(category, []).extend(area_result.summary)
-    result = ScanResult(
-        target=tree.label,
-        mode=mode,
-        online=trust is not None and trust.client is not None and trust.client.sent > 0,
-        tool_version=__version__,
-        rules_loaded=len(rules.active()),
-        files_scanned=len(tree.files()),
-        started=started,
-        duration_s=time.monotonic() - t0,
-        findings=findings,
-        coverage=coverage.items(),
-        facts=all_facts,
-        root_uri=root_uri,
-        summaries=summaries,
+    report = formats.render(
+        args.format,
+        scanned.result,
+        scanned.rules.active(),
+        min_severity=Severity.parse(args.min_severity),
+        color=use_color,
+        verbose=args.verbose,
+        details=args.details,
+        unicode=not to_terminal or terminal.supports_unicode(),
     )
-    min_severity = Severity.parse(args.min_severity)
-    if args.format == "json":
-        report = json_out.render(result, min_severity=min_severity)
-    elif args.format == "sarif":
-        report = sarif.render(result, rules.active(), min_severity=min_severity)
-    else:
-        to_terminal = output is None
-        use_color = to_terminal and not args.no_color and terminal.color_wanted(os.environ)
-        report = terminal.render(
-            result,
-            color=use_color,
-            min_severity=min_severity,
-            verbose=args.verbose,
-            unicode=not to_terminal or terminal.supports_unicode(),
-        )
     if output is None:
         sys.stdout.write(report)
     else:
-        _write_report(output, report)
-    fail_on = Severity.parse(args.fail_on)
-    return EXIT_FINDINGS if any(f.severity >= fail_on for f in findings) else EXIT_OK
+        write_report(output, report)
+    return EXIT_FINDINGS if fails(scanned.result, Severity.parse(args.fail_on)) else EXIT_OK
 
 
-def _output_path(value: str | None, root: Path | None) -> Path | None:
-    """Resolve ``-o``. The checked folder is never written to, so the report file must
-    be outside it."""
-    if value is None:
-        return None
-    path = Path(value).resolve()
-    if root is not None and _inside(path, root.resolve()):
-        raise UsageError(f"output file must be outside the checked folder: {value}")
-    if path.is_dir():
-        raise UsageError(f"output path is a folder: {value}")
-    if not path.parent.is_dir():
-        raise UsageError(f"output folder not found: {path.parent}")
-    return path
+def _confirm(prompt: str) -> bool:
+    sys.stdout.write(prompt)
+    sys.stdout.flush()
+    answer = sys.stdin.readline()
+    if not answer:
+        sys.stdout.write("\n")
+    return answer.strip().lower() in ("y", "yes")
 
 
-def _inside(path: Path, root: Path) -> bool:
-    """True if ``path`` lies in ``root``. Besides comparing the names, every existing
-    parent is compared by file identity: on case-insensitive file systems (macOS) the
-    same folder can be named in another case, and POSIX paths compare case-sensitively."""
-    if path.is_relative_to(root):
-        return True
-    for parent in path.parents:
-        try:
-            if parent.samefile(root):
-                return True
-        except OSError:
-            continue
-    return False
-
-
-def _write_report(path: Path, report: str) -> None:
-    """The only place where repovet writes a file: the report the user asked for."""
+def _clone(args: argparse.Namespace) -> int:
+    options = _options(args, args.url)
+    repo, _ref = github_repo(options)
+    dest = Path(args.directory if args.directory else repo.name)
     try:
-        with path.open("w", encoding="utf-8", newline="\n") as handle:
-            handle.write(report)
-    except OSError as exc:
-        raise UsageError(f"cannot write report to {path}: {exc.strerror or exc}") from None
+        checkout.check_destination(dest)
+    except checkout.CheckoutError as exc:
+        raise UsageError(str(exc)) from None
+    fail_on = Severity.parse(args.fail_on)
+    asking = interactive.can_ask(sys.stdin, os.environ)
+    with scan_remote(options, _note) as (scanned, cloned):
+        result = scanned.result
+        color = not args.no_color and terminal.color_wanted(os.environ)
+        sys.stdout.write(
+            terminal.render_summary(
+                result,
+                color=color,
+                min_severity=Severity.parse(args.min_severity),
+                unicode=terminal.supports_unicode(),
+            )
+        )
+        commit = cloned.commit.decode("ascii")
+        sys.stdout.write(f"Full report: repovet scan {repo.url} --ref {commit}\n\n")
+        code = EXIT_FINDINGS if fails(result, fail_on) else EXIT_OK
+        if code == EXIT_FINDINGS and not asking:
+            _note(f"not cloned: findings at or above '{fail_on.label}' (--fail-on)")
+            return code
+        if args.yes and code == EXIT_OK:
+            confirmed = True
+        elif asking:
+            confirmed = _confirm("Clone anyway? [y/N] ")
+        else:
+            _note("not cloned: no terminal to confirm; use --yes")
+            return code
+        if not confirmed:
+            _note("clone declined; nothing was written")
+            return code
+        written = checkout.write(
+            cloned.objects,
+            cloned.commit,
+            cloned.workspace / "objects" / "pack",
+            dest,
+            url=repo.url,
+            ref=cloned.full_ref,
+        )
+    _report_clone(dest, written)
+    return code
+
+
+def _report_clone(dest: Path, written: checkout.Written) -> None:
+    where = sanitize_path(str(dest))
+    branch = f"branch {written.branch}" if written.branch else "detached HEAD"
+    sys.stdout.write(
+        f"Cloned into {where}: {written.files:,} files, {format_size(written.bytes)} ({branch}).\n"
+    )
+    for label, paths in (
+        ("Symbolic links not created", written.links),
+        ("Submodules not fetched", written.submodules),
+    ):
+        if paths:
+            shown = ", ".join(sanitize_path(p) for p in paths[:10])
+            more = f", ... (+{len(paths) - 10})" if len(paths) > 10 else ""
+            sys.stdout.write(f"{label} ({len(paths)}): {shown}{more}\n")
+    sys.stdout.write(
+        "Nothing was run. Read the findings before you run, build or install anything "
+        "from it, or open it in an editor that trusts the folder.\n"
+    )
 
 
 def _rules_markdown(rules: RuleSet, area: str | None) -> str:
@@ -441,7 +380,7 @@ def _rules_markdown(rules: RuleSet, area: str | None) -> str:
 
 
 def _rules_list(args: argparse.Namespace) -> int:
-    rules = _load(args.rules)
+    rules = load_rule_dirs(args.rules)
     if args.markdown:
         sys.stdout.write(_rules_markdown(rules, args.area))
         return EXIT_OK
@@ -472,20 +411,33 @@ def _note(message: str) -> None:
 
 def main(argv: Sequence[str] | None = None) -> int:
     _configure_stdio()
+    arguments = sys.argv[1:] if argv is None else list(argv)
+    if not arguments and interactive.wanted(sys.stdin, sys.stdout, os.environ):
+        try:
+            return interactive.run(sys.stdin, sys.stdout, os.environ)
+        except KeyboardInterrupt:
+            sys.stdout.write("\n")
+            _error("interrupted")
+            return EXIT_ABORTED
     parser = build_parser()
     try:
-        args = parser.parse_args(argv)
+        args = parser.parse_args(arguments)
     except SystemExit as exc:  # argparse: --help/--version (0) or invalid arguments (2)
         return exc.code if isinstance(exc.code, int) else EXIT_USAGE
     try:
         if args.command == "scan":
             return _scan(args)
+        if args.command == "clone":
+            return _clone(args)
         return _rules_list(args)
     except (UsageError, RuleError) as exc:
         _error(str(exc))
         return EXIT_USAGE
     except (remote.CloneError, GitObjectError) as exc:
         _error(f"analysis aborted: {exc}")
+        return EXIT_ABORTED
+    except checkout.CheckoutError as exc:
+        _error(f"clone aborted, nothing kept: {exc}")
         return EXIT_ABORTED
     except KeyboardInterrupt:
         _error("interrupted")

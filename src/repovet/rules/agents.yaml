@@ -12,12 +12,15 @@
   exclude: [{set: vendored}]
   check:
     type: filename
-  message: "AI coding agents read {path} as instructions or configuration"
+  message: "AI coding agents load this file as instructions or configuration"
   rationale: >
-    Coding agents load this file automatically when they work in the repository. Its
-    content steers what the agent does, so it deserves the same review as code.
+    Coding agents load this file automatically when they work in the repository (skills
+    only count in the folders agents load them from). Its content steers what the agent
+    does, so it deserves the same review as code.
   recommendation: >
     Read the file before letting an agent work here.
+  references:
+    - https://github.com/m3xXmo0/repovet/blob/main/docs/agent-skills.md
   tags: [inventory]
 
 # --- Hidden text -----------------------------------------------------------------------
@@ -27,7 +30,7 @@
   area: agents
   severity: critical
   confidence: high
-  files: [{set: agent_files}]
+  files: [{set: agent_files}, {set: skill_files}]
   check:
     type: unicode
     ranges: [tags]
@@ -51,7 +54,7 @@
   area: agents
   severity: high
   confidence: high
-  exclude: [{set: agent_files}, {set: vendored}]
+  exclude: [{set: agent_files}, {set: skill_files}, {set: vendored}]
   check:
     type: unicode
     ranges: [tags]
@@ -72,7 +75,7 @@
   area: agents
   severity: high
   confidence: high
-  files: [{set: agent_files}]
+  files: [{set: agent_files}, {set: skill_files}]
   check:
     type: unicode
     ranges: ["202A-202E", "2066-2069"]
@@ -91,7 +94,7 @@
   area: agents
   severity: medium
   confidence: medium
-  files: [{set: agent_files}]
+  files: [{set: agent_files}, {set: skill_files}]
   check:
     type: unicode
     ranges: ["180E", "200B-200D", "2060-2064", "FEFF"]
@@ -112,7 +115,7 @@
   area: agents
   severity: medium
   confidence: medium
-  files: [{set: agent_files}]
+  files: [{set: agent_files}, {set: skill_files}]
   check:
     type: regex
     scope: text
@@ -137,7 +140,7 @@
   area: agents
   severity: high
   confidence: medium
-  files: [{set: agent_files}]
+  files: [{set: agent_files}, {set: skill_files}]
   check:
     type: regex
     flags: [ignorecase]
@@ -158,7 +161,7 @@
   area: agents
   severity: high
   confidence: medium
-  files: [{set: agent_files}]
+  files: [{set: agent_files}, {set: skill_files}]
   check:
     type: regex
     pattern: "{{download_exec}}"
@@ -178,7 +181,7 @@
   area: agents
   severity: high
   confidence: medium
-  files: [{set: agent_files}]
+  files: [{set: agent_files}, {set: skill_files}]
   check:
     type: regex
     pattern: "{{exfil_host}}"
@@ -198,7 +201,7 @@
   area: agents
   severity: high
   confidence: medium
-  files: [{set: agent_files}, "**/.vscode/settings.json"]
+  files: [{set: agent_files}, {set: skill_files}, "**/.vscode/settings.json"]
   exclude: [{set: vendored}]
   check:
     type: regex
@@ -416,7 +419,7 @@
   area: agents
   severity: medium
   confidence: medium
-  files: [{set: agent_files}]
+  files: [{set: agent_files}, {set: skill_files}]
   exclude: [{set: vendored}]
   check:
     type: regex
@@ -437,7 +440,7 @@
   severity: medium
   confidence: low
   files: [{set: markdown_files}]
-  exclude: [{set: vendored}, {set: agent_files}]
+  exclude: [{set: vendored}, {set: agent_files}, {set: skill_files}]
   check:
     type: regex
     prefilter: ["<!--"]
@@ -459,7 +462,7 @@
   area: agents
   severity: medium
   confidence: medium
-  files: [{set: agent_files}]
+  files: [{set: agent_files}, {set: skill_files}]
   exclude: [{set: vendored}]
   check:
     type: regex
@@ -481,7 +484,7 @@
   area: agents
   severity: high
   confidence: medium
-  files: [{set: agent_files}]
+  files: [{set: agent_files}, {set: skill_files}]
   exclude: [{set: vendored}]
   check:
     type: regex

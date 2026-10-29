@@ -1,12 +1,26 @@
-"""Human-readable terminal report."""
+"""Human-readable terminal report.
+
+Compact by default: a summary box with the counts per severity and the findings to look
+at first, findings of the same rule and message grouped (one explanation, a list of
+places), and Why/Do only for critical and high findings. ``details=True`` explains every
+finding and lists every place.
+"""
 
 import codecs
 import sys
 import textwrap
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 
 from repovet.models import CATEGORIES, CoverageItem, Finding, ScanResult, Severity
-from repovet.report.common import disclaimer, no_findings, visible_findings
+from repovet.report.common import (
+    Group,
+    disclaimer,
+    group_findings,
+    no_findings,
+    severity_counts,
+    top_groups,
+    visible_findings,
+)
 from repovet.report.sanitize import ELLIPSIS, sanitize, sanitize_path
 
 __all__ = [
@@ -15,6 +29,8 @@ __all__ = [
     "enable_color",
     "no_findings",
     "render",
+    "render_finding",
+    "render_summary",
     "supports_unicode",
 ]
 
@@ -22,6 +38,8 @@ WIDTH = 79
 INDENT = " " * 12
 PROFILE_LABEL = 11
 PROFILE_NOTE = "facts, not findings"
+# Places listed per group before "+N more" (all of them with details).
+PLACES = 5
 _RESET = "\x1b[0m"
 _STYLES = {
     Severity.CRITICAL: "\x1b[1;91m",
@@ -34,9 +52,13 @@ _BOLD = "\x1b[1m"
 _DIM = "\x1b[2m"
 
 UNTRUSTED_NOTE = "Lines starting with '>' are untrusted content quoted from the repository."
+DETAILS_NOTE = "Why/Do for medium, low and info findings and all places: --details"
 SEPARATOR = " · "
 ASCII_SEPARATOR = " | "
 ASCII_ELLIPSIS = "..."
+# Box drawing: top-left, top-right, bottom-left, bottom-right, horizontal, vertical.
+_BOX = "┌┐└┘─│"
+_ASCII_BOX = "++++-|"
 
 
 class _Style:
@@ -52,7 +74,8 @@ def _location(finding: Finding) -> str:
     if loc is None:
         return "(repository)"
     path = sanitize_path(loc.path)
-    return f"{path}:{loc.line}" if loc.line else path
+    place = f"{path}:{loc.line}" if loc.line else path
+    return f"{place} [{finding.context}]" if finding.context else place
 
 
 def _wrap(label: str, text: str) -> list[str]:
@@ -65,26 +88,51 @@ def _wrap(label: str, text: str) -> list[str]:
     )
 
 
-def _finding(finding: Finding, style: _Style) -> list[str]:
+def _head(finding: Finding, where: str, style: _Style) -> str:
     severity = finding.severity.label.upper()
     head = f"  {style(_STYLES[finding.severity], f'{severity:<9}')} {finding.rule_id:<13} "
-    location = _location(finding)
     confidence = f"confidence {finding.confidence.label}"
-    plain_len = 2 + 10 + 14 + len(location)
+    plain_len = 2 + 10 + 14 + len(where)
     gap = max(2, WIDTH - plain_len - len(confidence))
-    lines = [f"{head}{location}{' ' * gap}{style(_DIM, confidence)}"]
+    return f"{head}{where}{' ' * gap}{style(_DIM, confidence)}"
+
+
+def _group(group: Group, style: _Style, details: bool) -> list[str]:
+    first = group.first
+    single = len(group.findings) == 1
+    where = _location(first) if single else f"{len(group.findings)} places"
+    lines = [_head(first, where, style)]
     lines += textwrap.wrap(
-        sanitize(finding.message, None),
+        sanitize(first.message, None),
         WIDTH,
         initial_indent=INDENT,
         subsequent_indent=INDENT,
         break_on_hyphens=False,
     )
-    if finding.evidence:
-        lines.append(style(_DIM, f"{INDENT}> {sanitize(finding.evidence)}"))
-    lines += _wrap("Why", finding.rationale)
-    lines += _wrap("Do", finding.recommendation)
+    if single:
+        if first.evidence:
+            lines.append(style(_DIM, f"{INDENT}> {sanitize(first.evidence)}"))
+    else:
+        shown = group.findings if details else group.findings[:PLACES]
+        for finding in shown:
+            lines.append(f"{INDENT}- {_location(finding)}")
+            if finding.evidence:
+                lines.append(style(_DIM, f"{INDENT}  > {sanitize(finding.evidence)}"))
+        if len(group.findings) > len(shown):
+            lines.append(f"{INDENT}+{len(group.findings) - len(shown)} more")
+    if details or group.explained:
+        lines += _wrap("Why", first.rationale)
+        lines += _wrap("Do", first.recommendation)
     return lines
+
+
+def render_finding(finding: Finding, *, color: bool = False) -> str:
+    """One finding with everything: place, message, quoted evidence, Why, Do and
+    references (the interactive mode's detail view)."""
+    style = _Style(color)
+    lines = _group(Group([finding]), style, details=True)
+    lines += [f"{INDENT}See  {sanitize(ref, None)}" for ref in finding.references]
+    return "\n".join(lines) + "\n"
 
 
 def _profile(category: str, lines: list[tuple[str, str]], style: _Style) -> list[str]:
@@ -121,47 +169,122 @@ def _coverage(item: CoverageItem, verbose: bool) -> list[str]:
     )
 
 
+def _clip(text: str, width: int) -> str:
+    return text if len(text) <= width else text[: width - 1] + ELLIPSIS
+
+
+def _box(rows: Sequence[tuple[str, str]], title: str, unicode: bool) -> list[str]:
+    """A box around ``rows`` of (plain, styled) text; the plain text sets the padding."""
+    chars = _BOX if unicode else _ASCII_BOX
+    tl, tr, bl, br, h, v = (chars[i] for i in range(6))
+    inner = WIDTH - 4
+    top = f"{tl}{h} {title} "
+    lines = [top + h * (WIDTH - len(top) - 1) + tr]
+    for plain, styled in rows:
+        lines.append(f"{v} {styled}{' ' * (inner - len(plain))} {v}")
+    lines.append(bl + h * (WIDTH - 2) + br)
+    return lines
+
+
+def _summary_rows(
+    visible: Sequence[Finding], groups: Sequence[Group], style: _Style, sep: str
+) -> list[tuple[str, str]]:
+    counts = severity_counts(visible)
+    plain = sep.join(f"{n} {s.label}" for s, n in counts)
+    styled = sep.join(
+        style(_STYLES[s], f"{n} {s.label}") if n else f"{n} {s.label}" for s, n in counts
+    )
+    rows = [(plain, styled)]
+    first = top_groups(groups)
+    if not visible:
+        return rows
+    rows.append(("", ""))
+    if not first:
+        only_info = "Only info findings: facts worth knowing, no warnings."
+        rows.append((only_info, only_info))
+        return rows
+    rows.append(("Look at these first", style(_BOLD, "Look at these first")))
+    inner = WIDTH - 4
+    for number, group in enumerate(first, 1):
+        finding = group.first
+        level = f"{finding.severity.label.upper():<9}"
+        where = _location(finding) if len(group.findings) == 1 else f"{len(group.findings)} places"
+        lead = f"{number}. {level} {finding.rule_id:<13} "
+        where = _clip(where, inner - len(lead))
+        styled = f"{number}. {style(_STYLES[finding.severity], level)} {finding.rule_id:<13} "
+        rows.append((f"{lead}{where}", f"{styled}{where}"))
+        title = _clip(f"   {sanitize(finding.title, None)}", inner)
+        rows.append((title, title))
+    return rows
+
+
+def render_summary(
+    result: ScanResult,
+    *,
+    color: bool = False,
+    min_severity: Severity = Severity.INFO,
+    unicode: bool = True,
+) -> str:
+    """Header line and summary box only (used by ``repovet clone`` before it asks)."""
+    style = _Style(color)
+    sep = SEPARATOR if unicode else ASCII_SEPARATOR
+    visible = visible_findings(result, min_severity)
+    lines = [_header(result, sep)]
+    lines += _box(_summary_rows(visible, group_findings(visible), style, sep), "SUMMARY", unicode)
+    text = "\n".join(lines) + "\n"
+    return text if unicode else text.replace(ELLIPSIS, ASCII_ELLIPSIS)
+
+
+def _header(result: ScanResult, sep: str) -> str:
+    online = "online" if result.online else "offline"
+    return sep.join(
+        [
+            f"repovet {result.tool_version}",
+            f"{result.mode} {sanitize_path(result.target)}",
+            online,
+            f"{result.files_scanned:,} files",
+            f"{result.rules_loaded} rules",
+        ]
+    )
+
+
 def render(
     result: ScanResult,
     *,
     color: bool = False,
     min_severity: Severity = Severity.INFO,
     verbose: bool = False,
+    details: bool = False,
     unicode: bool = True,
 ) -> str:
     """Render the report. ``unicode=False`` uses ASCII for repovet's own decorations
-    (separator, ellipsis), for consoles that do not use a UTF encoding."""
+    (box, separator, ellipsis), for consoles that do not use a UTF encoding."""
     style = _Style(color)
     sep = SEPARATOR if unicode else ASCII_SEPARATOR
     visible = visible_findings(result, min_severity)
     hidden = len(result.findings) - len(visible)
-    online = "online" if result.online else "offline"
-    header = [
-        f"repovet {result.tool_version}",
-        f"{result.mode} {sanitize_path(result.target)}",
-        online,
-        f"{result.files_scanned:,} files",
-        f"{result.rules_loaded} rules",
-    ]
-    lines = [sep.join(header)]
+    groups = group_findings(visible)
+    lines = [_header(result, sep)]
     if any(f.evidence for f in visible):
         lines.append(style(_DIM, UNTRUSTED_NOTE))
+    lines.append("")
+    lines += _box(_summary_rows(visible, groups, style, sep), "SUMMARY", unicode)
     lines.append("")
 
     if visible:
         for category in CATEGORIES:
-            group = [f for f in visible if f.category == category]
-            if not group:
+            in_category = [g for g in groups if g.first.category == category]
+            if not in_category:
                 continue
-            counts = sep.join(
-                f"{sum(1 for f in group if f.severity == s)} {s.label}"
-                for s in sorted(Severity, reverse=True)
-                if any(f.severity == s for f in group)
-            )
+            found = [f for g in in_category for f in g.findings]
+            counts = sep.join(f"{n} {s.label}" for s, n in severity_counts(found) if n)
             lines.append(style(_BOLD, f"{category.upper():<40} {counts}"))
-            for finding in group:
-                lines += _finding(finding, style)
+            for group in in_category:
+                lines += _group(group, style, details)
                 lines.append("")
+        if not details and any(not g.explained for g in groups):
+            lines.append(style(_DIM, DETAILS_NOTE))
+            lines.append("")
     else:
         lines.append(no_findings(result.rules_loaded))
         lines.append("")

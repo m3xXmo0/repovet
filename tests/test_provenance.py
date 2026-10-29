@@ -99,10 +99,27 @@ def test_markers_notable_generated(tmp_path: Path) -> None:
     assert "security_policy" in facts["markers"]["missing"]
     kinds = {item["kind"]: item for item in facts["notable"]}
     assert kinds["agent_files"]["sample"] == ["CLAUDE.md"]
+    assert "skill_files" not in kinds
     assert kinds["workflows"]["count"] == 1
     assert kinds["manifests"]["sample"] == ["pyproject.toml"]
     assert facts["generated"]["files"] == 2
     assert facts["generated"]["sample"] == ["src/demo/gen_pb2.py", "web/dist/app.min.js"]
+
+
+def test_skills_outside_agent_skill_folders_are_listed_separately(tmp_path: Path) -> None:
+    files = {
+        ".claude/skills/release/SKILL.md": "---\nname: release\n---\n",
+        "tests/fixtures/demo/SKILL.md": "---\nname: demo\n---\n",
+        "skills/inspector/SKILL.md": "---\nname: inspector\n---\n",
+    }
+    kinds = {
+        item["kind"]: item for item in profile(materialize(tmp_path / "repo", files))["notable"]
+    }
+    assert kinds["agent_files"]["sample"] == [".claude/skills/release/SKILL.md"]
+    assert kinds["skill_files"]["sample"] == [
+        "skills/inspector/SKILL.md",
+        "tests/fixtures/demo/SKILL.md",
+    ]
 
 
 def test_license_detection_and_declared(tmp_path: Path) -> None:
@@ -207,5 +224,5 @@ def test_url_report_matches_the_json_schema(
     monkeypatch.setattr(remote, "github_transport", local_transport({"o/r": origin}))
     main(["scan", "https://github.com/o/r", "--format", "json"])
     report = json.loads(capsys.readouterr().out)
-    assert report["schema_version"] == "1.2"
+    assert report["schema_version"] == "1.3"
     validate_json(report)

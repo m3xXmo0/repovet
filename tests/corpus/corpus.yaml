@@ -1,43 +1,46 @@
 # False-positive corpus: well-known, maintained
 # repositories with .vscode, .devcontainer or agent files (M1c) and with vendored code,
-# binaries, archives, lockfiles and MSBuild projects (M2f). The scan of each must not produce
-# high/critical findings, except those listed under `accepted` with a reason.
+# binaries, archives, lockfiles and MSBuild projects (M2f), and a security scanner whose
+# detection patterns and test fixtures look like attacks (0.2.0). The scan of each must
+# not produce high/critical findings, except those listed under `accepted` with a reason.
+# Commits are full ids, so the repositories can also be scanned by URL with --ref
+# (scripts/corpus_counts.py).
 # See README.md in this folder for how to download them (or scan them by URL, M3);
 # tests never use the network.
 
 - name: flask
   repo: pallets/flask
-  commit: d086db8
+  commit: d086db856be187255b8ec61ef409357393020f32
   why: Python; .devcontainer, pre-commit, setup tooling
   accepted: []
 
 - name: claude-code
   repo: anthropics/claude-code
-  commit: 58d6da1
+  commit: 58d6da1e34d6cd1c6379dcbf568bd66f5f9b6102
   why: agent files (.claude/commands, CLAUDE.md-style docs), .devcontainer
   accepted: []
 
 - name: codex
   repo: openai/codex
-  commit: 4e2dfd2
+  commit: 4e2dfd22306985f846115758bbf7f9a59351bb29
   why: AGENTS.md, .vscode, .devcontainer; TypeScript and Rust (build.rs)
   accepted: []
 
 - name: pydantic-ai
   repo: pydantic/pydantic-ai
-  commit: "6372750"
+  commit: 63727505486c684f8a65bb37f6612ad2fc1e5b92
   why: Python; CLAUDE.md/AGENTS.md, skills, .claude settings, MCP examples
   accepted: []
 
 - name: vscode-extension-samples
   repo: microsoft/vscode-extension-samples
-  commit: 65c1c44
+  commit: 65c1c44800eeac6fb065a54823ee5ae62c79540a
   why: JavaScript/TypeScript; many .vscode/tasks.json, launch and settings files
   accepted: []
 
 - name: pip
   repo: pypa/pip
-  commit: "1000636"
+  commit: 1000636317b856a7a8d0ae6662c3eb30c2a9bfed
   why: Python; vendored libraries with executables, test data with sample packages, wheels and archives
   accepted:
     - rule: RC-BIN-001
@@ -67,12 +70,23 @@
 
 - name: vite
   repo: vitejs/vite
-  commit: cce559a
+  commit: cce559ab158cc6b177d0911a0bea73436b48faff
   why: JavaScript/TypeScript; pnpm lockfile and workspaces, WebAssembly test fixtures, many workflows
   accepted: []
 
 - name: humanizer
   repo: Humanizr/Humanizer
-  commit: 4574b93
+  commit: 4574b93883bf48e3f0f3bca73297054537317ab2
   why: .NET; csproj and Directory.Build files (MSBuild), NuGet, workflows
   accepted: []
+
+- name: skillspector
+  repo: NVIDIA/SkillSpector
+  commit: 54921c8c7c23008c8af2328d5ab492a904b6ece4
+  why: security scanner for agent skills; regex detection patterns in string literals,
+    SKILL.md test fixtures outside agent skill folders
+  accepted:
+    - rule: RC-AGENT-020
+      path: tests/fixtures/mcp_poisoned_tool/SKILL.md
+      reason: deliberately poisoned test fixture of the scanner (labelled "test" in the
+        report); no agent loads skills from tests/fixtures

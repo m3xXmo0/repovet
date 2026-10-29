@@ -71,6 +71,8 @@ def _result(finding: Finding, index: dict[str, int]) -> dict[str, object]:
         "category": finding.category,
         "area": finding.area,
     }
+    if finding.context is not None:
+        properties["context"] = finding.context
     result: dict[str, object] = {
         "ruleId": finding.rule_id,
         "level": LEVELS[finding.severity],

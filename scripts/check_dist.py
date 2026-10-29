@@ -27,6 +27,8 @@ SDIST_TOP_LEVEL = {
     "LICENSE",
     "CHANGELOG.md",
     "SECURITY.md",
+    "CONTRIBUTING.md",
+    "CODE_OF_CONDUCT.md",
     "pyproject.toml",
     "uv.lock",
     ".gitignore",
@@ -38,9 +40,12 @@ SDIST_REQUIRED = {
     "LICENSE",
     "CHANGELOG.md",
     "SECURITY.md",
+    "CONTRIBUTING.md",
+    "CODE_OF_CONDUCT.md",
     "pyproject.toml",
     "tests/conftest.py",
     "docs/report.schema.json",
+    "docs/agent-skills.md",
 }
 SCRIPT_ENTRY = "repovet = repovet.cli:main"
 LICENSE = "MIT"

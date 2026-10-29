@@ -6,7 +6,7 @@ from repovet.models import CATEGORIES, CoverageItem, Finding, ScanResult, Severi
 from repovet.report.common import disclaimer, no_findings, visible_findings
 from repovet.report.sanitize import sanitize, sanitize_data, sanitize_path
 
-SCHEMA_VERSION = "1.2"
+SCHEMA_VERSION = "1.3"
 
 
 def _finding(finding: Finding) -> dict[str, object]:
@@ -26,6 +26,7 @@ def _finding(finding: Finding) -> dict[str, object]:
         "rationale": sanitize(finding.rationale, None),
         "recommendation": sanitize(finding.recommendation, None),
         "references": [sanitize(r, None) for r in finding.references],
+        "context": finding.context,
     }
 
 

@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from helpers import builtin_rules, materialize, write_rule
-from repovet import cli
+from repovet import scanning
 from repovet.cli import EXIT_ABORTED, EXIT_FINDINGS, EXIT_OK, EXIT_USAGE, main
 from repovet.report import terminal
 
@@ -84,7 +84,10 @@ def test_bad_targets(tmp_path: Path, capsys: Capture) -> None:
     assert "not a folder" in err
 
 
-def test_argument_errors_exit_2(repo: Path, capsys: Capture) -> None:
+def test_argument_errors_exit_2(
+    repo: Path, capsys: Capture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("CI", "1")  # no menu even if the tests run in a terminal
     assert run(capsys)[0] == EXIT_USAGE
     assert run(capsys, "scan", str(repo), "--fail-on", "urgent")[0] == EXIT_USAGE
     assert run(capsys, "scan", str(repo), "--max-file-size", "lots")[0] == EXIT_USAGE
@@ -94,7 +97,7 @@ def test_argument_errors_exit_2(repo: Path, capsys: Capture) -> None:
 def test_help_and_version_exit_0(capsys: Capture) -> None:
     code, out, _ = run(capsys, "--version")
     assert code == EXIT_OK
-    assert "repovet 0.1.0" in out
+    assert "repovet 0.2.0" in out
     assert run(capsys, "scan", "--help")[0] == EXIT_OK
 
 
@@ -209,7 +212,7 @@ def test_internal_error_exits_3(
     def boom(ctx: object) -> list[object]:
         raise RuntimeError("bug \x1b[31m")
 
-    monkeypatch.setattr(cli, "run_all", boom)
+    monkeypatch.setattr(scanning, "run_all", boom)
     code, _, err = run(capsys, "scan", str(repo), "-v")
     assert code == EXIT_ABORTED
     assert "internal error" in err

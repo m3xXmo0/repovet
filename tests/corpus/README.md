@@ -1,6 +1,6 @@
 # False-positive corpus
 
-`corpus.yaml` lists eight public repositories pinned to a commit. `tests/test_corpus.py`
+`corpus.yaml` lists nine public repositories pinned to a commit. `tests/test_corpus.py`
 scans each and fails on high/critical findings that are not listed as `accepted`.
 The test is skipped unless `REPOVET_CORPUS_DIR` points to the extracted repositories,
 because tests never download anything.

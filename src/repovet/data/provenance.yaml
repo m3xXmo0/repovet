@@ -39,10 +39,15 @@ markers:
     files: [".github/dependabot.yml", ".github/dependabot.yaml", "renovate.json", "renovate.json5", ".renovaterc", ".renovaterc.json", ".github/renovate.json", ".github/renovate.json5"]
 
 # Files worth knowing about before working with a repository (listed with paths).
+# `exclude` leaves out paths that match another list.
 notable:
   agent_files:
     label: AI agent files
     files: [{set: agent_files}]
+  skill_files:
+    label: agent skills outside the folders agents load them from
+    files: [{set: skill_files}]
+    exclude: [{set: agent_files}]
   dev_container:
     label: dev container
     files: [".devcontainer/**", ".devcontainer.json"]

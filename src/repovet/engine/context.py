@@ -8,7 +8,16 @@ from repovet.github.target import TrustTarget
 from repovet.limits import Limits
 from repovet.models import CoverageCollector, CoverageStatus, Finding
 from repovet.sources.gitmeta import GitSource
-from repovet.sources.tree import FileTree
+from repovet.sources.tree import FileTree, GlobSet
+
+# Labels for findings in code that usually does not run (file sets in _filesets.yaml).
+# A label never hides a finding; the first matching set wins.
+PATH_CONTEXTS = (
+    ("vendored", "context_vendored"),
+    ("test", "context_test"),
+    ("example", "context_example"),
+    ("docs", "context_docs"),
+)
 
 
 @dataclass
@@ -30,6 +39,7 @@ class ScanContext:
     # Facts of the areas that already ran (trust reads the provenance profile).
     facts: dict[str, object] = field(default_factory=dict)
     _timed_out: bool = False
+    _contexts: list[tuple[str, GlobSet]] | None = None
 
     def __post_init__(self) -> None:
         if not self.deadline:
@@ -45,3 +55,14 @@ class ScanContext:
                 "remaining files were not checked",
             )
         return self._timed_out
+
+    def path_context(self, path: str) -> str | None:
+        """The context label of ``path`` (``vendored``, ``test``, ``example``, ``docs``)."""
+        if self._contexts is None:
+            filesets = self.rules.filesets
+            self._contexts = [
+                (label, GlobSet(filesets[name]))
+                for label, name in PATH_CONTEXTS
+                if filesets.get(name)
+            ]
+        return next((label for label, globs in self._contexts if globs.matches(path)), None)

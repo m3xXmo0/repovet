@@ -137,6 +137,9 @@ class Clone:
     commit: bytes
     ref: str
     pack_bytes: int
+    # The full ref that was fetched (refs/heads/... or refs/tags/...); None for a commit
+    # id or a remote HEAD that names no branch.
+    full_ref: str | None = None
 
     @property
     def label(self) -> str:
@@ -182,6 +185,7 @@ class _Wants:
         ref, chosen = self.ref, self.chosen
         if ref is not None and is_hex_id(ref.lower()):
             chosen["ref"] = chosen["sha"] = ref.lower()
+            chosen["full"] = ""
             return [ObjectID(ref.lower().encode("ascii"))]
         names = [Ref(b"HEAD")] if ref is None else _candidates(ref)
         for name in names:
@@ -189,6 +193,10 @@ class _Wants:
             if sha:
                 chosen["ref"] = ref or _default_branch(refs, sha)
                 chosen["sha"] = sha.decode("ascii")
+                if ref is not None:
+                    chosen["full"] = name.decode("utf-8", "replace")
+                elif chosen["ref"] != "HEAD":
+                    chosen["full"] = f"refs/heads/{chosen['ref']}"
                 return [sha]
         if ref is None:
             raise CloneError("the remote has no default branch (empty repository?)")
@@ -244,8 +252,8 @@ def _fetch(
     store: DiskObjectStore,
     ref: str | None,
     budget: _Budget,
-) -> tuple[str, str]:
-    """Fetch into ``store``; returns (ref name, wanted object id)."""
+) -> tuple[str, str, str | None]:
+    """Fetch into ``store``; returns (ref name, wanted object id, full ref or None)."""
     wants = _Wants(ref)
     chosen = wants.chosen
     ref_prefix = None if ref is None or is_hex_id(ref.lower()) else _candidates(ref)
@@ -266,7 +274,7 @@ def _fetch(
     commit()
     if "sha" not in chosen:  # pragma: no cover - determine_wants always sets it or raises
         raise CloneError("nothing was fetched")
-    return chosen["ref"], chosen["sha"]
+    return chosen["ref"], chosen["sha"], chosen.get("full") or None
 
 
 @contextmanager
@@ -291,7 +299,7 @@ def clone(
         budget = _Budget(max_bytes, time.monotonic() + timeout)
         client, remote_path = (transport or github_transport)(repo, min(timeout, _SOCKET_TIMEOUT))
         try:
-            ref_name, wanted = _fetch(client, remote_path, store, ref, budget)
+            ref_name, wanted, full_ref = _fetch(client, remote_path, store, ref, budget)
         except CloneError:
             raise
         except HTTPUnauthorized:
@@ -311,7 +319,7 @@ def clone(
             commit = objects.peel(wanted.encode("ascii"))
         except GitObjectError as exc:
             raise CloneError(f"the fetched data has no usable commit: {exc}") from None
-        yield Clone(repo, workspace, objects, commit, ref_name, budget.total)
+        yield Clone(repo, workspace, objects, commit, ref_name, budget.total, full_ref)
     finally:
         if objects is not None:
             objects.close()

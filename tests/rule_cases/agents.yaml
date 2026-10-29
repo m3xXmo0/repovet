@@ -11,11 +11,57 @@ RC-AGENT-001:
       files:
         .cursor/rules/style.mdc: "Prefer small functions.\n"
       expect: [{path: .cursor/rules/style.mdc}]
+    - name: project skill of Claude Code
+      files:
+        .claude/skills/release/SKILL.md: "---\nname: release\n---\nTag the release.\n"
+      expect: [{path: .claude/skills/release/SKILL.md}]
+    - name: nested Claude Code skill in a monorepo package
+      files:
+        apps/web/.claude/skills/deploy/SKILL.md: "---\nname: deploy\n---\nDeploy.\n"
+      expect: [{path: apps/web/.claude/skills/deploy/SKILL.md}]
+    - name: Codex skill under .agents/skills
+      files:
+        .agents/skills/lint/SKILL.md: "---\nname: lint\n---\nRun the linter.\n"
+      expect: [{path: .agents/skills/lint/SKILL.md}]
+    - name: GitHub Copilot skill under .github/skills
+      files:
+        .github/skills/triage/SKILL.md: "---\nname: triage\n---\nLabel issues.\n"
+      expect: [{path: .github/skills/triage/SKILL.md}]
+    - name: Cursor and OpenCode skill folders
+      files:
+        .cursor/skills/a/SKILL.md: "---\nname: a\n---\nA.\n"
+        .opencode/skills/b/SKILL.md: "---\nname: b\n---\nB.\n"
+      expect: [{path: .cursor/skills/a/SKILL.md}, {path: .opencode/skills/b/SKILL.md}]
+    - name: Cline, Windsurf, Devin Desktop and Kiro skill folders
+      files:
+        .cline/skills/a/SKILL.md: "---\nname: a\n---\nA.\n"
+        .windsurf/skills/b/SKILL.md: "---\nname: b\n---\nB.\n"
+        .devin/skills/c/SKILL.md: "---\nname: c\n---\nC.\n"
+        .kiro/skills/d/SKILL.md: "---\nname: d\n---\nD.\n"
+      expect:
+        - {path: .cline/skills/a/SKILL.md}
+        - {path: .devin/skills/c/SKILL.md}
+        - {path: .kiro/skills/d/SKILL.md}
+        - {path: .windsurf/skills/b/SKILL.md}
+    - name: Roo Code mode-specific skill folder under .agents
+      files:
+        .agents/skills-code/review/SKILL.md: "---\nname: review\n---\nReview.\n"
+      expect: [{path: .agents/skills-code/review/SKILL.md}]
   negative:
     - name: ordinary documentation
       files:
         README.md: "# Demo\n"
         docs/guide.md: "Guide\n"
+    - name: SKILL.md files in test fixtures of a skill scanner
+      files:
+        tests/fixtures/safe_skill/SKILL.md: "---\nname: safe\n---\nSay hello.\n"
+        tests/fixtures/sdi/clean/SKILL.md: "---\nname: clean\n---\nSay hi.\n"
+    - name: plugin skill folder (loaded only when installed as a plugin)
+      files:
+        skills/inspector/SKILL.md: "---\nname: inspector\n---\nInspect skills.\n"
+    - name: mode-specific skill folder below the root (Roo Code reads it at the root only)
+      files:
+        packages/app/.agents/skills-code/review/SKILL.md: "---\nname: review\n---\nReview.\n"
 
 RC-AGENT-002:
   positive:

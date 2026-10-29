@@ -1,0 +1,64 @@
+name: False positive
+description: repovet reported something that is not a problem.
+title: "False positive: <rule ID> "
+labels: ["false positive"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Please do **not** paste real malware, secrets, tokens or
+        private code. A small, harmless example that triggers the rule is best.
+  - type: input
+    id: version
+    attributes:
+      label: repovet version
+      description: Output of `repovet --version`.
+      placeholder: repovet 0.2.0
+    validations:
+      required: true
+  - type: input
+    id: command
+    attributes:
+      label: Command
+      description: The command you ran (remove anything private).
+      placeholder: repovet scan https://github.com/<owner>/<repo>
+    validations:
+      required: true
+  - type: input
+    id: rule
+    attributes:
+      label: Rule ID
+      description: The ID of the finding, for example RC-DLX-001.
+      placeholder: RC-XXX-000
+    validations:
+      required: true
+  - type: textarea
+    id: finding
+    attributes:
+      label: The finding
+      description: The finding as repovet printed it (place, message, quoted line).
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: Harmless example
+      description: >
+        The smallest file name and content that trigger the rule. Use placeholder
+        domains such as example.invalid and dummy values.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why is this not a problem?
+      description: What the code or file really does, and links if it helps.
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Operating system and Python version
+      placeholder: Windows 11, Python 3.12

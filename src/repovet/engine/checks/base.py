@@ -9,7 +9,7 @@ from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 
 from repovet.limits import Limits, format_size
-from repovet.models import CoverageCollector, CoverageStatus
+from repovet.models import Confidence, CoverageCollector, CoverageStatus
 from repovet.parsers.structured import FORMAT_LABELS, ParseError, parse
 from repovet.sources.tree import FileTree, RepoFile, basename, decode_text
 
@@ -27,6 +27,9 @@ class Match:
     column: int | None = None
     evidence: str | None = None
     values: Mapping[str, str] = field(default_factory=dict)
+    # Lower confidence for this match than the rule's (never higher), e.g. when the
+    # match looks like a regular expression in a string rather than code.
+    confidence: Confidence | None = None
 
 
 # --- parameters ----------------------------------------------------------------

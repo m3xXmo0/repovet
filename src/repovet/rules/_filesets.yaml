@@ -11,7 +11,12 @@ markdown_files:
   - "**/*.markdown"
   - "**/*.mdx"
 
-# Files that AI coding agents read as instructions or configuration.
+# Files that AI coding agents load as instructions or configuration. Skills count only
+# in the folders the agents load them from; docs/agent-skills.md lists the folders per
+# tool with links to their documentation. Folders searched below the repository root
+# (Claude Code, Codex, Cursor, OpenCode) match at any depth, the others at the root.
+# .claude/**, .codex/**, .gemini/**, .clinerules/**, .roo/** and .junie/** already cover
+# the skill folders of those tools.
 agent_files:
   - "**/CLAUDE.md"
   - "CLAUDE.local.md"
@@ -35,7 +40,16 @@ agent_files:
   - ".junie/**"
   - ".kiro/steering/**"
   - ".amazonq/rules/**"
-  - "**/SKILL.md"
+  - "**/.claude/skills/**"
+  - "**/.agents/skills/**"
+  - ".github/skills/**"
+  - "**/.cursor/skills/**"
+  - "**/.opencode/skills/**"
+  - ".agents/skills-*/**"
+  - ".cline/skills/**"
+  - ".windsurf/skills/**"
+  - ".devin/skills/**"
+  - ".kiro/skills/**"
   - ".claude/**"
   - ".mcp.json"
   - ".cursor/mcp.json"
@@ -44,6 +58,12 @@ agent_files:
   - ".codex/**"
   - ".aider.conf.yml"
   - "opencode.json"
+
+# Agent skills wherever they are. Outside the skill folders above no agent loads them
+# by itself, but they are written for agents and get installed by copying them (or as
+# part of a plugin), so the content rules check them too.
+skill_files:
+  - "**/SKILL.md"
 
 # Agent instruction files that support @path imports (Claude Code, AGENTS.md).
 agent_import_files:
@@ -285,3 +305,50 @@ test_data:
   - "**/test_data/**"
   - "**/fixtures/**"
   - "**/__fixtures__/**"
+
+# Path contexts: findings in these files get a label in the report (vendored, test,
+# example, docs). They are never hidden or downgraded because of it: attackers place
+# payloads in tests and examples too. The first matching set wins.
+context_vendored:
+  - "**/node_modules/**"
+  - "**/bower_components/**"
+  - "**/.venv/**"
+  - "**/venv/**"
+  - "**/site-packages/**"
+  - "**/vendor/**"
+  - "**/vendored/**"
+  - "**/_vendor/**"
+  - "**/third_party/**"
+  - "**/third-party/**"
+
+context_test:
+  - "**/test/**"
+  - "**/tests/**"
+  - "**/spec/**"
+  - "**/test_*.py"
+  - "**/*_test.py"
+  - "**/conftest.py"
+  - "**/*.test.*"
+  - "**/*.spec.*"
+  - "**/*_test.go"
+  - "**/*_test.rs"
+  - "**/*_tests.rs"
+  - "**/__tests__/**"
+  - "**/testdata/**"
+  - "**/test_data/**"
+  - "**/fixtures/**"
+  - "**/__fixtures__/**"
+  - "**/__snapshots__/**"
+
+context_example:
+  - "**/examples/**"
+  - "**/example/**"
+  - "**/samples/**"
+  - "**/sample/**"
+  - "**/demo/**"
+  - "**/demos/**"
+
+context_docs:
+  - "**/docs/**"
+  - "**/doc/**"
+  - "**/documentation/**"
