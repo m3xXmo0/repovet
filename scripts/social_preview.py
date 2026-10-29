@@ -114,19 +114,24 @@ def sample_result() -> ScanResult:
     )
 
 
-def draw_line(draw: ImageDraw.ImageDraw, xy: tuple[int, int], line: str, mono: object) -> None:
+def draw_line(
+    draw: ImageDraw.ImageDraw,
+    xy: tuple[int, int],
+    line: str,
+    mono: ImageFont.FreeTypeFont | ImageFont.ImageFont,
+) -> None:
     x, y = xy
     position = 0
     for match in _LEVEL.finditer(line):
         before = line[position : match.start()]
-        draw.text((x, y), before, font=mono, fill=TEXT)  # type: ignore[arg-type]
-        x += int(draw.textlength(before, font=mono))  # type: ignore[arg-type]
+        draw.text((x, y), before, font=mono, fill=TEXT)
+        x += int(draw.textlength(before, font=mono))
         word = match.group(0)
         color = LEVEL_COLORS.get(word.split()[-1], TEXT)
-        draw.text((x, y), word, font=mono, fill=color)  # type: ignore[arg-type]
-        x += int(draw.textlength(word, font=mono))  # type: ignore[arg-type]
+        draw.text((x, y), word, font=mono, fill=color)
+        x += int(draw.textlength(word, font=mono))
         position = match.end()
-    draw.text((x, y), line[position:], font=mono, fill=TEXT)  # type: ignore[arg-type]
+    draw.text((x, y), line[position:], font=mono, fill=TEXT)
 
 
 def render(output: Path) -> None:
