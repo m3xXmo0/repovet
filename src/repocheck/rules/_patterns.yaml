@@ -1,0 +1,53 @@
+# Named regex building blocks. Rules reference them as {{name}}; a pattern may use
+# other patterns. Every pattern must pass the ReDoS test (tests/test_redos.py).
+
+# A command that downloads something.
+network_fetch: '(?i:\b(?:curl|wget|Invoke-WebRequest|Invoke-RestMethod|iwr|irm|Start-BitsTransfer|bitsadmin)\b|\bcertutil\b[^\n]{0,80}-urlcache)'
+
+# Output piped straight into an interpreter.
+shell_pipe_exec: '(?i:\|[ \t]*(?:sudo[ \t]+)?(?:sh|bash|zsh|dash|ksh|python[23]?|node|perl|ruby|iex|Invoke-Expression)\b)'
+
+# Encoded payloads that are decoded right away.
+encoded_payload: '(?i:\bbase64[ \t]+(?:-d|--decode)\b|\bFromBase64String\b|[ \t]-(?:e|ec|en|enc|encodedcommand)[ \t]+[A-Za-z0-9+/]{40,}={0,2})'
+
+# Download and run in one step: a download piped into an interpreter, a shell running
+# a command or process substitution of a download, PowerShell IEX of a download.
+# The gap between download and pipe is bounded to keep the search linear.
+download_exec: '(?:{{network_fetch}})[^\n]{0,300}?{{shell_pipe_exec}}|(?i:\b(?:ba|z|da|k)?sh[ \t]+(?:-c[ \t]+)?["'']?\$\([ \t]*(?:curl|wget)\b)|(?i:\b(?:ba|z|da|k)?sh[ \t]+<\([ \t]*(?:curl|wget)\b)|(?i:\b(?:iex|Invoke-Expression)\b[ \t]*\(?[ \t]*\(?[ \t]*(?:iwr|irm|Invoke-WebRequest|Invoke-RestMethod|New-Object[ \t]+(?:System\.)?Net\.WebClient)\b)|(?i:\.DownloadString\()'
+
+# Anything that downloads, runs a download or decodes a payload.
+fetch_or_run: '{{download_exec}}|{{network_fetch}}|{{shell_pipe_exec}}|{{encoded_payload}}'
+
+# Windows UNC path to another machine (\\server\share).
+unc_path: '\\\\[A-Za-z0-9._$-]+[\\/]'
+
+# file:// URL that names a remote host.
+remote_file_url: '(?i:\bfile:(?:/{2}|\\{2})(?![/\\]|localhost[/\\])[^/\\\s"<>]+[/\\])'
+
+# A path inside the opened folder: ${workspaceFolder}, ./ or ../, or a relative path
+# with a separator. Paths into local virtual environments are excluded (created by the
+# user, not part of the repository).
+repo_relative_path: '\A(?![^\n]*[\\/](?:\.?venv|env|\.conda|\.pixi)[\\/])(?:\$\{workspace(?:Folder|Root)(?::[^}\n]*)?\}|\.{1,2}(?:[\\/]|\Z)|(?![A-Za-z]:|[\\/~$%])[^\s\\/]+[\\/])'
+
+# Paths to secrets and credentials (SSH keys, cloud credentials, .env files, key stores).
+# Example/template .env files are not secrets.
+secret_path: '(?i:(?:\A|[\\/])(?:\.ssh|\.aws|\.gnupg|\.docker|\.kube|\.azure|\.config[\\/]gcloud)(?:[\\/]|\Z)|(?:\A|[\\/])(?:id_(?:rsa|dsa|ecdsa|ed25519)|\.netrc|\.npmrc|\.pypirc|\.git-credentials|\.pgpass|credentials(?:\.json)?|wallet\.dat|[\w-]+\.(?:pem|key|p12|pfx|kdbx))\Z|(?:\A|[\\/])\.env(?:\.(?!example\Z|sample\Z|template\Z|dist\Z)[\w-]+)?\Z)'
+
+# Services and addresses typically used to receive stolen data: request catchers,
+# tunnels, paste and file hosts, chat webhooks, raw public IP addresses (not loopback,
+# private, link-local, carrier-grade NAT, benchmark or documentation ranges, and not the
+# public DNS resolvers or example.com addresses used in connectivity checks and tests).
+exfil_host: '(?i:\b(?:webhook\.site|requestbin\.(?:com|net)|pipedream\.net|hookbin\.com|beeceptor\.com|requestcatcher\.com|webhook\.cool|interact\.sh|interactsh\.com|oast\.(?:pro|live|site|online|fun|me)|burpcollaborator\.net|oastify\.com|canarytokens\.(?:com|org)|ngrok(?:-free)?\.(?:io|app|dev)|trycloudflare\.com|loca\.lt|localtunnel\.me|serveo\.net|pastebin\.com|paste\.ee|hastebin\.com|termbin\.com|transfer\.sh|file\.io|0x0\.st|discord(?:app)?\.com/api/webhooks|api\.telegram\.org/bot|hooks\.slack\.com/services))|\bhttps?://(?!(?:127|10|0)\.|192\.168\.|172\.(?:1[6-9]|2\d|3[01])\.|169\.254\.|100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.|192\.0\.2\.|198\.51\.100\.|198\.1[89]\.|203\.0\.113\.|(?:1\.1\.1\.1|1\.0\.0\.1|8\.8\.8\.8|8\.8\.4\.4|9\.9\.9\.9|93\.184\.215\.14|93\.184\.216\.34)(?![\d.]))\d{1,3}(?:\.\d{1,3}){3}\b'
+
+# Boolean-looking values (Git config); used to tell commands from switches.
+not_boolean: '\A(?![ \t]*(?i:true|false|yes|no|on|off|1|0)[ \t]*\Z)[ \t]*\S'
+
+# Decoded content that looks like code or commands (for blobs that decode to code).
+decoded_code: '(?i:\bimport[ \t]+[\w.]+|\bfrom[ \t]+[\w.]+[ \t]+import\b|\b(?:exec|eval)[ \t]*\(|\brequire[ \t]*\([ \t]*[''"]|\bsubprocess\b|\bchild_process\b|\bos\.(?:system|popen)\b|\bpowershell\b|\bInvoke-Expression\b|\biex\b|/bin/(?:ba)?sh\b|\b(?:curl|wget)[ \t]+-?|\bsocket\.socket\b|\bfunction[ \t]*[\w$]*[ \t]*\([^)\n]{0,80}\)[ \t]*\{|\bcmd(?:\.exe)?[ \t]+/c\b|\bchmod[ \t]+\+x\b|\bnew-object[ \t]+net\.webclient\b|\bwscript\.shell\b)'
+
+# Temporary folders a dropper writes to before running the file.
+temp_path: '(?i:/tmp/|/var/tmp/|/dev/shm/|%te?mp%|\$env:te?mp\b|\$TMPDIR\b|\bGetTempPath\b|\$\{?TMPDIR\}?)'
+
+# A line that is only a comment (shell/Python/PowerShell #, C-style // and /* *,
+# Lua/SQL --, batch REM and ::). Code in comments does not run.
+comment_line: '\A[ \t]*(?:#|//|/\*|\*|--|::|(?i:rem)\b)'

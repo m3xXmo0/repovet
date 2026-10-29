@@ -1,0 +1,141 @@
+# Provenance rules. `history` builds repo/.git with these commits (oldest first; see
+# tests/gitrepo.py: `repeat`, `step`, `commit_step`, `generated_files`). Dates are Unix
+# seconds. Nothing is checked out; only the object store is written under tmp_path.
+
+RC-PROV-001:
+  positive:
+    - name: sixty files in the first commit, one small change after
+      history:
+        - {generated_files: 60, message: "Initial import\n"}
+        - {generated_files: 60, files: {README.md: "# demo\n"}}
+      expect: [{repository: true}]
+  negative:
+    - name: the project grew after a small first commit
+      history:
+        - {generated_files: 10}
+        - {generated_files: 60}
+    - name: large first commit but an active history afterwards
+      history:
+        - {generated_files: 60, repeat: 7}
+    - name: small repository
+      history:
+        - {generated_files: 5}
+
+RC-PROV-002:
+  positive:
+    - name: commit dated in the year 2100
+      history:
+        - {files: {a.txt: "a\n"}, author_time: 4102444800}
+      expect: [{repository: true}]
+  negative:
+    - name: dates in the past
+      history:
+        - {files: {a.txt: "a\n"}, author_time: 1700000000}
+
+RC-PROV-003:
+  positive:
+    - name: author date two days after the commit date
+      history:
+        - {files: {a.txt: "a\n"}, author_time: 1700172800, commit_time: 1700000000}
+      expect: [{repository: true}]
+  negative:
+    - name: rebased commit keeps an older author date
+      history:
+        - {files: {a.txt: "a\n"}, author_time: 1690000000, commit_time: 1700000000}
+
+RC-PROV-004:
+  positive:
+    - name: twenty commits over three weeks, all committed within twenty minutes
+      history:
+        - {files: {a.txt: "a\n"}, repeat: 20, author_time: 1690000000, step: 86400,
+           commit_time: 1700000000, commit_step: 60}
+      expect: [{repository: true}]
+  negative:
+    - name: commits made day by day
+      history:
+        - {files: {a.txt: "a\n"}, repeat: 20, author_time: 1690000000, step: 86400}
+    - name: few commits rebased at once
+      history:
+        - {files: {a.txt: "a\n"}, repeat: 5, author_time: 1690000000, step: 86400,
+           commit_time: 1700000000, commit_step: 60}
+
+RC-PROV-005:
+  positive:
+    - name: twenty commits within four minutes
+      history:
+        - {files: {a.txt: "a\n"}, repeat: 20, author_time: 1700000000, step: 10}
+      expect: [{repository: true}]
+  negative:
+    - name: twenty commits over a day
+      history:
+        - {files: {a.txt: "a\n"}, repeat: 20, author_time: 1700000000, step: 3600}
+    - name: a handful of quick commits
+      history:
+        - {files: {a.txt: "a\n"}, repeat: 5, author_time: 1700000000, step: 10}
+
+RC-PROV-010:
+  positive:
+    - name: Claude Code co-author trailer
+      history:
+        - {files: {a.txt: "a\n"}}
+        - files: {a.txt: "b\n"}
+          message: "Add parser\n\nCo-Authored-By: Claude <noreply@example.invalid>\n"
+      expect: [{repository: true}]
+    - name: generated-with line
+      history:
+        - files: {a.txt: "a\n"}
+          message: "Add parser\n\nGenerated with [Claude Code](https://example.invalid)\n"
+    - name: commit authored by the Copilot agent
+      history:
+        - files: {a.txt: "a\n"}
+          author: "Copilot <198982749+Copilot@users.noreply.example.invalid>"
+    - name: aider commit prefix
+      history:
+        - {files: {a.txt: "a\n"}, message: "aider: Add retry to the client\n"}
+  negative:
+    - name: human co-author and a person named Claude
+      history:
+        - files: {a.txt: "a\n"}
+          message: "Fix typo reported by Claude Martin\n\nCo-authored-by: Jane Doe <jane@example.invalid>\n"
+          author: "Claude Martin <claude.martin@example.invalid>"
+    - name: tool names only in the subject
+      history:
+        - {files: {a.txt: "a\n"}, message: "Document how to use Copilot and Cursor\n"}
+
+RC-PROV-011:
+  positive:
+    - name: README footer
+      files:
+        README.md: |
+          # Demo
+
+          This project was generated with Claude Code.
+      expect: [{path: README.md, line: 3}]
+    - name: code comment
+      files:
+        src/app.py: "# Written by GPT-4o, reviewed by a human\nx = 1\n"
+      expect: [{path: src/app.py, line: 1}]
+  negative:
+    - name: ordinary words
+      files:
+        docs/db.md: |
+          IDs are generated using cursor pagination.
+          The painting was created by Claude Monet.
+          Written with care by the team.
+    - name: test module
+      files:
+        tests/test_x.py: "s = 'generated with Claude Code'\n"
+
+RC-PROV-012:
+  positive:
+    - name: aider chat history
+      files:
+        .aider.chat.history.md: "# aider chat started at 2026-01-01 10:00:00\n"
+      expect: [{path: .aider.chat.history.md}]
+    - name: SpecStory history
+      files:
+        .specstory/history/2026-01-01_session.md: "chat\n"
+  negative:
+    - name: aider configuration only
+      files:
+        .aider.conf.yml: "model: example\n"

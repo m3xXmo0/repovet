@@ -1,0 +1,141 @@
+[project]
+name = "repocheck"
+version = "0.1.0"
+description = "Static check of an untrusted Git repository before you run anything from it."
+requires-python = ">=3.12"
+dependencies = ["PyYAML==6.0.3", "dulwich==1.2.17"]
+
+[project.scripts]
+repocheck = "repocheck.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest==9.2.0",
+    "mypy==2.4.1",
+    "ruff==0.17.3",
+    "types-PyYAML==6.0.12.20260906",
+    "jsonschema==4.26.0",
+    "types-jsonschema==4.26.0.20261006",
+]
+
+[build-system]
+requires = ["hatchling==1.33.0"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/repocheck"]
+
+[tool.uv]
+required-version = ">=0.8"
+
+# --- ruff -------------------------------------------------------------------
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src", "tests"]
+# Markdown files contain sketch code that ruff must not reformat.
+extend-exclude = ["*.md"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "S", "SIM", "RUF", "TID", "C4", "PTH", "PL"]
+ignore = [
+    "PLR0911", # many returns are fine in validators
+    "PLR0912",
+    "PLR0913",
+    "PLR0915",
+    "PLR0917",
+    "PLR2004", # magic values in parsers are clearer inline
+]
+
+[tool.ruff.lint.per-file-ignores]
+# The walker works on plain strings with os.scandir/os.lstat for speed and exact
+# no-follow semantics; os.path.join is platform-neutral.
+"src/repocheck/sources/local.py" = ["PTH"]
+# Git objects are read with os.open (no-follow flags) and plain string paths.
+"src/repocheck/sources/gitobjects.py" = ["PTH"]
+"src/repocheck/sources/gitmeta.py" = ["PTH"]
+# The one module that fetches from the network (dulwich.client).
+"src/repocheck/sources/remote.py" = ["TID251"]
+"tests/**" = ["S101", "PLC0415"]
+# The network lock has to replace socket objects (and its test uses them).
+"tests/conftest.py" = ["TID251"]
+"tests/test_network_lock.py" = ["TID251"]
+# The ReDoS test runs regexes in a child process so a hanging regex can be killed.
+"tests/test_redos.py" = ["TID251"]
+# Test repositories are built with dulwich.repo, and served over loopback HTTP.
+"tests/gitrepo.py" = ["TID251"]
+"tests/test_remote_http.py" = ["TID251"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"subprocess".msg = "repocheck never starts processes."
+"multiprocessing".msg = "repocheck never starts processes."
+"os.system".msg = "repocheck never starts processes."
+"os.popen".msg = "repocheck never starts processes."
+"os.startfile".msg = "repocheck never starts processes."
+"os.execl".msg = "repocheck never starts processes."
+"os.execle".msg = "repocheck never starts processes."
+"os.execlp".msg = "repocheck never starts processes."
+"os.execv".msg = "repocheck never starts processes."
+"os.execve".msg = "repocheck never starts processes."
+"os.execvp".msg = "repocheck never starts processes."
+"os.execvpe".msg = "repocheck never starts processes."
+"os.spawnl".msg = "repocheck never starts processes."
+"os.spawnv".msg = "repocheck never starts processes."
+"os.posix_spawn".msg = "repocheck never starts processes."
+"os.posix_spawnp".msg = "repocheck never starts processes."
+"os.fork".msg = "repocheck never starts processes."
+"pty".msg = "repocheck never starts processes."
+"runpy".msg = "Repository code is never run."
+"importlib.import_module".msg = "Repository code is never imported."
+"importlib.util".msg = "Repository code is never imported."
+"importlib.machinery".msg = "Repository code is never imported."
+"pickle".msg = "Unsafe deserialization."
+"marshal".msg = "Unsafe deserialization."
+"shelve".msg = "Unsafe deserialization."
+"yaml.load".msg = "Use yaml.safe_load or repocheck.parsers.structured."
+"yaml.load_all".msg = "Use yaml.safe_load or repocheck.parsers.structured."
+"yaml.full_load".msg = "Use yaml.safe_load or repocheck.parsers.structured."
+"yaml.full_load_all".msg = "Use yaml.safe_load or repocheck.parsers.structured."
+"yaml.unsafe_load".msg = "Use yaml.safe_load or repocheck.parsers.structured."
+"yaml.unsafe_load_all".msg = "Use yaml.safe_load or repocheck.parsers.structured."
+"yaml.Loader".msg = "Use yaml.SafeLoader."
+"yaml.FullLoader".msg = "Use yaml.SafeLoader."
+"yaml.UnsafeLoader".msg = "Use yaml.SafeLoader."
+"webbrowser".msg = "repocheck never opens programs."
+"socket".msg = "Local analysis is offline."
+"urllib.request".msg = "Network access only in sources/remote.py and github/."
+"http.client".msg = "Network access only in sources/remote.py and github/."
+"dulwich.client".msg = "Network access only in sources/remote.py."
+"dulwich.porcelain".msg = "Porcelain checks out work trees and honours repository config."
+"dulwich.index".msg = "No checkout: files are read from the object store."
+"dulwich.worktree".msg = "No checkout: files are read from the object store."
+"dulwich.hooks".msg = "Hooks are never run."
+"dulwich.submodule".msg = "Submodules are never fetched."
+"dulwich.lfs".msg = "LFS objects are never fetched."
+"dulwich.filters".msg = "Filters are never run."
+"dulwich.repo".msg = "Open object stores directly; Repo reads repository config."
+# Bare builtins (compile, __import__) cannot be banned here; tests/test_self_check.py
+# covers them. exec/eval are caught by S102/S307.
+
+# --- mypy -------------------------------------------------------------------
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+files = ["src", "tests"]
+
+# --- pytest -----------------------------------------------------------------
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["-ra", "--strict-markers"]
+markers = [
+    "slow: takes several seconds (performance test); runs by default",
+    "corpus: needs REPOCHECK_CORPUS_DIR with downloaded real-world repositories",
+]
+xfail_strict = true

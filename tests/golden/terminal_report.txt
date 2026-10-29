@@ -1,0 +1,36 @@
+repocheck 0.1.0 · local folder D:\src\demo · offline · 1,284 files · 3 rules
+Lines starting with '>' are untrusted content quoted from the repository.
+
+DANGER                                   1 critical · 1 medium
+  CRITICAL  RC-AGENT-002  CLAUDE.md:3                           confidence high
+            2 invisible tag characters hide this text: "Hi"
+            > Hello<U+E0048><U+E0069> <U+001B>[31m
+            Why  Unicode tag characters are invisible in editors and on GitHub,
+                 but AI models read them as text and may follow hidden
+                 instructions in them.
+            Do   Read it first.
+
+  MEDIUM    RC-AUTO-001   package.json:3                        confidence high
+            package.json defines a 'postinstall' script: node x.js
+            Why  Because tools run this automatically.
+            Do   Read it first.
+
+TRUST                                    1 low
+  LOW       RC-TRUST-001  (repository)                          confidence high
+            Something was found.
+            Why  Because tools run this automatically.
+            Do   Read it first.
+
+PROVENANCE PROFILE                       facts, not findings
+  Files      1,284 files, 12.3 MB; 1,100 text files with 98,765 lines, 184
+             binary
+  Languages  Python 80% (310 files), Shell 20% (4 files)
+  Notable    AI agent files (1): CLAUDE<U+202E>.md
+             dev container (1): .devcontainer/devcontainer.json
+
+NOT CHECKED
+  - trust (GitHub API): not implemented yet (milestone 4)
+  - Files larger than 2 MB, content not checked (4): assets/a.mp4, assets/b.mp4, assets/c.mp4, …
+
+repocheck reports only what its 3 rules detect in the checked scope.
+A missing finding is not proof that the repository is safe.

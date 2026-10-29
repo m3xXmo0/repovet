@@ -1,0 +1,78 @@
+# False-positive corpus: well-known, maintained
+# repositories with .vscode, .devcontainer or agent files (M1c) and with vendored code,
+# binaries, archives, lockfiles and MSBuild projects (M2f). The scan of each must not produce
+# high/critical findings, except those listed under `accepted` with a reason.
+# See README.md in this folder for how to download them (or scan them by URL, M3);
+# tests never use the network.
+
+- name: flask
+  repo: pallets/flask
+  commit: d086db8
+  why: Python; .devcontainer, pre-commit, setup tooling
+  accepted: []
+
+- name: claude-code
+  repo: anthropics/claude-code
+  commit: 58d6da1
+  why: agent files (.claude/commands, CLAUDE.md-style docs), .devcontainer
+  accepted: []
+
+- name: codex
+  repo: openai/codex
+  commit: 4e2dfd2
+  why: AGENTS.md, .vscode, .devcontainer; TypeScript and Rust (build.rs)
+  accepted: []
+
+- name: pydantic-ai
+  repo: pydantic/pydantic-ai
+  commit: "6372750"
+  why: Python; CLAUDE.md/AGENTS.md, skills, .claude settings, MCP examples
+  accepted: []
+
+- name: vscode-extension-samples
+  repo: microsoft/vscode-extension-samples
+  commit: 65c1c44
+  why: JavaScript/TypeScript; many .vscode/tasks.json, launch and settings files
+  accepted: []
+
+- name: pip
+  repo: pypa/pip
+  commit: "1000636"
+  why: Python; vendored libraries with executables, test data with sample packages, wheels and archives
+  accepted:
+    - rule: RC-BIN-001
+      path: src/pip/_vendor/distlib/t32.exe
+      reason: distlib's script launchers, vendored by pip and installed as console-script
+        wrappers on Windows; real executables, built from the separate simple_launcher project
+    - rule: RC-BIN-001
+      path: src/pip/_vendor/distlib/t64.exe
+      reason: distlib's script launchers, vendored by pip and installed as console-script
+        wrappers on Windows; real executables, built from the separate simple_launcher project
+    - rule: RC-BIN-001
+      path: src/pip/_vendor/distlib/t64-arm.exe
+      reason: distlib's script launchers, vendored by pip and installed as console-script
+        wrappers on Windows; real executables, built from the separate simple_launcher project
+    - rule: RC-BIN-001
+      path: src/pip/_vendor/distlib/w32.exe
+      reason: distlib's script launchers, vendored by pip and installed as console-script
+        wrappers on Windows; real executables, built from the separate simple_launcher project
+    - rule: RC-BIN-001
+      path: src/pip/_vendor/distlib/w64.exe
+      reason: distlib's script launchers, vendored by pip and installed as console-script
+        wrappers on Windows; real executables, built from the separate simple_launcher project
+    - rule: RC-BIN-001
+      path: src/pip/_vendor/distlib/w64-arm.exe
+      reason: distlib's script launchers, vendored by pip and installed as console-script
+        wrappers on Windows; real executables, built from the separate simple_launcher project
+
+- name: vite
+  repo: vitejs/vite
+  commit: cce559a
+  why: JavaScript/TypeScript; pnpm lockfile and workspaces, WebAssembly test fixtures, many workflows
+  accepted: []
+
+- name: humanizer
+  repo: Humanizr/Humanizer
+  commit: 4574b93
+  why: .NET; csproj and Directory.Build files (MSBuild), NuGet, workflows
+  accepted: []

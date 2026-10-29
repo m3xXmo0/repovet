@@ -1,0 +1,841 @@
+# Area autorun (RC-AUTO): code that tools run automatically during install, build,
+# when a folder is opened, or on Git operations.
+
+# --- npm / package.json --------------------------------------------------------------
+
+- id: RC-AUTO-001
+  title: npm install lifecycle script present
+  area: autorun
+  severity: medium
+  confidence: high
+  files: ["**/package.json"]
+  exclude: [{set: vendored}, {set: test_data}]
+  check:
+    type: keypath
+    format: json
+    paths: [scripts.preinstall, scripts.install, scripts.postinstall]
+  message: "package.json defines a '{key}' script: {value}"
+  rationale: >
+    npm, pnpm and yarn run this script automatically when dependencies are installed
+    in this folder, with your user rights and before you have used the project.
+  recommendation: >
+    Read the script and every file it calls before installing. To install without
+    running scripts, use `npm install --ignore-scripts`.
+  references:
+    - https://docs.npmjs.com/cli/using-npm/scripts#life-cycle-scripts
+  tags: [npm, install]
+
+- id: RC-AUTO-002
+  title: npm prepare or prepack script present
+  area: autorun
+  severity: low
+  confidence: high
+  files: ["**/package.json"]
+  exclude: [{set: vendored}, {set: test_data}]
+  check:
+    type: keypath
+    format: json
+    paths: [scripts.prepare, scripts.prepack]
+  message: "package.json defines a '{key}' script: {value}"
+  rationale: >
+    npm runs `prepare` after a plain `npm install` in this folder and when the package
+    is installed from Git; `prepack` runs before `npm pack` and `npm publish`.
+    Often a harmless build step.
+  recommendation: >
+    Check what the script runs before installing. `npm install --ignore-scripts`
+    skips it.
+  references:
+    - https://docs.npmjs.com/cli/using-npm/scripts#life-cycle-scripts
+  tags: [npm, install]
+
+- id: RC-AUTO-003
+  title: npm lifecycle script downloads or executes code
+  area: autorun
+  severity: high
+  confidence: high
+  files: ["**/package.json"]
+  exclude: [{set: vendored}, {set: test_data}]
+  check:
+    type: keypath
+    format: json
+    paths: [scripts.preinstall, scripts.install, scripts.postinstall, scripts.prepare]
+    value_regex: "{{fetch_or_run}}"
+  message: "'{key}' script fetches or runs code ({match}): {value}"
+  rationale: >
+    npm runs this script automatically during `npm install` in this folder. It
+    contains a download, a pipe into an interpreter or an encoded payload, so what runs
+    may not be in the repository at all.
+  recommendation: >
+    Do not install as is. Read the script; if you need the dependencies, use
+    `npm install --ignore-scripts`.
+  references:
+    - https://docs.npmjs.com/cli/using-npm/scripts#life-cycle-scripts
+  tags: [npm, install, download]
+
+# --- Python packaging ----------------------------------------------------------------
+
+- id: RC-AUTO-010
+  title: setup.py present
+  area: autorun
+  severity: low
+  confidence: high
+  files: ["**/setup.py"]
+  exclude: [{set: vendored}, {set: test_data}]
+  check:
+    type: filename
+  message: "{path} is Python code that runs on install from source or build"
+  rationale: >
+    `pip install .`, `pip install` of a source distribution or Git URL, and package
+    builds execute setup.py with your user rights.
+  recommendation: >
+    Read setup.py before installing. Prefer installing a published wheel, which does
+    not run setup.py.
+  references:
+    - https://packaging.python.org/en/latest/discussions/setup-py-deprecated/
+  tags: [python, install]
+
+- id: RC-AUTO-011
+  title: setup.py starts processes, uses the network, runs or decodes code
+  area: autorun
+  severity: high
+  confidence: medium
+  files: ["**/setup.py"]
+  exclude: [{set: vendored}, {set: test_data}]
+  check:
+    type: python_ast
+    calls:
+      - "subprocess.*"
+      - os.system
+      - os.popen
+      - "os.exec*"
+      - "os.spawn*"
+      - "os.posix_spawn*"
+      - os.startfile
+      - pty.spawn
+      - "commands.*"
+      - "urllib.request.*"
+      - "urllib.urlopen"
+      - "urllib.urlretrieve"
+      - "urllib2.*"
+      - "urllib3.*"
+      - "http.client.*"
+      - "requests.*"
+      - "httpx.*"
+      - "aiohttp.*"
+      - "socket.*"
+      - "ftplib.*"
+      - exec
+      - eval
+      - compile
+      - "base64.*decode*"
+      - codecs.decode
+      - zlib.decompress
+      - bz2.decompress
+      - lzma.decompress
+      - marshal.loads
+      - pickle.loads
+      - "ctypes.*"
+      - "runpy.*"
+  message: "setup.py calls {match}()"
+  rationale: >
+    setup.py runs during install from source and during builds. Starting processes,
+    network access, dynamic code execution or decoding payloads there means code runs
+    that is not visible in the package metadata. Some projects do this legitimately
+    (for example to read the version from Git).
+  recommendation: >
+    Read the code around this call before installing. Install a published wheel
+    instead of building from source if you can.
+  references:
+    - https://packaging.python.org/en/latest/discussions/setup-py-deprecated/
+  tags: [python, install]
+
+- id: RC-AUTO-012
+  title: setup.py overrides setup commands (cmdclass)
+  area: autorun
+  severity: medium
+  confidence: high
+  files: ["**/setup.py"]
+  exclude: [{set: vendored}, {set: test_data}]
+  check:
+    type: python_ast
+    keywords: [cmdclass]
+    in_call: [setup, "*.setup"]
+  message: "setup.py replaces setup commands via cmdclass"
+  rationale: >
+    `cmdclass` swaps built-in commands such as install, build or egg_info for custom
+    code, which then runs during install. Common for C extensions, but also a known way
+    to hide install-time code.
+  recommendation: >
+    Read the classes passed in cmdclass, especially their run() methods.
+  references:
+    - https://setuptools.pypa.io/en/latest/userguide/extension.html
+  tags: [python, install]
+
+- id: RC-AUTO-013
+  title: Unknown Python build backend
+  area: autorun
+  severity: medium
+  confidence: medium
+  files: ["**/pyproject.toml"]
+  exclude: [{set: vendored}, {set: test_data}]
+  check:
+    type: keypath
+    format: toml
+    paths: [build-system.build-backend]
+    not_in:
+      - setuptools.build_meta
+      - "setuptools.build_meta:__legacy__"
+      - hatchling.build
+      - flit_core.buildapi
+      - flit.buildapi
+      - poetry.core.masonry.api
+      - poetry.masonry.api
+      - pdm.backend
+      - pdm.pep517.api
+      - maturin
+      - scikit_build_core.build
+      - mesonpy
+      - uv_build
+      - sipbuild.api
+      - pbr.build
+      - whey
+      - enscons.api
+  message: "pyproject.toml uses the build backend '{value}'"
+  rationale: >
+    pip imports and runs the build backend when installing from source. This backend is
+    not one of the widely used ones, so its code deserves a look.
+  recommendation: >
+    Find out where the backend comes from (requires in [build-system]) before
+    installing from source.
+  references:
+    - https://peps.python.org/pep-0517/
+  tags: [python, install]
+
+- id: RC-AUTO-014
+  title: Python build backend loaded from the repository (backend-path)
+  area: autorun
+  severity: high
+  confidence: high
+  files: ["**/pyproject.toml"]
+  exclude: [{set: vendored}, {set: test_data}]
+  check:
+    type: keypath
+    format: toml
+    paths: [build-system.backend-path]
+  message: "pyproject.toml loads its build backend from the repository: {value}"
+  rationale: >
+    With `backend-path` the build backend is Python code inside this repository; pip
+    runs it when installing from source.
+  recommendation: >
+    Read the backend code in the listed folder before installing from source.
+  references:
+    - https://peps.python.org/pep-0517/#in-tree-build-backends
+  tags: [python, install]
+
+# --- VS Code and dev containers ------------------------------------------------------
+
+- id: RC-AUTO-020
+  title: VS Code task runs when the folder is opened
+  area: autorun
+  severity: high
+  confidence: high
+  files: ["**/.vscode/tasks.json"]
+  exclude: [{set: vendored}]
+  check:
+    type: keypath
+    format: jsonc
+    paths: ["tasks.*.runOptions.runOn"]
+    equals: folderOpen
+  message: "A task in this file has runOn: {value}"
+  rationale: >
+    VS Code can start a task with `runOptions.runOn: folderOpen` automatically as soon
+    as the folder is opened in a trusted workspace, without any further action.
+  recommendation: >
+    Open the folder in Restricted Mode (do not trust it) and read the task first.
+    The setting `task.allowAutomaticTasks: off` stops automatic tasks.
+  references:
+    - https://code.visualstudio.com/docs/editor/tasks#_run-behavior
+    - https://code.visualstudio.com/docs/editor/workspace-trust
+  tags: [vscode, ide]
+
+- id: RC-AUTO-021
+  title: VS Code task that runs on folder open downloads or executes code
+  area: autorun
+  severity: critical
+  confidence: high
+  files: ["**/.vscode/tasks.json"]
+  exclude: [{set: vendored}]
+  check:
+    type: keypath
+    format: jsonc
+    paths: ["tasks.*"]
+    where:
+      - {path: runOptions.runOn, equals: folderOpen}
+    value_regex: "{{fetch_or_run}}"
+  message: "Task starts on folder open and fetches or runs code: {match}"
+  rationale: >
+    This task starts as soon as the folder is opened in a trusted workspace, and it
+    downloads code, pipes into an interpreter or decodes a payload.
+  recommendation: >
+    Do not trust this folder in VS Code. Open it in Restricted Mode or another editor
+    and remove the task before working with it.
+  references:
+    - https://code.visualstudio.com/docs/editor/tasks#_run-behavior
+    - https://code.visualstudio.com/docs/editor/workspace-trust
+  tags: [vscode, ide, download]
+
+- id: RC-AUTO-022
+  title: VS Code settings point an interpreter, tool or shell into the repository
+  area: autorun
+  severity: high
+  confidence: medium
+  files: ["**/.vscode/settings.json"]
+  exclude: [{set: vendored}]
+  check:
+    type: keypath
+    format: jsonc
+    paths:
+      - python\.defaultInterpreterPath
+      - python\.pythonPath
+      - python\.condaPath
+      - git\.path
+      - "*\\.executablePath"
+      - "*\\.serverPath"
+      - "*\\.runtimeExecutable"
+      - "terminal\\.integrated\\.shell\\.*"
+      - "terminal\\.integrated\\.profiles\\.*.*.path"
+      - "terminal\\.integrated\\.automationProfile\\.*.path"
+    value_regex: "{{repo_relative_path}}"
+  message: "'{key}' points into the repository: {value}"
+  rationale: >
+    Extensions and the integrated terminal start the program at this path. A program
+    shipped in the repository then runs as soon as the setting is used, possibly right
+    after opening a trusted folder.
+  recommendation: >
+    Open the folder in Restricted Mode and check the referenced file. Remove the setting
+    or point it at a program you installed yourself.
+  references:
+    - https://code.visualstudio.com/docs/editor/workspace-trust
+    - https://code.visualstudio.com/docs/python/settings-reference
+  tags: [vscode, ide]
+
+- id: RC-AUTO-025
+  title: Dev container runs initializeCommand on the host
+  area: autorun
+  severity: high
+  confidence: high
+  files: ["**/.devcontainer/devcontainer.json", "**/.devcontainer.json", "**/.devcontainer/*/devcontainer.json"]
+  exclude: [{set: vendored}]
+  check:
+    type: keypath
+    format: jsonc
+    paths: [initializeCommand]
+  message: "initializeCommand runs on your machine, not in the container: {value}"
+  rationale: >
+    `initializeCommand` runs on the host before the container is created, with your
+    user rights and outside any container isolation.
+  recommendation: >
+    Read the command before reopening the folder in a container.
+  references:
+    - https://containers.dev/implementors/json_reference/#lifecycle-scripts
+  tags: [devcontainer, ide]
+
+# --- Git -------------------------------------------------------------------------------
+
+- id: RC-AUTO-030
+  title: Active Git hook in the repository
+  area: autorun
+  severity: high
+  confidence: high
+  files: ["**/.git/hooks/*"]
+  check:
+    type: filename
+    not_name_regex: '\.sample$'
+  message: "Git hook '{match}' runs automatically on Git operations"
+  rationale: >
+    Git runs hooks in .git/hooks during commits, checkouts, merges and pushes. A cloned
+    repository has only *.sample hooks; an active hook came with the folder.
+  recommendation: >
+    Read the hook or delete it before using Git in this folder.
+  references:
+    - https://git-scm.com/docs/githooks
+  tags: [git]
+
+- id: RC-AUTO-031
+  title: Git config runs commands
+  area: autorun
+  severity: high
+  confidence: high
+  files: ["**/.git/config"]
+  check:
+    type: keypath
+    format: gitconfig
+    paths:
+      - core.hookspath
+      - core.sshcommand
+      - core.pager
+      - core.editor
+      - core.askpass
+      - core.gitproxy
+      - sequence.editor
+      - diff.external
+      - "diff.*.textconv"
+      - "diff.*.command"
+      - "merge.*.driver"
+      - "mergetool.*.cmd"
+      - "difftool.*.cmd"
+      - gpg.program
+      - "gpg.*.program"
+      - include.path
+      - "includeif.*.path"
+      - "remote.*.uploadpack"
+      - "remote.*.receivepack"
+      - {path: "filter.*.clean", value_regex: '\A(?![ \t]*git-lfs\b)[ \t]*\S'}
+      - {path: "filter.*.smudge", value_regex: '\A(?![ \t]*git-lfs\b)[ \t]*\S'}
+      - {path: "filter.*.process", value_regex: '\A(?![ \t]*git-lfs\b)[ \t]*\S'}
+      - {path: credential.helper, value_regex: '\A[ \t]*(?:!|[\\/~.]|[A-Za-z]:)'}
+      - {path: "credential.*.helper", value_regex: '\A[ \t]*(?:!|[\\/~.]|[A-Za-z]:)'}
+      - {path: "pager.*", value_regex: "{{not_boolean}}"}
+      - {path: "alias.*", value_regex: '\A[ \t]*!'}
+      - {path: "submodule.*.update", value_regex: '\A[ \t]*!'}
+  message: "Git config sets {key} = {value}"
+  rationale: >
+    Git runs the configured command during everyday operations such as status, diff,
+    log, fetch or commit. A fresh clone does not contain such settings.
+  recommendation: >
+    Do not run Git in this folder until you have checked .git/config. Remove the entry
+    or clone the repository again.
+  references:
+    - https://git-scm.com/docs/git-config
+  tags: [git]
+
+- id: RC-AUTO-032
+  title: Git config sets core.fsmonitor to a command
+  area: autorun
+  severity: critical
+  confidence: high
+  files: ["**/.git/config"]
+  check:
+    type: keypath
+    format: gitconfig
+    paths: [core.fsmonitor]
+    value_regex: "{{not_boolean}}"
+  message: "core.fsmonitor runs a command on every git status: {value}"
+  rationale: >
+    Git runs the fsmonitor command on almost every command, including `git status`.
+    Editors and IDEs call git status as soon as a folder is opened, so the command runs
+    without any action by you.
+  recommendation: >
+    Do not open this folder in an editor with Git integration and do not run Git in it.
+    Remove the entry or clone the repository again.
+  references:
+    - https://git-scm.com/docs/git-config#Documentation/git-config.txt-corefsmonitor
+  tags: [git, ide]
+
+# --- Build tools -----------------------------------------------------------------------
+
+- id: RC-AUTO-040
+  title: Makefile or justfile downloads and runs code
+  area: autorun
+  severity: high
+  confidence: high
+  files: ["**/Makefile", "**/GNUmakefile", "**/*.mk", "**/justfile", "**/.justfile"]
+  exclude: [{set: vendored}]
+  check:
+    type: regex
+    pattern: "{{download_exec}}"
+  message: "Build recipe downloads and runs code: {match}"
+  rationale: >
+    `make` or `just` run this line, and it executes code fetched from the network,
+    which is not part of the repository and can change at any time.
+  recommendation: >
+    Do not run make/just blindly. Download the script, read it, then run it yourself.
+  references:
+    - https://www.gnu.org/software/make/manual/make.html#Recipes
+  tags: [build, download]
+
+# --- Windows ---------------------------------------------------------------------------
+
+- id: RC-AUTO-050
+  title: Windows shell file points to a remote location
+  area: autorun
+  severity: high
+  confidence: high
+  files:
+    - "**/desktop.ini"
+    - "**/*.url"
+    - "**/*.scf"
+    - "**/*.library-ms"
+    - "**/*.searchConnector-ms"
+  check:
+    type: regex
+    pattern: '{{unc_path}}|{{remote_file_url}}|(?i:<url>[ \t]*(?:https?:|\\\\))'
+  message: "Windows Explorer contacts a remote location for this file: {match}"
+  rationale: >
+    Explorer reads these files when it shows the folder and connects to the referenced
+    UNC path or WebDAV URL. That can send your Windows login hash (NTLM) to the server
+    without a click.
+  recommendation: >
+    Do not open this folder in Windows Explorer. Delete the file or view the folder with
+    another tool.
+  references:
+    - https://learn.microsoft.com/en-us/windows/win32/shell/library-ovw
+  platforms: [windows]
+  tags: [windows, ntlm]
+
+# --- M2e: package managers -------------------------------------------------------------
+
+- id: RC-AUTO-004
+  title: Yarn runs JavaScript from the repository (yarnPath or plugins)
+  area: autorun
+  severity: medium
+  confidence: high
+  files: ["**/.yarnrc.yml", "**/.yarnrc"]
+  exclude: [{set: vendored}]
+  check:
+    type: regex
+    ignore: '\A[ \t]*#'
+    pattern: '\A[ \t]*(?:yarnPath:|yarn-path[ \t])[ \t]*["'']?\S|\A[ \t]*(?:-[ \t]*)?(?:path:[ \t]*)?["'']?\.yarn/plugins/\S'
+  message: "Yarn loads code from the repository: {match}"
+  rationale: >
+    Every `yarn` command in this folder runs the Yarn release or plugins stored in the
+    repository instead of an installed Yarn. Yarn 2+ projects commit these files as
+    standard practice; the code is still unreviewed JavaScript that runs on your machine.
+  recommendation: >
+    Compare the files in `.yarn/releases` and `.yarn/plugins` with the official
+    releases, or use a globally installed Yarn with `yarnPath` removed.
+  references:
+    - https://yarnpkg.com/configuration/yarnrc#yarnPath
+  tags: [yarn, install]
+
+- id: RC-AUTO-005
+  title: npm configuration runs a custom shell or preloads code
+  area: autorun
+  severity: high
+  confidence: high
+  files: ["**/.npmrc"]
+  exclude: [{set: vendored}]
+  check:
+    type: regex
+    ignore: '\A[ \t]*[#;]'
+    pattern: '(?i:\A[ \t]*script-shell[ \t]*=[ \t]*\S|\A[ \t]*node-options[ \t]*=[^\n]*?(?:--require|(?<![\w-])-r(?=[ \t=])|--import|--(?:experimental-)?loader)\b)'
+  message: ".npmrc setting runs extra code: {match}"
+  rationale: >
+    `script-shell` replaces the shell that runs every npm script; `node-options` with
+    `--require`, `--import` or `--loader` loads a module into every Node process that
+    npm starts, including installs.
+  recommendation: >
+    Remove the setting or read the referenced program before running npm in this folder.
+  references:
+    - https://docs.npmjs.com/cli/using-npm/config#script-shell
+    - https://docs.npmjs.com/cli/using-npm/config#node-options
+  tags: [npm, install]
+
+- id: RC-AUTO-006
+  title: pnpm hook file (.pnpmfile.cjs)
+  area: autorun
+  severity: high
+  confidence: high
+  files: ["**/.pnpmfile.cjs", "**/.pnpmfile.mjs", "**/pnpmfile.js"]
+  exclude: [{set: vendored}]
+  check:
+    type: filename
+  message: "{path} runs during pnpm install"
+  rationale: >
+    pnpm loads this file on `pnpm install` and calls its hooks (readPackage, afterAllResolved)
+    with your user rights; it can change dependencies or run any code.
+  recommendation: >
+    Read the file before installing, or install with `pnpm install --ignore-pnpmfile`.
+  references:
+    - https://pnpm.io/pnpmfile
+  tags: [pnpm, install]
+
+# --- M2e: Python ---------------------------------------------------------------------------
+
+- id: RC-AUTO-015
+  title: Custom build hooks in pyproject.toml
+  area: autorun
+  severity: medium
+  confidence: high
+  files: ["**/pyproject.toml"]
+  exclude: [{set: vendored}, {set: test_data}]
+  check:
+    type: keypath
+    format: toml
+    paths:
+      - tool.hatch.build.hooks.custom
+      - "tool.hatch.build.targets.*.hooks.custom"
+      - tool.hatch.metadata.hooks.custom
+      - tool.poetry.build.script
+      - tool.setuptools.cmdclass
+      - tool.pdm.build.custom-hook
+  message: "Build hook ({key}) runs repository code when the package is built"
+  rationale: >
+    These settings make the build backend import and run a Python file from the
+    repository during `pip install .` or a package build.
+  recommendation: >
+    Read the hook file before installing from source.
+  references:
+    - https://hatch.pypa.io/latest/plugins/build-hook/custom/
+  tags: [python, build]
+
+- id: RC-AUTO-016
+  title: .pth file with code
+  area: autorun
+  severity: high
+  confidence: high
+  files: ["**/*.pth"]
+  exclude: [{set: vendored}, {set: test_data}]
+  check:
+    type: regex
+    pattern: '\A[ \t]*import[ \t]'
+  message: ".pth file runs code at every Python start: {match}"
+  rationale: >
+    Lines starting with `import` in a .pth file run each time Python starts once the
+    file is installed into site-packages, for example as part of a wheel.
+  recommendation: >
+    Find out why the project ships a .pth file and read the code it runs before
+    installing the package.
+  references:
+    - https://docs.python.org/3/library/site.html
+  tags: [python, install]
+
+- id: RC-AUTO-017
+  title: sitecustomize.py or usercustomize.py in the repository
+  area: autorun
+  severity: high
+  confidence: medium
+  files: ["**/sitecustomize.py", "**/usercustomize.py"]
+  exclude: [{set: vendored}, {set: test_data}]
+  check:
+    type: filename
+  message: "{path} runs at Python start-up if it is on the module path"
+  rationale: >
+    Python imports these modules automatically at start-up when they are on the path,
+    for example when installed or when a tool adds the folder to PYTHONPATH.
+  recommendation: >
+    Read the file; do not add its folder to PYTHONPATH or install it unless you trust it.
+  references:
+    - https://docs.python.org/3/library/site.html#module-sitecustomize
+  tags: [python]
+
+# --- M2e: dev containers, direnv, mise -----------------------------------------------------
+
+- id: RC-AUTO-026
+  title: Dev container lifecycle commands
+  area: autorun
+  severity: low
+  confidence: high
+  files: ["**/.devcontainer/devcontainer.json", "**/.devcontainer.json", "**/.devcontainer/*/devcontainer.json"]
+  exclude: [{set: vendored}]
+  check:
+    type: keypath
+    format: jsonc
+    paths: [onCreateCommand, updateContentCommand, postCreateCommand, postStartCommand, postAttachCommand]
+  message: "'{key}' runs in the container: {value}"
+  rationale: >
+    These commands run automatically inside the dev container when it is created,
+    started or attached. The container limits the damage, but mounted folders and
+    forwarded credentials are reachable.
+  recommendation: >
+    Read the commands before reopening the folder in a container.
+  references:
+    - https://containers.dev/implementors/json_reference/#lifecycle-scripts
+  tags: [devcontainer, ide]
+
+- id: RC-AUTO-041
+  title: direnv file (.envrc)
+  area: autorun
+  severity: medium
+  confidence: high
+  files: ["**/.envrc"]
+  exclude: [{set: vendored}]
+  check:
+    type: filename
+  message: "{path} is a shell script that direnv runs when you enter the folder"
+  rationale: >
+    direnv executes .envrc each time you change into the folder, once you have allowed
+    it with `direnv allow`. Some editors run direnv automatically.
+  recommendation: >
+    Read .envrc before running `direnv allow`.
+  references:
+    - https://direnv.net/
+  tags: [shell]
+
+- id: RC-AUTO-042
+  title: mise hooks or sourced scripts
+  area: autorun
+  severity: medium
+  confidence: high
+  files: ["**/mise.toml", "**/.mise.toml", "**/mise.local.toml", "**/.config/mise.toml", "**/.config/mise/config.toml"]
+  exclude: [{set: vendored}]
+  check:
+    type: keypath
+    format: toml
+    paths: ["hooks.*", "env._.source"]
+  message: "mise runs '{key}' automatically: {value}"
+  rationale: >
+    mise runs hooks when you enter the folder or install tools, and sources scripts
+    listed under env._.source, once the configuration is trusted.
+  recommendation: >
+    Read the hooks and scripts before running `mise trust`.
+  references:
+    - https://mise.jdx.dev/hooks.html
+  tags: [shell]
+
+# --- M2e: Windows, Git, CI, MSBuild ------------------------------------------------------
+
+- id: RC-AUTO-051
+  title: Windows shortcut in the repository
+  area: autorun
+  severity: medium
+  confidence: high
+  files: ["**/*.lnk"]
+  exclude: [{set: vendored}]
+  check:
+    type: filename
+  message: "{path} is a Windows shortcut that can start any program"
+  rationale: >
+    A shortcut runs its target with arguments when double-clicked and can look like a
+    document. Source repositories rarely need one.
+  recommendation: >
+    Do not open it. Inspect its target with a tool that shows shortcut properties.
+  references:
+    - https://attack.mitre.org/techniques/T1204/002/
+  tags: [windows]
+
+- id: RC-AUTO-033
+  title: .gitattributes assigns a custom filter, diff or merge driver
+  area: autorun
+  severity: low
+  confidence: medium
+  files: ["**/.gitattributes", "**/.git/info/attributes"]
+  exclude: [{set: vendored}]
+  check:
+    type: regex
+    ignore: '\A[ \t]*#'
+    pattern: '(?<![\w-])(?:filter|diff|merge)=(?!lfs\b|binary\b|text\b|union\b|java\b|python\b|cpp\b|csharp\b|css\b|html\b|golang\b|rust\b|php\b|ruby\b|markdown\b|bash\b)[\w.-]+'
+  message: "Git driver assigned: {match}"
+  rationale: >
+    The driver itself is a command in a Git configuration, not in the repository. It
+    only runs if you (or an install script or README) configure it; then Git runs it on
+    checkout, diff or merge.
+  recommendation: >
+    Do not add a Git configuration for this driver unless you have read what it runs.
+  references:
+    - https://git-scm.com/docs/gitattributes#_filter
+  tags: [git]
+
+- id: RC-AUTO-060
+  title: GitHub workflow runs pull request code with pull_request_target
+  area: autorun
+  severity: medium
+  confidence: medium
+  files: [".github/workflows/*.yml", ".github/workflows/*.yaml"]
+  check:
+    type: regex
+    pattern: '\bref:[ \t]*["'']?\$\{\{[ \t]*(?:github\.event\.pull_request\.head\.(?:sha|ref)|github\.head_ref)\b|\bgh[ \t]+pr[ \t]+checkout\b'
+    file_requires: ['\bpull_request_target\b']
+  message: "Checks out the pull request in a privileged workflow: {match}"
+  rationale: >
+    pull_request_target runs with the repository's secrets and write token. Checking
+    out and building the pull request's code there lets any outside contributor run
+    code with those rights ("pwn request"). This affects the repository's maintainers
+    and users of its releases, not your machine directly.
+  recommendation: >
+    Treat releases built by this workflow with care. Maintainers should use
+    pull_request or keep untrusted code away from secrets.
+  references:
+    - https://securitylab.github.com/resources/github-actions-preventing-pwn-requests/
+  tags: [ci, github-actions]
+
+- id: RC-AUTO-061
+  title: GitHub workflow runs an encoded command
+  area: autorun
+  severity: medium
+  confidence: medium
+  files: [".github/workflows/*.yml", ".github/workflows/*.yaml", "**/action.yml", "**/action.yaml"]
+  exclude: [{set: vendored}]
+  check:
+    type: regex
+    ignore: '\A[ \t]*#'
+    # Decoding into a file (certificates, API content) is common; only decoding
+    # straight into a shell, eval or PowerShell is reported.
+    pattern: >-
+      (?i:\bbase64[ \t]+(?:-d|--decode|-D)\b[^\n]{0,80}\|[ \t]*(?:sudo[ \t]+)?(?:ba|z|da|k)?sh\b|\b(?:eval|(?:ba|z|da|k)?sh[ \t]+-c)[ \t]+["']?\$\([^\n]{0,80}\bbase64[ \t]+(?:-d|--decode|-D)\b|\bpowershell(?:\.exe)?\b[^\n]{0,80}[ \t]-(?:e|ec|en|enc|encodedcommand)[ \t]+[A-Za-z0-9+/]{40,}|\bFromBase64String\b[^\n]{0,200}\|[ \t]*(?:iex|Invoke-Expression)\b)
+  message: "Decodes and runs a payload in CI: {match}"
+  rationale: >
+    Decoding Base64 or encoded PowerShell inside a workflow hides what the CI job runs
+    from reviewers. Workflows run on GitHub's machines, but they can publish releases
+    and use the repository's secrets.
+  recommendation: >
+    Decode the value by hand and check what the step runs.
+  references:
+    - https://docs.github.com/en/actions/security-for-github-actions/security-guides/security-hardening-for-github-actions
+  tags: [ci, github-actions, obfuscation]
+
+- id: RC-AUTO-070
+  title: MSBuild project runs a command on build
+  area: autorun
+  severity: medium
+  confidence: high
+  files: [{set: msbuild_files}]
+  exclude: [{set: vendored}]
+  check:
+    type: regex
+    scope: text
+    pattern: '<Exec\b[^>]{0,500}?\bCommand[ \t]*=[ \t]*"[^"]{1,300}'
+  message: "Build runs a command: {match}"
+  rationale: >
+    MSBuild runs Exec tasks during builds, including builds that Visual Studio and
+    other IDEs start in the background after opening the project.
+  recommendation: >
+    Read the command and the target it belongs to before opening the project in an IDE
+    or building it.
+  references:
+    - https://learn.microsoft.com/en-us/visualstudio/msbuild/exec-task
+  tags: [msbuild, build]
+
+- id: RC-AUTO-071
+  title: MSBuild project downloads or decodes code during the build
+  area: autorun
+  severity: high
+  confidence: high
+  files: [{set: msbuild_files}]
+  exclude: [{set: vendored}]
+  check:
+    type: regex
+    scope: text
+    pattern: '<Exec\b[^>]{0,500}?\bCommand[ \t]*=[ \t]*"[^"]{0,300}?(?:{{fetch_or_run}})|<DownloadFile\b'
+  message: "Build fetches or runs remote code: {match}"
+  rationale: >
+    The build downloads something, pipes into an interpreter or decodes a payload, so
+    what runs is not in the repository. Builds can start automatically when the project
+    is opened in an IDE.
+  recommendation: >
+    Do not open or build the project until you have read the target and its download.
+  references:
+    - https://learn.microsoft.com/en-us/visualstudio/msbuild/exec-task
+    - https://learn.microsoft.com/en-us/visualstudio/msbuild/downloadfile-task
+  tags: [msbuild, build, download]
+
+- id: RC-AUTO-072
+  title: MSBuild inline task with code
+  area: autorun
+  severity: high
+  confidence: medium
+  files: [{set: msbuild_files}]
+  exclude: [{set: vendored}]
+  check:
+    type: regex
+    scope: text
+    pattern: '<UsingTask\b[^>]{0,500}?\bTaskFactory[ \t]*=[ \t]*"(?:RoslynCodeTaskFactory|CodeTaskFactory)"'
+  message: "Project defines an inline C#/VB task: {match}"
+  rationale: >
+    Inline tasks contain source code that MSBuild compiles and runs during the build,
+    a known way to run arbitrary code when a project is built or loaded.
+  recommendation: >
+    Read the <Code> element of the task before building or opening the project.
+  references:
+    - https://learn.microsoft.com/en-us/visualstudio/msbuild/msbuild-roslyncodetaskfactory
+  tags: [msbuild, build]

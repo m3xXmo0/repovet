@@ -1,0 +1,275 @@
+# Area binaries (RC-BIN): binaries, archives and file-system tricks.
+# Binary content is never parsed beyond its signature; nothing is unpacked or run.
+
+- id: RC-BIN-001
+  title: Executable program in the repository
+  area: binaries
+  severity: high
+  confidence: high
+  exclude: [{set: vendored}, {set: decoy_files}]
+  check:
+    type: magic
+    signatures: [pe, elf, macho]
+  message: "{match}: {path}"
+  rationale: >
+    A compiled program cannot be reviewed like source code, and nothing shows that it
+    was built from the code in this repository. Build scripts, hooks or a README may
+    tell you to run it.
+  recommendation: >
+    Do not run it. Build the program from source yourself or download it from the
+    project's official releases, and compare checksums.
+  references:
+    - https://attack.mitre.org/techniques/T1204/002/
+  tags: [binary, executable]
+
+- id: RC-BIN-002
+  title: Executable disguised as a document, image or text file
+  area: binaries
+  severity: critical
+  confidence: high
+  files: [{set: decoy_files}]
+  exclude: [{set: vendored}]
+  check:
+    type: magic
+    signatures: [pe, elf, macho]
+  message: "{path} is a {match} despite its file extension"
+  rationale: >
+    The file extension promises harmless content, but the file is a compiled program.
+    This only makes sense to hide the program from reviewers or to trick someone into
+    running it.
+  recommendation: >
+    Treat the repository as malicious. Do not open, run or rename the file.
+  references:
+    - https://attack.mitre.org/techniques/T1036/008/
+  tags: [binary, executable, masquerading]
+
+- id: RC-BIN-003
+  title: File name with a double extension
+  area: binaries
+  severity: critical
+  confidence: high
+  exclude: [{set: vendored}]
+  check:
+    type: filename
+    name_regex: '\.(?:pdf|docx?|xlsx?|pptx?|txt|rtf|md|jpe?g|png|gif|bmp|mp[34]|avi|mov|zip|rar|7z)[ \t]*\.(?:exe|scr|com|pif|cpl|msi|bat|cmd|lnk|vbs|vbe|jse|wsf|wsh|hta|ps1|jar|url|appref-ms)\Z'
+  message: "{path} hides its real type behind a second extension"
+  rationale: >
+    Windows hides known extensions by default, so "report.pdf.exe" is shown as
+    "report.pdf". A program, script or shortcut that pretends to be a document is a
+    classic way to get it started by accident.
+  recommendation: >
+    Do not open the file. Show file extensions in Explorer and treat the repository as
+    malicious.
+  references:
+    - https://attack.mitre.org/techniques/T1036/007/
+  tags: [masquerading, windows]
+
+- id: RC-BIN-004
+  title: Invisible or control characters in a file or folder name
+  area: binaries
+  severity: critical
+  confidence: high
+  check:
+    type: filename
+    target: path
+    name_regex: '[\x00-\x1f\x7f\U0000200B-\U0000200F\U0000202A-\U0000202E\U00002066-\U00002069\U0000FEFF]'
+  message: "Path contains invisible or control characters: {path}"
+  rationale: >
+    Right-to-left overrides make "exe.txt" display as "txt.exe" and similar tricks;
+    invisible and control characters make two different paths look identical or
+    confuse tools and terminals.
+  recommendation: >
+    Do not open the file. List the folder in a tool that shows escapes and treat the
+    repository as untrusted.
+  references:
+    - https://attack.mitre.org/techniques/T1036/002/
+  tags: [masquerading, unicode]
+
+- id: RC-BIN-005
+  title: Compiled code that cannot be reviewed
+  area: binaries
+  severity: medium
+  confidence: high
+  # Bytecode caches in __pycache__ are handled by RC-BIN-013 (only without source).
+  exclude: [{set: vendored}, "**/__pycache__/*.pyc", "**/__pycache__/*.pyo"]
+  check:
+    type: filename
+    name_regex: '\.(?:pyc|pyo|class|jar|war|ear|wasm|dex)\Z'
+  message: "{path} contains compiled code"
+  rationale: >
+    Python bytecode, Java classes and archives, WebAssembly and Android bytecode run
+    like source code but cannot be read directly; nothing shows they match the source
+    in the repository. Build wrappers such as gradle-wrapper.jar are common and usually
+    harmless.
+  recommendation: >
+    Delete compiled files and rebuild them from source, or compare them with the
+    official release before using the repository.
+  tags: [binary, bytecode]
+
+- id: RC-BIN-006
+  title: Archive in the repository
+  area: binaries
+  severity: low
+  confidence: high
+  exclude: [{set: vendored}, {set: office_documents}, "**/*.jar", "**/*.war", "**/*.ear"]
+  check:
+    type: magic
+    signatures: [zip, gzip, bzip2, xz, 7z, rar, zstd, tar, cab, ar]
+  message: "{match}: {path}"
+  rationale: >
+    The content of archives is not checked. Test data and release assets are common
+    reasons; a build step or README that unpacks and runs something from it is not.
+  recommendation: >
+    Check what the archive contains and who uses it before unpacking. Unpack only into
+    an empty folder and do not run anything from it.
+  tags: [archive]
+
+- id: RC-BIN-007
+  title: Password-protected archive
+  area: binaries
+  severity: medium
+  confidence: high
+  exclude: [{set: vendored}]
+  check:
+    type: magic
+    signatures: [zip_encrypted]
+  message: "{path} is a password-protected ZIP archive"
+  rationale: >
+    Encryption hides the content from every scanner, including repocheck and antivirus
+    software. Malware is often shipped this way with the password in a README.
+  recommendation: >
+    Do not unpack it unless you know why the repository needs it. Never run anything
+    from it.
+  references:
+    - https://attack.mitre.org/techniques/T1027/015/
+  tags: [archive, encrypted]
+
+- id: RC-BIN-008
+  title: Office document with macros
+  area: binaries
+  severity: medium
+  confidence: high
+  exclude: [{set: vendored}]
+  check:
+    type: magic
+    signatures: [ole_macro, ooxml_macro]
+  message: "{match}: {path}"
+  rationale: >
+    VBA macros run when the document is opened and macros are enabled. Macro documents
+    have no place in most source repositories.
+  recommendation: >
+    Do not open the document in Office with macros enabled. Use a viewer or open it
+    without macros.
+  references:
+    - https://attack.mitre.org/techniques/T1137/
+  tags: [office, macro]
+
+- id: RC-BIN-009
+  title: File name that Windows reserves or cannot store
+  area: binaries
+  severity: medium
+  confidence: high
+  check:
+    type: filename
+    target: path
+    name_regex: '(?:\A|/)(?i:con|prn|aux|nul|com[0-9]|lpt[0-9])(?:\.[^/]*)?(?:/|\Z)|[. ](?:/|\Z)|[<>:"|?*\\]'
+  message: "Path cannot be checked out on Windows as is: {path}"
+  rationale: >
+    Device names (CON, NUL, AUX, ...), trailing dots or spaces and characters like ':'
+    or '|' are not valid on Windows. Such paths break checkouts or are silently mapped to
+    other names, so the files you see may differ from what Git stores.
+  recommendation: >
+    Inspect the repository on a system that keeps these names, or with repocheck on the
+    URL (milestone 3), before trusting a Windows checkout.
+  references:
+    - https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file
+  tags: [filesystem, windows]
+
+- id: RC-BIN-010
+  title: Paths that differ only in upper and lower case
+  area: binaries
+  severity: medium
+  confidence: high
+  check:
+    type: tree
+    property: case_collision
+  message: "{path} collides with {match} on case-insensitive file systems"
+  rationale: >
+    On Windows and macOS only one of these paths can exist in a checkout. Which one
+    wins depends on the order of checkout, so reviewed content and used content can
+    differ (also used in Git exploits).
+  recommendation: >
+    Look at all variants in the repository itself (for example on GitHub) and check
+    which one your tools use.
+  references:
+    - https://github.blog/open-source/git/git-security-vulnerabilities-announced-6/
+  tags: [filesystem]
+
+- id: RC-BIN-011
+  title: Link that points outside the repository
+  area: binaries
+  severity: medium
+  confidence: high
+  check:
+    type: tree
+    property: link_outside
+  message: "{path} links to {match} outside the repository"
+  rationale: >
+    Tools that follow the link read or write files outside the repository, for example
+    in your home folder. repocheck itself never follows links.
+  recommendation: >
+    Remove the link or check where it points before building, installing or opening the
+    folder in tools that follow links.
+  references:
+    - https://attack.mitre.org/techniques/T1574/
+  tags: [filesystem, symlink]
+
+- id: RC-BIN-012
+  title: Git submodule with a dangerous URL or path
+  area: binaries
+  severity: high
+  confidence: high
+  files: ["**/.gitmodules"]
+  check:
+    type: keypath
+    format: gitconfig
+    paths:
+      - path: "submodule.*.url"
+        value_regex: '\A[ \t]*(?:-|ext::|fd::|file:|[A-Za-z][A-Za-z0-9+.-]*::)'
+      - path: "submodule.*.path"
+        value_regex: '\A[ \t]*-|(?:\A|/)\.\.(?:/|\Z)|(?i:(?:\A|/)\.git(?:/|\Z))'
+      - path: "submodule.*.update"
+        value_regex: '\A[ \t]*!'
+  message: "Submodule '{key}' = {value}"
+  rationale: >
+    Submodule URLs with "ext::" or "fd::" transports run commands, URLs or paths starting
+    with "-" are read as options, "file:" reads local repositories, and paths with ".."
+    or ".git" write outside the submodule folder. Older Git versions execute some of
+    these on clone or update.
+  recommendation: >
+    Do not clone with --recurse-submodules or run `git submodule update`. Read
+    .gitmodules first.
+  references:
+    - https://git-scm.com/docs/gitmodules
+  tags: [git, submodule]
+
+- id: RC-BIN-013
+  title: Python bytecode cache without its source file
+  area: binaries
+  severity: medium
+  confidence: high
+  exclude: [{set: vendored}]
+  check:
+    type: tree
+    property: orphan_bytecode
+  message: "{path} has no matching .py file next to its __pycache__ folder"
+  rationale: >
+    Python writes __pycache__ files for every module it imports, so caches next to their
+    source are normal. Bytecode whose source is missing still runs when imported, but
+    nobody can review it - a way to ship code that is not in the repository.
+  recommendation: >
+    Delete the file, or find out why the repository contains bytecode without source
+    before running anything from it.
+  references:
+    - https://peps.python.org/pep-3147/
+  tags: [binary, bytecode, python]

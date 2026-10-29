@@ -1,0 +1,69 @@
+# Languages by file extension or exact file name (both compared case-insensitively).
+# type: programming | markup | data | prose. Used only for the provenance profile.
+# An extension belongs to one language; the first entry wins.
+
+Python: {type: programming, extensions: [.py, .pyw, .pyi, .pyx, .pxd]}
+Jupyter Notebook: {type: programming, extensions: [.ipynb]}
+JavaScript: {type: programming, extensions: [.js, .mjs, .cjs, .jsx]}
+TypeScript: {type: programming, extensions: [.ts, .mts, .cts, .tsx]}
+Java: {type: programming, extensions: [.java]}
+Kotlin: {type: programming, extensions: [.kt, .kts]}
+Scala: {type: programming, extensions: [.scala, .sc]}
+Groovy: {type: programming, extensions: [.groovy, .gradle]}
+C: {type: programming, extensions: [.c, .h]}
+C++: {type: programming, extensions: [.cpp, .cc, .cxx, .hpp, .hh, .hxx, .ipp, .inl]}
+C#: {type: programming, extensions: [.cs, .csx]}
+F#: {type: programming, extensions: [.fs, .fsi, .fsx]}
+Visual Basic .NET: {type: programming, extensions: [.vb]}
+Objective-C: {type: programming, extensions: [.m, .mm]}
+Swift: {type: programming, extensions: [.swift]}
+Go: {type: programming, extensions: [.go]}
+Rust: {type: programming, extensions: [.rs]}
+Zig: {type: programming, extensions: [.zig]}
+Nim: {type: programming, extensions: [.nim]}
+D: {type: programming, extensions: [.d]}
+Ruby: {type: programming, extensions: [.rb, .rake, .gemspec], filenames: [Gemfile, Rakefile]}
+PHP: {type: programming, extensions: [.php, .phtml]}
+Perl: {type: programming, extensions: [.pl, .pm, .t]}
+Lua: {type: programming, extensions: [.lua]}
+R: {type: programming, extensions: [.r]}
+Julia: {type: programming, extensions: [.jl]}
+Dart: {type: programming, extensions: [.dart]}
+Elixir: {type: programming, extensions: [.ex, .exs]}
+Erlang: {type: programming, extensions: [.erl, .hrl]}
+Haskell: {type: programming, extensions: [.hs, .lhs]}
+OCaml: {type: programming, extensions: [.ml, .mli]}
+Clojure: {type: programming, extensions: [.clj, .cljs, .cljc, .edn]}
+Lisp: {type: programming, extensions: [.lisp, .el, .scm, .rkt]}
+Fortran: {type: programming, extensions: [.f, .f90, .f95, .f03, .for]}
+Assembly: {type: programming, extensions: [.asm, .s, .nasm]}
+Solidity: {type: programming, extensions: [.sol]}
+WebAssembly Text: {type: programming, extensions: [.wat]}
+Shell: {type: programming, extensions: [.sh, .bash, .zsh, .fish, .ksh]}
+PowerShell: {type: programming, extensions: [.ps1, .psm1, .psd1]}
+Batchfile: {type: programming, extensions: [.bat, .cmd]}
+VBScript: {type: programming, extensions: [.vbs, .vba]}
+Makefile: {type: programming, extensions: [.mk, .mak], filenames: [Makefile, GNUmakefile, makefile, justfile]}
+CMake: {type: programming, extensions: [.cmake], filenames: [CMakeLists.txt]}
+Dockerfile: {type: programming, extensions: [.dockerfile], filenames: [Dockerfile, Containerfile]}
+Nix: {type: programming, extensions: [.nix]}
+HCL: {type: programming, extensions: [.tf, .hcl]}
+SQL: {type: programming, extensions: [.sql]}
+GraphQL: {type: data, extensions: [.graphql, .gql]}
+Vue: {type: markup, extensions: [.vue]}
+Svelte: {type: markup, extensions: [.svelte]}
+HTML: {type: markup, extensions: [.html, .htm, .xhtml]}
+CSS: {type: markup, extensions: [.css, .scss, .sass, .less, .styl]}
+XML: {type: data, extensions: [.xml, .xsd, .xsl, .xslt, .plist, .csproj, .vbproj, .fsproj, .props, .targets, .resx]}
+SVG: {type: data, extensions: [.svg]}
+JSON: {type: data, extensions: [.json, .jsonc, .json5, .jsonl]}
+YAML: {type: data, extensions: [.yaml, .yml]}
+TOML: {type: data, extensions: [.toml], filenames: [Pipfile]}
+INI: {type: data, extensions: [.ini, .cfg, .conf, .properties, .editorconfig]}
+CSV: {type: data, extensions: [.csv, .tsv]}
+Protocol Buffers: {type: data, extensions: [.proto]}
+Markdown: {type: prose, extensions: [.md, .markdown, .mdx]}
+reStructuredText: {type: prose, extensions: [.rst]}
+AsciiDoc: {type: prose, extensions: [.adoc, .asciidoc]}
+TeX: {type: markup, extensions: [.tex, .sty, .cls, .bib]}
+Text: {type: prose, extensions: [.txt]}

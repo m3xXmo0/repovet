@@ -1,0 +1,130 @@
+# Area download_exec (RC-DLX): code that downloads something and runs it.
+# The same patterns in files that run automatically (package.json scripts, VS Code
+# tasks, Makefiles) are reported by the autorun area with higher severity.
+
+- id: RC-DLX-001
+  title: Script downloads code and pipes it into an interpreter
+  area: download_exec
+  severity: medium
+  confidence: medium
+  files: [{set: script_files}]
+  exclude: [{set: vendored}, {set: test_files}]
+  check:
+    type: regex
+    ignore: "{{comment_line}}"
+    prefilter: [curl, wget, invoke-webrequest, invoke-restmethod, iwr, irm, bitstransfer,
+      bitsadmin, certutil, webclient, downloadstring]
+    pattern: "{{download_exec}}"
+  message: "Downloads and runs code in one step: {match}"
+  rationale: >
+    Piping a download straight into a shell, Python, Node or PowerShell runs whatever
+    the server sends at that moment. Nothing of it is in the repository, so it cannot
+    be reviewed. Official installers sometimes work this way; malware does too.
+  recommendation: >
+    Do not run the script as is. Download the file separately, read it, and check the
+    domain belongs to the project it claims to install.
+  references:
+    - https://attack.mitre.org/techniques/T1105/
+  tags: [download, exec]
+
+- id: RC-DLX-002
+  title: Windows system tool used to download or run remote code
+  area: download_exec
+  severity: high
+  confidence: high
+  files: [{set: script_files}]
+  exclude: [{set: vendored}, {set: test_files}]
+  check:
+    type: regex
+    ignore: "{{comment_line}}"
+    prefilter: [certutil, bitsadmin, mshta, regsvr32, rundll32]
+    pattern: >-
+      (?i:\bcertutil(?:\.exe)?\b[^\n]{0,80}[-/]urlcache\b|\bbitsadmin(?:\.exe)?\b[^\n]{0,80}[-/]transfer\b|\bmshta(?:\.exe)?[ \t]+["']?(?:https?:|javascript:|vbscript:)|\bregsvr32(?:\.exe)?\b[^\n]{0,80}[-/]i:["']?https?:|\brundll32(?:\.exe)?\b[^\n]{0,120}(?:https?:|javascript:))
+  message: "Windows tool misused to fetch or run remote code: {match}"
+  rationale: >
+    certutil, bitsadmin, mshta, regsvr32 and rundll32 are built into Windows and are
+    commonly abused to download or execute remote payloads while avoiding security
+    tools ("living off the land").
+  recommendation: >
+    Do not run this script. Legitimate projects download with their package manager
+    or a documented installer, not with these tools.
+  references:
+    - https://lolbas-project.github.io/
+  tags: [download, windows, lolbin]
+
+- id: RC-DLX-003
+  title: Code from a web request is executed
+  area: download_exec
+  severity: high
+  confidence: medium
+  files: [{set: script_files}]
+  exclude: [{set: vendored}, {set: test_files}]
+  check:
+    type: regex
+    ignore: "{{comment_line}}"
+    prefilter: [urlopen, urlretrieve, requests., httpx., urllib3, aiohttp, fetch, axios,
+      xmlhttprequest, http.get, https.get, invoke-webrequest, invoke-restmethod,
+      downloadstring, downloaddata]
+    pattern: >-
+      (?:\b(?:exec|eval)[ \t]*\(|\bnew[ \t]+Function[ \t]*\(|\b(?:pickle|marshal|dill|cloudpickle)\.loads?[ \t]*\()[^\n]{0,200}?\b(?:urlopen|urlretrieve|requests\.(?:get|post|request)|httpx\.(?:get|post|request)|urllib3|aiohttp|fetch|axios|XMLHttpRequest|https?\.get|Invoke-WebRequest|Invoke-RestMethod|DownloadString|DownloadData)\b
+  message: "Executes the response of a web request: {match}"
+  rationale: >
+    Passing downloaded content to exec, eval, new Function or a deserializer runs code
+    that is not in the repository and can change at any time on the server.
+  recommendation: >
+    Do not run this code. Find out which URL is requested and what it returns,
+    without executing it.
+  references:
+    - https://attack.mitre.org/techniques/T1105/
+  tags: [download, exec]
+
+- id: RC-DLX-004
+  title: Script downloads a file into a temporary folder and runs it
+  area: download_exec
+  severity: high
+  confidence: medium
+  files: [{set: script_files}]
+  exclude: [{set: vendored}, {set: test_files}]
+  check:
+    type: regex
+    ignore: "{{comment_line}}"
+    prefilter: [chmod, start]
+    pattern: >-
+      (?i:\bchmod[ \t]+(?:-[a-z]+[ \t]+)?(?:[ugoa]*\+x|[0-7]{3,4})\b|\bStart-Process\b|\bstart(?:\.exe)?[ \t]+(?:""[ \t]+)?["']?)[^\n]{0,60}?{{temp_path}}
+    file_requires: ['{{network_fetch}}|\burlretrieve\b|\bDownloadFile\b']
+  message: "Makes executable or starts a file in a temporary folder: {match}"
+  rationale: >
+    Downloading a program into /tmp, %TEMP% or a similar folder and then starting it
+    is the typical behaviour of a dropper: the payload never appears in the repository.
+  recommendation: >
+    Do not run this script. Find out which file is downloaded and from where.
+  references:
+    - https://attack.mitre.org/techniques/T1105/
+  tags: [download, exec, dropper]
+
+- id: RC-DLX-005
+  title: Code contacts a webhook, tunnel, paste or file-sharing service or a raw IP
+  area: download_exec
+  severity: medium
+  confidence: low
+  files: [{set: code_files}]
+  exclude: [{set: vendored}, {set: generated}, {set: test_files}]
+  check:
+    type: regex
+    prefilter: [webhook.site, webhook.cool, requestbin, pipedream.net, hookbin, beeceptor,
+      requestcatcher, interact.sh, interactsh, oast., burpcollaborator, oastify, canarytokens,
+      ngrok, trycloudflare, loca.lt, localtunnel, serveo, pastebin, paste.ee, hastebin,
+      termbin, transfer.sh, file.io, 0x0.st, /api/webhooks, api.telegram.org, hooks.slack, "://0", "://1", "://2", "://3", "://4", "://5", "://6", "://7", "://8",
+      "://9"]
+    pattern: "{{exfil_host}}"
+  message: "Address typical for receiving or serving data outside the project: {match}"
+  rationale: >
+    Request catchers, chat webhooks, tunnels, paste and file hosts and raw IP addresses
+    are used to send stolen data away or to load a next stage. Bots and debugging
+    code use some of them legitimately.
+  recommendation: >
+    Check what is sent to or loaded from this address and whether that fits the
+    purpose of the project.
+  references:
+    - https://attack.mitre.org/techniques/T1567/
+  tags: [network, exfiltration]

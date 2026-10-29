@@ -1,0 +1,179 @@
+# Area dependencies (RC-DEP): suspicious dependencies and package sources.
+# Only names and declared sources are checked, offline: no registry is queried, and the
+# code and install scripts of the dependencies themselves are not checked.
+
+- id: RC-DEP-001
+  title: Dependency name one typo away from a very popular package
+  area: dependencies
+  severity: high
+  confidence: medium
+  files: [{set: dependency_manifests}]
+  exclude: [{set: vendored}]
+  check:
+    type: dependency
+    mode: typosquat
+    top: 1000
+    max_distance: 1
+    min_length: 5
+  message: "'{value}' looks like the popular package '{match}' (rank {count})"
+  rationale: >
+    Attackers publish packages whose names differ from popular ones by one letter
+    ("typosquatting"). The name is not among the most downloaded packages, but one
+    edit away from one of the 1,000 most popular.
+  recommendation: >
+    Check the exact name on the package registry. If the popular package was meant, fix
+    the name before installing anything.
+  references:
+    - https://attack.mitre.org/techniques/T1195/001/
+  tags: [supply-chain, typosquatting]
+
+- id: RC-DEP-002
+  title: Dependency name one typo away from a popular package
+  area: dependencies
+  severity: medium
+  confidence: low
+  files: [{set: dependency_manifests}]
+  exclude: [{set: vendored}]
+  check:
+    type: dependency
+    mode: typosquat
+    top: 5000
+    rank_from: 1001
+    max_distance: 1
+    min_length: 6
+  message: "'{value}' looks like the package '{match}' (rank {count})"
+  rationale: >
+    The name is one edit away from a package among the 5,000 most downloaded but is not
+    one of them itself. Small, legitimate packages with similar names exist too.
+  recommendation: >
+    Check on the registry that this is the package you expect (author, age, downloads,
+    repository link).
+  references:
+    - https://attack.mitre.org/techniques/T1195/001/
+  tags: [supply-chain, typosquatting]
+
+- id: RC-DEP-003
+  title: Long dependency name close to a very popular package
+  area: dependencies
+  severity: medium
+  confidence: low
+  files: [{set: dependency_manifests}]
+  exclude: [{set: vendored}]
+  check:
+    type: dependency
+    mode: typosquat
+    top: 1000
+    max_distance: 2
+    min_length: 10
+  message: "'{value}' is close to the popular package '{match}' (rank {count})"
+  rationale: >
+    Two edits on a long name (missing letters, swapped or doubled characters) are
+    easy to overlook. The name is not among the most downloaded packages.
+  recommendation: >
+    Compare the name letter by letter with the popular package and check it on the
+    registry before installing.
+  references:
+    - https://attack.mitre.org/techniques/T1195/001/
+  tags: [supply-chain, typosquatting]
+
+- id: RC-DEP-010
+  title: Dependency installed from Git or a URL
+  area: dependencies
+  severity: medium
+  confidence: medium
+  files: [{set: dependency_manifests}]
+  exclude: [{set: vendored}]
+  check:
+    type: dependency
+    mode: source
+    kinds: [git, url]
+  message: "'{value}' comes from {key}: {match}"
+  rationale: >
+    Git and URL dependencies bypass the package registry: there is no published,
+    immutable release, and what is installed is whatever the source serves at install
+    time. Branches and URLs can change after review.
+  recommendation: >
+    Check the source and pin Git dependencies to a full commit hash. Prefer released
+    versions from the registry.
+  references:
+    - https://pip.pypa.io/en/stable/topics/vcs-support/
+  tags: [supply-chain, source]
+
+- id: RC-DEP-011
+  title: Additional or replaced Python package index
+  area: dependencies
+  severity: high
+  confidence: medium
+  files: [{set: dependency_manifests}]
+  exclude: [{set: vendored}]
+  check:
+    type: dependency
+    mode: index
+    ecosystems: [pypi]
+    allow_hosts: [pypi.org, files.pythonhosted.org, download.pytorch.org, pypi.nvidia.com]
+  message: "{key} {value}"
+  rationale: >
+    Installing from an extra index lets the same package name come from two places;
+    pip picks the highest version, so a public package can replace an internal one
+    ("dependency confusion"). A replaced index or a trusted host without TLS decides
+    where all packages come from.
+  recommendation: >
+    Check who runs this index. Do not install with an extra index unless the project
+    explains why it needs one.
+  references:
+    - https://pip.pypa.io/en/stable/cli/pip_install/#finding-packages
+    - https://attack.mitre.org/techniques/T1195/001/
+  tags: [supply-chain, dependency-confusion]
+
+- id: RC-DEP-012
+  title: npm or Yarn registry replaced
+  area: dependencies
+  severity: high
+  confidence: medium
+  files: ["**/.npmrc", "**/.yarnrc", "**/.yarnrc.yml"]
+  exclude: [{set: vendored}]
+  check:
+    type: regex
+    ignore: '\A[ \t]*[#;]'
+    pattern: >-
+      (?i:\A[ \t]*(?:@[\w.-]+:)?registry[ \t]*=[ \t]*|\A[ \t]*registry[ \t]+|\bnpmRegistryServer:[ \t]*)(?!["']?https://registry\.(?:npmjs\.org|yarnpkg\.com)/?["']?[ \t]*\Z)\S
+  message: "Registry setting: {match}"
+  rationale: >
+    This configuration makes npm, pnpm or Yarn download packages (or the packages of a
+    scope) from another server. That server decides what code is installed.
+  recommendation: >
+    Check who runs the registry before installing. To install from the public
+    registry, remove the setting or pass --registry=https://registry.npmjs.org/.
+  references:
+    - https://docs.npmjs.com/cli/configuring-npm/npmrc
+  tags: [supply-chain, npm, registry]
+
+- id: RC-DEP-013
+  title: Lockfile installs packages from outside the default registry
+  area: dependencies
+  severity: medium
+  confidence: low
+  files:
+    - "**/package-lock.json"
+    - "**/npm-shrinkwrap.json"
+    - "**/yarn.lock"
+    - "**/pnpm-lock.yaml"
+    - "**/uv.lock"
+    - "**/poetry.lock"
+    - "**/Pipfile.lock"
+  exclude: [{set: vendored}]
+  check:
+    type: regex
+    # One alternative per lockfile format; each match includes the source URL.
+    pattern: >-
+      "resolved"[ \t]*:[ \t]*"(?!https://registry\.npmjs\.org/|file:)[A-Za-z][A-Za-z0-9+.-]*:[^"\s]*|\A[ \t]+resolved[ \t]+"(?!https://registry\.(?:yarnpkg\.com|npmjs\.org)/)[A-Za-z][A-Za-z0-9+.-]*:[^"\s]*|\btarball:[ \t]*(?!https://registry\.npmjs\.org/)[A-Za-z][A-Za-z0-9+.-]*:[^\s,}]*|\bsource[ \t]*=[ \t]*\{[ \t]*(?:registry[ \t]*=[ \t]*"(?!https://pypi\.org/simple/?")|(?:git|url)[ \t]*=[ \t]*")[^"\s]*|\A[ \t]*type[ \t]*=[ \t]*"(?:git|url|legacy)"|"git"[ \t]*:[ \t]*"[^"\s]*
+  message: "Package source in lockfile: {match}"
+  rationale: >
+    The lockfile pins packages to a Git repository, a URL or a registry other than the
+    public default. Company mirrors are a common harmless reason.
+  recommendation: >
+    Check the hosts in the lockfile. Installing from the lockfile downloads exactly
+    these sources.
+  references:
+    - https://docs.npmjs.com/cli/configuring-npm/package-lock-json
+  tags: [supply-chain, lockfile]

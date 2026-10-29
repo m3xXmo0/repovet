@@ -1,0 +1,260 @@
+# Test cases for area binaries. Binary fixtures are header bytes only (signature plus
+# zero padding): nothing in them can run. Files are created under tmp_path only.
+
+RC-BIN-001:
+  positive:
+    - name: Windows executable header
+      files:
+        tools/helper.exe: {base64: "TVoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAFBFAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="}
+      expect: [{path: tools/helper.exe}]
+    - name: ELF without extension
+      files:
+        bin/run: {base64: "f0VMRgIBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}
+      expect: [{path: bin/run}]
+    - name: Mach-O library
+      files:
+        lib/libx.dylib: {base64: "z/rt/gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}
+      expect: [{path: lib/libx.dylib}]
+  negative:
+    - name: MZ without a PE header
+      files:
+        data/old.bin: {base64: "TVoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="}
+    - name: Java class file shares the Mach-O fat magic
+      files:
+        build/Main.class: {base64: "yv66vgAAADQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}
+    - name: text that starts with MZ
+      files:
+        notes/mz.txt: "MZ is the start of every DOS executable.\n"
+    - name: executable inside node_modules
+      files:
+        node_modules/esbuild/bin/esbuild: {base64: "f0VMRgIBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}
+
+RC-BIN-002:
+  positive:
+    - name: PE renamed to PNG
+      files:
+        docs/screenshot.png: {base64: "TVoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAFBFAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="}
+      expect: [{path: docs/screenshot.png}]
+    - name: ELF renamed to a text file
+      files:
+        README.txt: {base64: "f0VMRgIBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}
+      expect: [{path: README.txt}]
+  negative:
+    - name: real PNG image
+      files:
+        docs/screenshot.png: {base64: "iVBORw0KGgoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}
+    - name: executable with its own extension
+      files:
+        tools/helper.exe: {base64: "TVoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAFBFAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="}
+
+RC-BIN-003:
+  positive:
+    - name: PDF that is a program
+      files:
+        invoice.pdf.exe: "dummy"
+      expect: [{path: invoice.pdf.exe}]
+    - name: document shortcut with spaces before the real extension
+      files:
+        docs/README.md     .lnk: "dummy"
+      expect: [{path: "docs/README.md     .lnk"}]
+  negative:
+    - name: ordinary multi-dot names
+      files:
+        app.config.js: "module.exports = {}\n"
+        archive.tar.gz: "dummy"
+        types.d.ts: "export {}\n"
+        setup.cfg.txt: "notes\n"
+
+RC-BIN-004:
+  positive:
+    - name: right-to-left override in a file name
+      files:
+        "invoice\U0000202Etxt.exe": "dummy"
+      expect: [{path: "invoice\U0000202Etxt.exe"}]
+    - name: zero-width space in a folder name
+      files:
+        "src\U0000200B/main.py": "print('hi')\n"
+      expect: [{path: "src\U0000200B/main.py"}]
+  negative:
+    - name: non-ASCII letters in names
+      files:
+        "docs/Übersicht.md": "Text\n"
+        "i18n/日本語.json": "{}\n"
+
+RC-BIN-005:
+  positive:
+    - name: Python bytecode outside __pycache__
+      files:
+        pkg/mod.pyc: {base64: "yw0NCgAAAAA="}
+      expect: [{path: pkg/mod.pyc}]
+    - name: Java archive and WebAssembly
+      files:
+        libs/helper.jar: "dummy"
+        web/app.wasm: "dummy"
+      expect: [{path: libs/helper.jar}, {path: web/app.wasm}]
+  negative:
+    - name: source files
+      files:
+        pkg/mod.py: "x = 1\n"
+        src/Main.java: "class Main {}\n"
+        web/app.wat: "(module)\n"
+    - name: bytecode cache in __pycache__ (RC-BIN-013 decides)
+      files:
+        pkg/__pycache__/gone.cpython-312.pyc: {base64: "yw0NCgAAAAA="}
+
+RC-BIN-006:
+  positive:
+    - name: zip archive
+      files:
+        data/sample.zip: {base64: "UEsDBBQAAAAAAK5aXV26PYh+EgAAABIAAAAKAAAAcmVhZG1lLnR4dGhhcm1sZXNzIHRlc3QgZGF0YVBLAQIUABQAAAAAAK5aXV26PYh+EgAAABIAAAAKAAAAAAAAAAAAAACAAQAAAAByZWFkbWUudHh0UEsFBgAAAAABAAEAOAAAADoAAAAAAA=="}
+      expect: [{path: data/sample.zip}]
+    - name: gzip archive with another name
+      files:
+        assets/blob.dat: {base64: "H4sIAAAAAAACCstILMrNSS0uVihJLS5RSEksSQQAuj2IfhIAAAA="}
+      expect: [{path: assets/blob.dat}]
+  negative:
+    - name: Word document (a zip by format)
+      files:
+        docs/manual.docx: {base64: "UEsDBBQAAAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAd29yZC9kb2N1bWVudC54bWw="}
+    - name: text file named like an archive
+      files:
+        notes/archive.zip.md: "How to build the archive.\n"
+
+RC-BIN-007:
+  positive:
+    - name: encrypted zip entry
+      files:
+        payload.zip: {base64: "UEsDBBQAAQAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAc2VjcmV0LnR4dA=="}
+      expect: [{path: payload.zip}]
+  negative:
+    - name: plain zip
+      files:
+        data/sample.zip: {base64: "UEsDBBQAAAAAAK5aXV26PYh+EgAAABIAAAAKAAAAcmVhZG1lLnR4dGhhcm1sZXNzIHRlc3QgZGF0YVBLAQIUABQAAAAAAK5aXV26PYh+EgAAABIAAAAKAAAAAAAAAAAAAACAAQAAAAByZWFkbWUudHh0UEsFBgAAAAABAAEAOAAAADoAAAAAAA=="}
+
+RC-BIN-008:
+  positive:
+    - name: OOXML document with a VBA project
+      files:
+        docs/report.docm: {base64: "UEsDBBQAAAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAd29yZC92YmFQcm9qZWN0LmJpbg=="}
+      expect: [{path: docs/report.docm}]
+    - name: OLE document with a VBA project
+      files:
+        docs/old.doc: {base64: "0M8R4KGxGuEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAXwBWAEIAQQBfAFAAUgBPAEoARQBDAFQA"}
+      expect: [{path: docs/old.doc}]
+  negative:
+    - name: documents without macros
+      files:
+        docs/manual.docx: {base64: "UEsDBBQAAAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAd29yZC9kb2N1bWVudC54bWw="}
+        docs/old.doc: {base64: "0M8R4KGxGuEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAVwBvAHIAZABEAG8AYwB1AG0AZQBuAHQA"}
+
+RC-BIN-009:
+  positive:
+    - name: folder named like a device
+      requires: [reserved_names]
+      files:
+        aux/readme.md: "text\n"
+      expect: [{path: aux/readme.md}]
+    - name: device name with an extension
+      requires: [reserved_names]
+      files:
+        src/con.c: "int x;\n"
+      expect: [{path: src/con.c}]
+  negative:
+    - name: names that only start like device names
+      files:
+        auxiliary/readme.md: "text\n"
+        src/console.c: "int x;\n"
+        docs/com10-notes.md: "text\n"
+
+RC-BIN-010:
+  positive:
+    - name: two files that differ in case
+      requires: [case_sensitive_fs]
+      files:
+        README.md: "a\n"
+        docs/Readme.md: "b\n"
+        docs/README.md: "c\n"
+      expect: [{path: docs/README.md}]
+  negative:
+    - name: distinct names
+      files:
+        README.md: "a\n"
+        docs/readme-old.md: "b\n"
+
+RC-BIN-011:
+  positive:
+    - name: relative link that climbs above the repository
+      requires: [symlinks]
+      files:
+        README.md: "a\n"
+        docs/secrets: {symlink: "../../outside/secrets"}
+      expect: [{path: docs/secrets}]
+    - name: absolute link
+      requires: [symlinks]
+      files:
+        config: {symlink: "/etc/example.invalid"}
+      expect: [{path: config}]
+  negative:
+    - name: link to a file inside the repository
+      requires: [symlinks]
+      files:
+        AGENTS.md: "Rules\n"
+        CLAUDE.md: {symlink: "AGENTS.md"}
+        docs/guide.md: {symlink: "../AGENTS.md"}
+
+RC-BIN-012:
+  positive:
+    - name: ext transport in a submodule URL
+      files:
+        .gitmodules: |
+          [submodule "lib"]
+            path = lib
+            url = ext::sh -c echo% harmless
+      expect: [{path: .gitmodules, line: 3}]
+    - name: option injection and path traversal
+      files:
+        .gitmodules: |
+          [submodule "a"]
+            path = vendor/a
+            url = --upload-pack=echo
+          [submodule "b"]
+            path = ../outside
+            url = https://example.invalid/b.git
+      expect: [{path: .gitmodules, line: 3}, {path: .gitmodules, line: 5}]
+  negative:
+    - name: ordinary submodules
+      files:
+        .gitmodules: |
+          [submodule "docs/theme"]
+            path = docs/theme
+            url = https://example.invalid/theme.git
+          [submodule "lib"]
+            path = lib
+            url = ../lib.git
+            update = rebase
+
+RC-BIN-013:
+  positive:
+    - name: cached module without source
+      files:
+        pkg/__init__.py: ""
+        pkg/__pycache__/__init__.cpython-312.pyc: {base64: "yw0NCgAAAAA="}
+        pkg/__pycache__/payload.cpython-312.pyc: {base64: "yw0NCgAAAAA="}
+      expect: [{path: pkg/__pycache__/payload.cpython-312.pyc}]
+    - name: optimized cache at the root without source
+      files:
+        __pycache__/run.cpython-311.opt-1.pyc: {base64: "yw0NCgAAAAA="}
+      expect: [{path: __pycache__/run.cpython-311.opt-1.pyc}]
+  negative:
+    - name: caches next to their sources
+      files:
+        app.py: "x = 1\n"
+        __pycache__/app.cpython-312.pyc: {base64: "yw0NCgAAAAA="}
+        src/demo/cli.py: "y = 2\n"
+        src/demo/gui.pyw: "z = 3\n"
+        src/demo/__pycache__/cli.cpython-312.pyc: {base64: "yw0NCgAAAAA="}
+        src/demo/__pycache__/cli.cpython-312.opt-2.pyc: {base64: "yw0NCgAAAAA="}
+        src/demo/__pycache__/gui.cpython-313.pyc: {base64: "yw0NCgAAAAA="}
+    - name: bytecode outside __pycache__ (RC-BIN-005 decides)
+      files:
+        lib/old.pyc: {base64: "yw0NCgAAAAA="}

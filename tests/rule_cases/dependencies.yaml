@@ -1,0 +1,208 @@
+# Test cases for area dependencies. Manifests are created under tmp_path only and never
+# installed; registries and indexes use placeholder domains (example.invalid).
+
+RC-DEP-001:
+  positive:
+    - name: swapped letters in requirements.txt
+      files:
+        requirements.txt: |
+          flask==3.0.0
+          reqeusts>=2.31
+      expect: [{path: requirements.txt, line: 2}]
+    - name: doubled letter in package.json
+      files:
+        package.json: |
+          {
+            "dependencies": {
+              "expresss": "^4.19.0"
+            }
+          }
+      expect: [{path: package.json, line: 3}]
+    - name: PEP 621 dependency in pyproject.toml
+      files:
+        pyproject.toml: |
+          [project]
+          name = "demo"
+          dependencies = ["numpyy>=1.26"]
+      expect: [{path: pyproject.toml, line: 3}]
+    - name: npm alias that points to a lookalike
+      files:
+        package.json: '{"dependencies": {"lodash": "npm:lodahs@4.17.21"}}'
+      expect: [{path: package.json, line: 1}]
+  negative:
+    - name: correctly spelled popular packages
+      files:
+        requirements.txt: |
+          requests>=2.31
+          typing_extensions
+          PyYAML==6.0.2
+        package.json: '{"dependencies": {"express": "^4.19.0", "@types/node": "^22"}}'
+    - name: lookalike in a lockfile (transitive dependencies are not checked)
+      files:
+        package-lock.json: '{"packages": {"node_modules/expresss": {"version": "1.0.0"}}}'
+    - name: names close to short popular names are not compared
+      files:
+        requirements.txt: |
+          sixx
+          rlch
+
+RC-DEP-002:
+  positive:
+    - name: crossenv instead of cross-env
+      files:
+        package.json: '{"devDependencies": {"crossenv": "^7.0.0"}}'
+      expect: [{path: package.json, line: 1}]
+    - name: one letter changed in a mid-popularity package
+      files:
+        requirements-dev.txt: |
+          aiokafkx==0.11
+      expect: [{path: requirements-dev.txt, line: 1}]
+  negative:
+    - name: the real packages
+      files:
+        package.json: '{"devDependencies": {"cross-env": "^7.0.0"}}'
+        requirements-dev.txt: |
+          aiokafka==0.11
+
+RC-DEP-003:
+  positive:
+    - name: missing hyphen and letter in a long name
+      files:
+        setup.cfg: |
+          [options]
+          install_requires =
+              typingextension>=4
+      expect: [{path: setup.cfg, line: 3}]
+  negative:
+    - name: the real name with other separators
+      files:
+        setup.cfg: |
+          [options]
+          install_requires =
+              typing.extensions>=4
+
+RC-DEP-010:
+  positive:
+    - name: Git dependency in requirements.txt
+      files:
+        requirements.txt: |
+          git+https://example.invalid/org/tool.git@main#egg=tool
+      expect: [{path: requirements.txt, line: 1}]
+    - name: direct URL reference and Poetry Git source
+      files:
+        pyproject.toml: |
+          [project]
+          dependencies = ["helper @ https://example.invalid/helper-1.0.tar.gz"]
+
+          [tool.poetry.dependencies]
+          lib = { git = "https://example.invalid/lib.git", branch = "main" }
+      expect: [{path: pyproject.toml, line: 2}, {path: pyproject.toml, line: 5}]
+    - name: GitHub shorthand in package.json
+      files:
+        package.json: '{"dependencies": {"tool": "github:example/tool#main", "other": "example/other"}}'
+      expect: [{path: package.json, line: 1}]
+  negative:
+    - name: registry versions and local workspace packages
+      files:
+        package.json: '{"dependencies": {"a": "^1.2.0", "b": "workspace:*", "c": "file:../c", "@scope/d": "latest"}}'
+        requirements.txt: |
+          -e .
+          ./libs/local_pkg
+          requests>=2
+
+RC-DEP-011:
+  positive:
+    - name: extra index in requirements.txt
+      files:
+        requirements.txt: |
+          --extra-index-url https://pypi.example.invalid/simple
+          internal-tool==1.0
+      expect: [{path: requirements.txt, line: 1}]
+    - name: uv and Poetry indexes and a trusted host
+      files:
+        pyproject.toml: |
+          [[tool.uv.index]]
+          name = "corp"
+          url = "https://pkgs.example.invalid/simple"
+
+          [[tool.poetry.source]]
+          name = "corp"
+          url = "https://pkgs2.example.invalid/simple"
+        requirements.txt: |
+          --trusted-host pkgs.example.invalid
+      expect: [{path: pyproject.toml, line: 3}, {path: pyproject.toml, line: 7}, {path: requirements.txt, line: 1}]
+  negative:
+    - name: official PyPI and PyTorch indexes
+      files:
+        requirements.txt: |
+          --index-url https://pypi.org/simple
+          --extra-index-url https://download.pytorch.org/whl/cpu
+          torch
+        Pipfile: |
+          [[source]]
+          url = "https://pypi.org/simple"
+          verify_ssl = true
+          name = "pypi"
+
+RC-DEP-012:
+  positive:
+    - name: registry in .npmrc
+      files:
+        .npmrc: |
+          registry=https://npm.example.invalid/
+      expect: [{path: .npmrc, line: 1}]
+    - name: scoped registry and Yarn Berry server
+      files:
+        .npmrc: |
+          @corp:registry=https://npm.example.invalid/
+        .yarnrc.yml: |
+          npmRegistryServer: "https://yarn.example.invalid"
+      expect: [{path: .npmrc, line: 1}, {path: .yarnrc.yml, line: 1}]
+  negative:
+    - name: default registries and other settings
+      files:
+        .npmrc: |
+          registry=https://registry.npmjs.org/
+          save-exact=true
+          ; registry=https://npm.example.invalid/
+        .yarnrc.yml: |
+          npmRegistryServer: "https://registry.yarnpkg.com"
+          nodeLinker: node-modules
+
+RC-DEP-013:
+  positive:
+    - name: tarball from another host in package-lock.json
+      files:
+        package-lock.json: |
+          {
+            "packages": {
+              "node_modules/x": {
+                "resolved": "https://npm.example.invalid/x/-/x-1.0.0.tgz"
+              }
+            }
+          }
+      expect: [{path: package-lock.json, line: 4}]
+    - name: Git source in uv.lock
+      files:
+        uv.lock: |
+          [[package]]
+          name = "tool"
+          source = { git = "https://example.invalid/tool.git?rev=main#0123abc" }
+      expect: [{path: uv.lock, line: 3}]
+  negative:
+    - name: default registries
+      files:
+        package-lock.json: |
+          {"packages": {"node_modules/x": {"resolved": "https://registry.npmjs.org/x/-/x-1.0.0.tgz"}}}
+        uv.lock: |
+          [[package]]
+          name = "requests"
+          source = { registry = "https://pypi.org/simple" }
+        yarn.lock: |
+          x@^1.0.0:
+            version "1.0.0"
+            resolved "https://registry.yarnpkg.com/x/-/x-1.0.0.tgz#abc"
+    - name: funding and repository URLs in package-lock.json
+      files:
+        package-lock.json: |
+          {"packages": {"node_modules/x": {"funding": {"type": "github", "url": "https://example.invalid/sponsors"}}}}

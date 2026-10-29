@@ -1,0 +1,287 @@
+# Named glob lists. Rules use them as `files: {set: <name>}` or as list entries.
+# Globs are anchored at the repository root; `**` matches any number of folders.
+# Matching is case-insensitive unless a rule sets `case_sensitive: true`.
+
+# Default for rules without `files`. Binary files are skipped by content checks.
+text_files:
+  - "**"
+
+markdown_files:
+  - "**/*.md"
+  - "**/*.markdown"
+  - "**/*.mdx"
+
+# Files that AI coding agents read as instructions or configuration.
+agent_files:
+  - "**/CLAUDE.md"
+  - "CLAUDE.local.md"
+  - "AGENTS.md"
+  - "**/AGENTS.md"
+  - "AGENT.md"
+  - "GEMINI.md"
+  - "**/GEMINI.md"
+  - ".cursorrules"
+  - ".cursor/rules/**"
+  - ".windsurfrules"
+  - ".windsurf/rules/**"
+  - ".clinerules"
+  - ".clinerules/**"
+  - ".roo/**"
+  - ".roomodes"
+  - ".github/copilot-instructions.md"
+  - ".github/instructions/**"
+  - ".github/prompts/**"
+  - ".github/agents/**"
+  - ".junie/**"
+  - ".kiro/steering/**"
+  - ".amazonq/rules/**"
+  - "**/SKILL.md"
+  - ".claude/**"
+  - ".mcp.json"
+  - ".cursor/mcp.json"
+  - ".vscode/mcp.json"
+  - ".gemini/**"
+  - ".codex/**"
+  - ".aider.conf.yml"
+  - "opencode.json"
+
+# Agent instruction files that support @path imports (Claude Code, AGENTS.md).
+agent_import_files:
+  - "**/CLAUDE.md"
+  - "**/CLAUDE.local.md"
+  - "**/AGENTS.md"
+
+# Claude Code project settings.
+claude_settings:
+  - "**/.claude/settings.json"
+  - "**/.claude/settings.local.json"
+
+# Project MCP server configurations of the common agents and editors.
+mcp_configs:
+  - ".mcp.json"
+  - ".cursor/mcp.json"
+  - ".vscode/mcp.json"
+  - ".roo/mcp.json"
+  - ".kiro/settings/mcp.json"
+  - ".amazonq/mcp.json"
+  - ".gemini/settings.json"
+
+# Folders with third-party or generated code.
+vendored:
+  - "**/node_modules/**"
+  - "**/bower_components/**"
+  - "**/.venv/**"
+  - "**/venv/**"
+  - "**/site-packages/**"
+
+# Source code and scripts in common languages (obfuscation, download-and-execute).
+# Not data or documentation: JSON, Markdown, notebooks and SVG legitimately carry
+# long encoded blobs (images) and install instructions.
+code_files:
+  - "**/*.py"
+  - "**/*.pyw"
+  - "**/*.js"
+  - "**/*.mjs"
+  - "**/*.cjs"
+  - "**/*.jsx"
+  - "**/*.ts"
+  - "**/*.tsx"
+  - "**/*.mts"
+  - "**/*.cts"
+  - "**/*.vue"
+  - "**/*.svelte"
+  - "**/*.sh"
+  - "**/*.bash"
+  - "**/*.zsh"
+  - "**/*.ksh"
+  - "**/*.fish"
+  - "**/*.ps1"
+  - "**/*.psm1"
+  - "**/*.bat"
+  - "**/*.cmd"
+  - "**/*.vbs"
+  - "**/*.vbe"
+  - "**/*.jse"
+  - "**/*.wsf"
+  - "**/*.hta"
+  - "**/*.rb"
+  - "**/*.pl"
+  - "**/*.pm"
+  - "**/*.php"
+  - "**/*.lua"
+  - "**/*.go"
+  - "**/*.rs"
+  - "**/*.java"
+  - "**/*.kt"
+  - "**/*.kts"
+  - "**/*.groovy"
+  - "**/*.gradle"
+  - "**/*.cs"
+  - "**/*.c"
+  - "**/*.h"
+  - "**/*.cc"
+  - "**/*.cpp"
+  - "**/*.hpp"
+  - "**/*.swift"
+  - "**/Dockerfile"
+  - "**/*.dockerfile"
+  - "**/Containerfile"
+
+# Scripts and code that run commands (download-and-execute). Makefiles and justfiles
+# are covered by the autorun area (RC-AUTO-040).
+script_files:
+  - "**/*.py"
+  - "**/*.pyw"
+  - "**/*.js"
+  - "**/*.mjs"
+  - "**/*.cjs"
+  - "**/*.ts"
+  - "**/*.mts"
+  - "**/*.cts"
+  - "**/*.sh"
+  - "**/*.bash"
+  - "**/*.zsh"
+  - "**/*.ksh"
+  - "**/*.fish"
+  - "**/*.ps1"
+  - "**/*.psm1"
+  - "**/*.bat"
+  - "**/*.cmd"
+  - "**/*.vbs"
+  - "**/*.vbe"
+  - "**/*.jse"
+  - "**/*.wsf"
+  - "**/*.hta"
+  - "**/*.rb"
+  - "**/*.pl"
+  - "**/*.php"
+  - "**/*.lua"
+
+# Build output, bundles and minified files: long lines and blobs are expected there.
+generated:
+  - "**/dist/**"
+  - "**/build/**"
+  - "**/out/**"
+  - "**/*.min.*"
+  - "**/*-min.js"
+  - "**/*.bundle.js"
+  - "**/*.chunk.js"
+  - "**/vendor/**"
+  - "**/third_party/**"
+  - "**/third-party/**"
+  - "**/_vendor/**"
+  - "**/assets/**/*.js"
+  - "**/assets/**/*.mjs"
+
+# Test modules (by file name) and test data folders. Test suites of security and
+# text-processing tools contain attack strings and odd characters on purpose. Whole
+# tests/ folders are not excluded: conftest.py and helpers there run automatically.
+test_files:
+  - "**/test_*.py"
+  - "**/*_test.py"
+  - "**/*.test.*"
+  - "**/*.spec.*"
+  - "**/*_test.go"
+  - "**/*_test.rs"
+  - "**/*_tests.rs"
+  - "**/__tests__/**"
+  - "**/testdata/**"
+  - "**/test_data/**"
+  - "**/fixtures/**"
+  - "**/__fixtures__/**"
+  - "**/__snapshots__/**"
+
+# Extensions that promise harmless content (images, documents, text, media, fonts,
+# source). A compiled program with one of these extensions is disguised (RC-BIN-002).
+decoy_files:
+  - "**/*.png"
+  - "**/*.jpg"
+  - "**/*.jpeg"
+  - "**/*.gif"
+  - "**/*.bmp"
+  - "**/*.ico"
+  - "**/*.svg"
+  - "**/*.webp"
+  - "**/*.tif"
+  - "**/*.tiff"
+  - "**/*.pdf"
+  - "**/*.doc"
+  - "**/*.docx"
+  - "**/*.xls"
+  - "**/*.xlsx"
+  - "**/*.ppt"
+  - "**/*.pptx"
+  - "**/*.odt"
+  - "**/*.rtf"
+  - "**/*.txt"
+  - "**/*.md"
+  - "**/*.csv"
+  - "**/*.json"
+  - "**/*.xml"
+  - "**/*.yaml"
+  - "**/*.yml"
+  - "**/*.html"
+  - "**/*.htm"
+  - "**/*.mp3"
+  - "**/*.mp4"
+  - "**/*.wav"
+  - "**/*.avi"
+  - "**/*.mov"
+  - "**/*.mkv"
+  - "**/*.ttf"
+  - "**/*.otf"
+  - "**/*.woff"
+  - "**/*.woff2"
+  - "**/*.py"
+  - "**/*.js"
+  - "**/*.ts"
+  - "**/*.sh"
+
+# Document formats that are zip files internally (not reported as archives).
+office_documents:
+  - "**/*.docx"
+  - "**/*.docm"
+  - "**/*.dotx"
+  - "**/*.xlsx"
+  - "**/*.xlsm"
+  - "**/*.pptx"
+  - "**/*.pptm"
+  - "**/*.odt"
+  - "**/*.ods"
+  - "**/*.odp"
+  - "**/*.epub"
+
+# Python and npm manifests with direct dependencies (not lockfiles: those list
+# transitive dependencies, whose names are not chosen by the repository author).
+dependency_manifests:
+  - "**/requirements*.txt"
+  - "**/requirements*.in"
+  - "**/*-requirements.txt"
+  - "**/*_requirements.txt"
+  - "**/requirements/*.txt"
+  - "**/requirements/*.in"
+  - "**/constraints*.txt"
+  - "**/pyproject.toml"
+  - "**/setup.cfg"
+  - "**/Pipfile"
+  - "**/package.json"
+
+# MSBuild project and import files (run Exec and inline tasks on build).
+msbuild_files:
+  - "**/*.csproj"
+  - "**/*.vbproj"
+  - "**/*.fsproj"
+  - "**/*.vcxproj"
+  - "**/*.proj"
+  - "**/*.props"
+  - "**/*.targets"
+
+# Test data folders: sample packages and projects that test suites build on purpose
+# (for example pip's tests/data). Packaging rules skip them.
+test_data:
+  - "**/tests/data/**"
+  - "**/test/data/**"
+  - "**/testdata/**"
+  - "**/test_data/**"
+  - "**/fixtures/**"
+  - "**/__fixtures__/**"

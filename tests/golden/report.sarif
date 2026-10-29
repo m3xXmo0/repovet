@@ -1,0 +1,206 @@
+{
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "repocheck",
+          "version": "0.1.0",
+          "semanticVersion": "0.1.0",
+          "rules": [
+            {
+              "id": "RC-AGENT-002",
+              "shortDescription": {
+                "text": "Hidden Unicode tag characters in an AI agent file"
+              },
+              "fullDescription": {
+                "text": "Unicode tag characters are invisible in editors and on GitHub, but AI models read them as text. They can hide instructions for a coding agent in a file that looks harmless to people (\"ASCII smuggling\")."
+              },
+              "help": {
+                "text": "Do not let an AI agent work in this repository until the hidden text is removed. Read the decoded text above; do not paste the file into an agent."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "agents",
+                  "unicode",
+                  "prompt-injection"
+                ],
+                "precision": "high",
+                "security-severity": "9.5",
+                "severity": "critical",
+                "confidence": "high",
+                "category": "danger"
+              },
+              "helpUri": "https://embracethered.com/blog/posts/2024/hiding-and-finding-text-with-unicode-tags/"
+            },
+            {
+              "id": "RC-AUTO-001",
+              "shortDescription": {
+                "text": "npm install lifecycle script present"
+              },
+              "fullDescription": {
+                "text": "npm, pnpm and yarn run this script automatically when dependencies are installed in this folder, with your user rights and before you have used the project."
+              },
+              "help": {
+                "text": "Read the script and every file it calls before installing. To install without running scripts, use `npm install --ignore-scripts`."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "autorun",
+                  "npm",
+                  "install"
+                ],
+                "precision": "high",
+                "security-severity": "5.5",
+                "severity": "medium",
+                "confidence": "high",
+                "category": "danger"
+              },
+              "helpUri": "https://docs.npmjs.com/cli/using-npm/scripts#life-cycle-scripts"
+            }
+          ]
+        }
+      },
+      "invocations": [
+        {
+          "executionSuccessful": true,
+          "startTimeUtc": "2026-10-29T00:00:00.000Z",
+          "endTimeUtc": "2026-10-29T00:00:00.500Z",
+          "toolExecutionNotifications": [
+            {
+              "level": "note",
+              "message": {
+                "text": "trust (GitHub API): not implemented yet (milestone 4)"
+              },
+              "descriptor": {
+                "id": "area:trust"
+              },
+              "properties": {
+                "status": "not_implemented",
+                "count": 1,
+                "sample": []
+              }
+            },
+            {
+              "level": "note",
+              "message": {
+                "text": "Files larger than 2 MB, content not checked (4)"
+              },
+              "descriptor": {
+                "id": "file"
+              },
+              "properties": {
+                "status": "skipped",
+                "count": 4,
+                "sample": [
+                  "assets/a.mp4",
+                  "assets/b.mp4",
+                  "assets/c.mp4",
+                  "assets/d<U+202E>.mp4"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "columnKind": "unicodeCodePoints",
+      "results": [
+        {
+          "ruleId": "RC-AGENT-002",
+          "level": "error",
+          "message": {
+            "text": "2 invisible tag characters hide this text: \"Hi\""
+          },
+          "properties": {
+            "severity": "critical",
+            "confidence": "high",
+            "category": "danger",
+            "area": "agents"
+          },
+          "ruleIndex": 0,
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "CLAUDE.md",
+                  "uriBaseId": "SRCROOT"
+                },
+                "region": {
+                  "startLine": 3,
+                  "snippet": {
+                    "text": "Hello<U+E0048><U+E0069> <U+001B>[31m"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "RC-AUTO-001",
+          "level": "warning",
+          "message": {
+            "text": "package.json defines a 'postinstall' script: node x.js"
+          },
+          "properties": {
+            "severity": "medium",
+            "confidence": "high",
+            "category": "danger",
+            "area": "autorun"
+          },
+          "ruleIndex": 1,
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "package.json",
+                  "uriBaseId": "SRCROOT"
+                },
+                "region": {
+                  "startLine": 3
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "RC-TRUST-001",
+          "level": "note",
+          "message": {
+            "text": "Something was found."
+          },
+          "properties": {
+            "severity": "low",
+            "confidence": "high",
+            "category": "trust",
+            "area": "trust"
+          }
+        }
+      ],
+      "properties": {
+        "target": "D:\\src\\demo",
+        "mode": "local folder",
+        "online": false,
+        "filesScanned": 1284,
+        "rulesLoaded": 3,
+        "minSeverity": "info",
+        "hiddenBelowMinSeverity": 0,
+        "facts": {},
+        "disclaimer": "repocheck reports only what its 3 rules detect in the checked scope. A missing finding is not proof that the repository is safe."
+      },
+      "originalUriBaseIds": {
+        "SRCROOT": {
+          "uri": "file:///D:/src/demo/"
+        }
+      }
+    }
+  ]
+}

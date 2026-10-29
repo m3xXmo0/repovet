@@ -1,0 +1,204 @@
+# Provenance indicators (RC-PROV). Facts come from the provenance profile
+# (facts.provenance, see docs/report.schema.json). These are hints about how a
+# repository came about, never verdicts: the wording says "indicator" and "may", and
+# severities stay at info or low. Commit dates and authors can be set freely.
+
+- id: RC-PROV-001
+  title: Most files arrived in one initial commit
+  area: provenance
+  severity: info
+  confidence: medium
+  check:
+    type: metric
+    conditions:
+      - {fact: provenance.history.root_file_share, op: ">=", value: 0.9}
+      - {fact: provenance.history.head_files, op: ">=", value: 50}
+      - {fact: provenance.history.commits, op: "<=", value: 5}
+    show:
+      value: provenance.history.root_file_percent
+      count: provenance.history.commits_after_root
+  message: >-
+    {value}% of the current files arrived in the first commit, followed by only {count}
+    more commit(s); this is an indicator that the code may have been imported or copied
+    from elsewhere
+  rationale: >
+    A project that grew in this repository usually has a history of many commits. A
+    single large first commit with little activity afterwards often means the code was
+    moved here from somewhere else: a migration, a mirror, a template, or a copy of
+    another project published under a new name.
+  recommendation: >
+    Look for the original project and compare. If this is a copy, prefer the original
+    source, or check that the copy matches it.
+  tags: [history, copy]
+
+- id: RC-PROV-002
+  title: Commit dates in the future
+  area: provenance
+  severity: low
+  confidence: medium
+  check:
+    type: metric
+    conditions:
+      - {fact: provenance.history.future_commits, op: ">=", value: 1}
+    show:
+      count: provenance.history.future_commits
+  message: >-
+    {count} commit(s) are dated more than a day after the time of this scan; the dates
+    may have been set by hand (indicator)
+  rationale: >
+    Git takes commit dates from the committer's clock, and anyone can set them freely. A
+    date in the future comes from a wrong clock or from editing the dates, for example
+    to make a history look older, newer or more active than it is.
+  recommendation: >
+    Do not rely on the commit dates of this repository. Compare with dates you can
+    verify, such as releases or the hosting platform's activity.
+  tags: [history, timestamps]
+
+- id: RC-PROV-003
+  title: Author dates later than commit dates
+  area: provenance
+  severity: low
+  confidence: medium
+  check:
+    type: metric
+    conditions:
+      - {fact: provenance.history.author_after_commit, op: ">=", value: 1}
+    show:
+      count: provenance.history.author_after_commit
+  message: >-
+    {count} commit(s) have an author date more than a day after their commit date; Git
+    does not produce this on its own, so the dates may have been edited (indicator)
+  rationale: >
+    Rebasing, cherry-picking and applying patches keep the original author date and set
+    a newer commit date, so the commit date is normally the later one. An author date
+    far after the commit date points to dates that were set by hand or by a tool.
+  recommendation: >
+    Treat the commit dates as unreliable. Check releases and other dates you can verify.
+  tags: [history, timestamps]
+
+- id: RC-PROV-004
+  title: History committed in one go
+  area: provenance
+  severity: info
+  confidence: low
+  check:
+    type: metric
+    conditions:
+      - {fact: provenance.history.commits, op: ">=", value: 20}
+      - {fact: provenance.history.committer_span_seconds, op: "<=", value: 3600}
+      - {fact: provenance.history.author_span_seconds, op: ">=", value: 604800}
+    show:
+      count: provenance.history.commits
+      value: provenance.history.author_span_days
+  message: >-
+    All {count} commits were committed within one hour, although their author dates
+    span {value} days; the history may have been rebased, rewritten or imported in one
+    go (indicator)
+  rationale: >
+    When a history is rebased, filtered or rewritten, every commit gets a new commit
+    date while the author dates stay. This is common when projects move between
+    repositories, but it also means the history cannot show when the work really
+    happened.
+  recommendation: >
+    Do not judge the project's age or activity by its commit history. Look for the
+    original repository or other dates you can verify.
+  tags: [history, rewrite]
+
+- id: RC-PROV-005
+  title: Many commits authored within minutes
+  area: provenance
+  severity: info
+  confidence: low
+  check:
+    type: metric
+    conditions:
+      - {fact: provenance.history.commits, op: ">=", value: 20}
+      - {fact: provenance.history.author_span_seconds, op: "<=", value: 600}
+    show:
+      count: provenance.history.commits
+  message: >-
+    All {count} commits were authored within ten minutes; such a history may have been
+    created by a script rather than grown over time (indicator)
+  rationale: >
+    Real projects collect commits over days and weeks. Dozens of commits within a few
+    minutes are typical for imports and generated histories, which are sometimes used
+    to make a new repository look established.
+  recommendation: >
+    Do not judge the project's age or activity by its commit history.
+  tags: [history, timestamps]
+
+- id: RC-PROV-010
+  title: Commits name an AI tool as co-author or generator
+  area: provenance
+  severity: info
+  confidence: medium
+  check:
+    type: metric
+    conditions:
+      - {fact: provenance.history.ai_commits, op: ">=", value: 1}
+    show:
+      count: provenance.history.ai_commits
+      value: provenance.history.commits
+      match: provenance.history.ai_tools
+  message: >-
+    {count} of {value} commit(s) name an AI tool as co-author, generator or author
+    ({match}); parts of the code may have been written with AI assistance (indicator,
+    not proof)
+  rationale: >
+    AI coding tools add trailers such as "Co-Authored-By" or "Generated with" to the
+    commits they create, or commit under their own account. This says nothing about the
+    quality or safety of the code, and the trailers can be added or removed by anyone.
+    It can help to decide how carefully to review the code.
+  recommendation: >
+    Review AI-assisted code like any other contribution: read what runs at install,
+    build or start, and check unfamiliar dependencies.
+  references:
+    - https://docs.github.com/en/pull-requests/committing-changes-to-your-project/creating-and-editing-commits/creating-a-commit-with-multiple-authors
+  tags: [history, ai]
+
+- id: RC-PROV-011
+  title: Text says it was generated with an AI tool
+  area: provenance
+  severity: info
+  confidence: medium
+  files: [{set: text_files}]
+  exclude: [{set: vendored}, {set: test_files}]
+  check:
+    type: regex
+    scope: line
+    prefilter: [generated, written, created, built]
+    flags: [ignorecase]
+    pattern: "\\b(?:generated|written|created|built) (?:with|by|using) \\[?(?:claude code|claude (?:opus|sonnet|haiku)|chatgpt|gpt-[345][\\w.-]{0,12}|github copilot|copilot (?:chat|agent|workspace)|cursor (?:ai|agent|ide)|gemini (?:cli|code assist)|openai codex|codex cli|aider|devin ai|windsurf|lovable|bolt\\.new)\\b"
+  message: "Text says it was generated with an AI tool: {match} (indicator)"
+  rationale: >
+    Some AI tools add a note to the files or documents they write ("generated with",
+    followed by the name of the tool). It says nothing about quality or safety, and anyone can add or
+    remove it, but it can help to decide how carefully to review the code.
+  recommendation: >
+    Review AI-generated files like any other contribution, especially code that runs at
+    install, build or start.
+  tags: [ai]
+
+- id: RC-PROV-012
+  title: AI coding session history committed
+  area: provenance
+  severity: info
+  confidence: medium
+  files:
+    - "**/.aider.chat.history.md"
+    - "**/.aider.input.history"
+    - "**/.aider.llm.history"
+    - "**/.specstory/**"
+  check:
+    type: filename
+    name_regex: "."
+  message: "AI coding session history is part of the repository: {path} (indicator)"
+  rationale: >
+    aider and the SpecStory extension save the conversation with the AI tool in these
+    files. Committed session histories show that parts of the repository may have been
+    written with AI assistance; they can also contain prompts, paths or other details
+    the author did not mean to publish.
+  recommendation: >
+    Review AI-assisted code like any other contribution. The history may explain why the
+    code looks the way it does.
+  tags: [ai]

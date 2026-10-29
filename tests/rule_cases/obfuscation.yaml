@@ -1,0 +1,223 @@
+# Test cases for area obfuscation. Files are created under tmp_path only; encoded
+# strings decode to harmless dummies ("echo harmless test") and are never executed.
+
+RC-OBF-001:
+  positive:
+    - name: random-looking Base64 blob in Python
+      files:
+        app/loader.py: |
+          BLOB = "bjQLnP+zepicpUTmu3gKLHiQHT+zNzh2hRGjBhevoB1L9RIvNEVUxTveLruM0rfj0WAK1jHDhaXXzOI8d4VFmtvBtMkA/+SNV1tdpcY4BAEl9l2w/j4kSUt26phkV9mGCE/tCLl4r019GWp0RqhrWACeY2thHbFiEbZamq3/KcXlLZxQjFAjRzRNjAetkcvWBor8df9ikvBioJyjgcieced7mprp4wsNvbb1EKJk753ngVAde2uSronrBZxat0PbZ1humPrSfaC5lovAOaHvNMk5ubjlI6i++J1HhgjF7PbKNYdY9tJ+bPRScpN5d6dI"
+      expect: [{path: app/loader.py, line: 1}]
+  negative:
+    - name: image as data URI
+      files:
+        web/icon.js: |
+          export const ICON = "data:image/png;base64,bjQLnP+zepicpUTmu3gKLHiQHT+zNzh2hRGjBhevoB1L9RIvNEVUxTveLruM0rfj0WAK1jHDhaXXzOI8d4VFmtvBtMkA/+SNV1tdpcY4BAEl9l2w/j4kSUt26phkV9mGCE/tCLl4r019GWp0RqhrWACeY2thHbFiEbZamq3/KcXlLZxQjFAjRzRNjAetkcvWBor8df9ikvBioJyjgcieced7mprp4wsNvbb1EKJk753ngVAde2uSronrBZxat0PbZ1humPrSfaC5lovAOaHvNMk5ubjlI6i++J1HhgjF7PbKNYdY9tJ+bPRScpN5d6dI";
+    - name: Base64 PNG without data URI prefix
+      files:
+        app/icon.py: |
+          PNG = "iVBORw0KGgpuNAuc/7N6mJylROa7eAoseJAdP7M3OHaFEaMGF6+gHUv1Ei80RVTFO94uu4zSt+PRYArWMcOFpdfM4jx3hUWa28G0yQD/5I1XW12lxjgEASX2XbD+PiRJS3bqmGRX2YYIT+0IuXivTX0ZanRGqGtYAJ5ja2EdsWIRtlqarf8pxeUtnFCMUCNHNE2MB62Ry9YGivx1/2KS8GKgnKOByJ5x53uamunjCw29tvUQomTvneeBUB17a5KuiesFnFq3Q9tnWG6Y+tJ9oLmWi8A5oe80yTm5uOUjqL74nUeGCMXs9so1h1j20n5s9FJyk3l3p0g="
+    - name: blob in a JSON data file
+      files:
+        data/blob.json: |
+          {"blob": "bjQLnP+zepicpUTmu3gKLHiQHT+zNzh2hRGjBhevoB1L9RIvNEVUxTveLruM0rfj0WAK1jHDhaXXzOI8d4VFmtvBtMkA/+SNV1tdpcY4BAEl9l2w/j4kSUt26phkV9mGCE/tCLl4r019GWp0RqhrWACeY2thHbFiEbZamq3/KcXlLZxQjFAjRzRNjAetkcvWBor8df9ikvBioJyjgcieced7mprp4wsNvbb1EKJk753ngVAde2uSronrBZxat0PbZ1humPrSfaC5lovAOaHvNMk5ubjlI6i++J1HhgjF7PbKNYdY9tJ+bPRScpN5d6dI"}
+    - name: short Base64 string
+      files:
+        app/token.py: |
+          TOKEN = "bjQLnP+zepicpUTmu3gKLHiQHT+zNzh2hRGjBhevoB1L9RIvNEVUxTveLruM0rfj0WAK1jHDhaXXzOI8d4VF"
+    - name: long low-entropy run
+      files:
+        app/pad.py: {prefix: 'PAD = "', repeat: "AAAAAAAAAB", count: 40, suffix: "\"\n"}
+
+RC-OBF-002:
+  positive:
+    - name: Base64 that decodes to Python code
+      files:
+        setup_helper.py: |
+          import base64
+          PAYLOAD = "aW1wb3J0IG9zCm9zLnN5c3RlbSgnZWNobyBoYXJtbGVzcyB0ZXN0JykK"
+      expect: [{path: setup_helper.py, line: 2}]
+    - name: zlib-compressed Base64 code
+      files:
+        lib/x.py: |
+          DATA = "eJzLzC3ILypRyC/mKijKzCvRUM9ILMrNSS0uVihJLS5RKEiszMlPTFHX5MqkukIA5NcsUw=="
+      expect: [{path: lib/x.py, line: 1}]
+    - name: hex escapes that spell require('child_process')
+      files:
+        index.js: |
+          const m = "\x72\x65\x71\x75\x69\x72\x65\x28\x27\x63\x68\x69\x6c\x64\x5f\x70\x72\x6f\x63\x65\x73\x73\x27\x29";
+      expect: [{path: index.js, line: 1}]
+    - name: plain hex that decodes to code
+      files:
+        run.ts: |
+          const h = "7265717569726528276368696c645f70726f6365737327292e6578656328276563686f2068692729";
+      expect: [{path: run.ts, line: 1}]
+  negative:
+    - name: Base64 of ordinary text
+      files:
+        app/strings.py: |
+          GREETING = "VGhlIHF1aWNrIGJyb3duIGZveCBqdW1wcyBvdmVyIHRoZSBsYXp5IGRvZyBhZ2FpbiBhbmQgYWdhaW4u"
+    - name: commit hash and random data
+      files:
+        app/meta.py: |
+          COMMIT = "4e2dfd2a7c1f0b9e8d6c5b4a3f2e1d0c9b8a7f6e"
+          KEY = "bjQLnP+zepicpUTmu3gKLHiQHT+zNzh2hRGjBhevoB1L9RIvNEVUxTveLruM0rfj0WAK"
+    - name: Base64 code in a Markdown file
+      files:
+        docs/notes.md: |
+          aW1wb3J0IG9zCm9zLnN5c3RlbSgnZWNobyBoYXJtbGVzcyB0ZXN0JykK
+
+RC-OBF-003:
+  positive:
+    - name: Python exec of a Base64 decode
+      files:
+        x.py: |
+          import base64
+          exec(base64.b64decode("ZWNobyBoYXJtbGVzcw=="))
+      expect: [{path: x.py, line: 2}]
+    - name: exec of zlib and marshal
+      files:
+        y.py: |
+          exec(zlib.decompress(blob))
+          exec(marshal.loads(code))
+      expect: [{path: y.py, line: 1}, {path: y.py, line: 2}]
+    - name: JavaScript eval of atob
+      files:
+        a.js: |
+          eval(atob("ZWNobyBoYXJtbGVzcw=="));
+      expect: [{path: a.js, line: 1}]
+    - name: shell decodes into sh
+      files:
+        install.sh: |
+          #!/bin/sh
+          echo ZWNobyBoYXJtbGVzcw== | base64 -d | sh
+      expect: [{path: install.sh, line: 2}]
+    - name: PowerShell decodes and invokes
+      files:
+        run.ps1: |
+          $c = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b)) | iex
+      expect: [{path: run.ps1, line: 1}]
+  negative:
+    - name: decoding without execution
+      files:
+        z.py: |
+          import base64, json
+          data = json.loads(base64.b64decode(raw))
+    - name: eval methods of libraries
+      files:
+        model.py: |
+          model.eval()
+          result = df.eval("a + b")
+    - name: base64 decode written to a file
+      files:
+        unpack.sh: |
+          base64 -d archive.b64 > archive.tar
+
+RC-OBF-004:
+  positive:
+    - name: obfuscator.io string array
+      files:
+        lib/index.js: |
+          var _0x3f2a=['log','hello'];(function(_0x1d2c,_0x4e5f){console[_0x3f2a[0]](_0x3f2a[1]);})();
+      expect: [{path: lib/index.js, line: 1}]
+    - name: Dean Edwards packer
+      files:
+        static/app.js: |
+          eval(function(p,a,c,k,e,d){return p}('0 1',2,2,'console|log'.split('|'),0,{}))
+      expect: [{path: static/app.js, line: 1}]
+  negative:
+    - name: hex number literals
+      files:
+        src/flags.js: |
+          const MASK = 0x3f2a;
+          const values = [0x1d2c, 0x4e5f];
+    - name: packer inside node_modules
+      files:
+        node_modules/old/lib.js: |
+          eval(function(p,a,c,k,e,d){return p}('0',1,1,'x'.split('|'),0,{}))
+
+RC-OBF-005:
+  positive:
+    - name: JavaScript fromCharCode chain
+      files:
+        a.js: |
+          const s = String.fromCharCode(104,97,114,109,108,101,115,115,32,116,101,115,116,32,111,110,108,121);
+      expect: [{path: a.js, line: 1}]
+    - name: Python chr chain
+      files:
+        b.py: |
+          s = chr(104)+chr(97)+chr(114)+chr(109)+chr(108)+chr(101)+chr(115)+chr(115)+chr(32)+chr(116)+chr(101)+chr(115)+chr(116)+chr(32)+chr(111)+chr(110)
+      expect: [{path: b.py, line: 1}]
+  negative:
+    - name: short fromCharCode calls
+      files:
+        c.js: |
+          const letter = String.fromCharCode(65 + index, 66);
+          const pair = String.fromCharCode(0xD83D, 0xDE00);
+
+RC-OBF-006:
+  positive:
+    - name: one very long line in a Python module
+      files:
+        pkg/data.py: {prefix: "VALUES = [", repeat: "123456789, ", count: 600, suffix: "]\n"}
+      expect: [{path: pkg/data.py, line: 1}]
+  negative:
+    - name: generated file with a header
+      files:
+        schema/types.ts: {prefix: "// GENERATED CODE! DO NOT MODIFY BY HAND!\nexport type T = ", repeat: "{ a: string } | ", count: 400, suffix: "never;\n"}
+    - name: long line in build output
+      files:
+        dist/bundle.py: {prefix: "VALUES = [", repeat: "123456789, ", count: 600, suffix: "]\n"}
+    - name: long line in a minified file
+      files:
+        web/app.min.js: {prefix: "var a=[", repeat: "1,2,3,4,5,", count: 700, suffix: "];\n"}
+    - name: line below the limit
+      files:
+        pkg/small.py: {prefix: "VALUES = [", repeat: "123456789, ", count: 400, suffix: "]\n"}
+
+RC-OBF-007:
+  positive:
+    - name: statement hidden after many spaces
+      files:
+        pkg/__init__.py: {prefix: "print('ok')", repeat: " ", count: 200, suffix: "; import os\n"}
+      expect: [{path: pkg/__init__.py, line: 1}]
+  negative:
+    - name: ordinary alignment
+      files:
+        pkg/table.py: |
+          A = 1          # first
+          LONG_NAME = 2  # second
+    - name: trailing whitespace only
+      files:
+        pkg/trail.py: {prefix: "x = 1", repeat: " ", count: 300, suffix: "\n"}
+
+RC-OBF-008:
+  positive:
+    - name: right-to-left override in a comment
+      files:
+        auth.py: "is_admin = False  # \U0000202E } \U00002066if is_admin\U00002069 \U00002066 begin admins only\n"
+      expect: [{path: auth.py, line: 1}]
+  negative:
+    - name: bidi characters in a test module
+      files:
+        tests/render.test.ts: "expect(render('a\U0000202Eb')).toBe('a<U+202E>b');\n"
+    - name: left-to-right mark in a string
+      files:
+        i18n.js: "const label = 'abc\U0000200E';\n"
+    - name: bidi characters in documentation
+      files:
+        README.md: "Text \U0000202E reversed\n"
+
+RC-OBF-009:
+  positive:
+    - name: zero-width space inside an identifier
+      files:
+        check.js: "const is\U0000200BAdmin = true;\nif (isAdmin) { run(); }\n"
+      expect: [{path: check.js, line: 1}]
+  negative:
+    - name: joiner inside an emoji sequence
+      files:
+        emoji.py: "FAMILY = '\U0001F468\U0000200D\U0001F469'\n"
+    - name: zero-width non-joiner in Persian text
+      files:
+        fa.py: "WORD = '\U00000645\U000006CC\U0000200C\U00000634\U00000648\U00000645'\n"

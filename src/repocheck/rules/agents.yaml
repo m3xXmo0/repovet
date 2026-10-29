@@ -1,0 +1,577 @@
+# Area agents (RC-AGENT): instructions and configuration for AI coding agents.
+# Configuration keys checked against the Claude Code docs on 2026-10-29.
+
+# --- Inventory -------------------------------------------------------------------------
+
+- id: RC-AGENT-001
+  title: AI agent file present
+  area: agents
+  severity: info
+  confidence: high
+  files: [{set: agent_files}]
+  exclude: [{set: vendored}]
+  check:
+    type: filename
+  message: "AI coding agents read {path} as instructions or configuration"
+  rationale: >
+    Coding agents load this file automatically when they work in the repository. Its
+    content steers what the agent does, so it deserves the same review as code.
+  recommendation: >
+    Read the file before letting an agent work here.
+  tags: [inventory]
+
+# --- Hidden text -----------------------------------------------------------------------
+
+- id: RC-AGENT-002
+  title: Hidden Unicode tag characters in an AI agent file
+  area: agents
+  severity: critical
+  confidence: high
+  files: [{set: agent_files}]
+  check:
+    type: unicode
+    ranges: [tags]
+    decode: tags
+    allow_flag_sequences: true
+  message: "{count} invisible tag characters hide this text: \"{decoded}\""
+  rationale: >
+    Unicode tag characters are invisible in editors and on GitHub, but AI models read
+    them as text. They can hide instructions for a coding agent in a file that looks
+    harmless to people ("ASCII smuggling").
+  recommendation: >
+    Do not let an AI agent work in this repository until the hidden text is removed.
+    Read the decoded text above; do not paste the file into an agent.
+  references:
+    - https://embracethered.com/blog/posts/2024/hiding-and-finding-text-with-unicode-tags/
+    - https://www.unicode.org/charts/PDF/UE0000.pdf
+  tags: [unicode, prompt-injection]
+
+- id: RC-AGENT-003
+  title: Hidden Unicode tag characters in a text file
+  area: agents
+  severity: high
+  confidence: high
+  exclude: [{set: agent_files}, {set: vendored}]
+  check:
+    type: unicode
+    ranges: [tags]
+    decode: tags
+    allow_flag_sequences: true
+  message: "{count} invisible tag characters hide this text: \"{decoded}\""
+  rationale: >
+    Tag characters are invisible to people but read by AI models. Agents read READMEs,
+    docs and code too, so hidden text here can still reach them.
+  recommendation: >
+    Do not let an AI agent read this file until the hidden text is removed.
+  references:
+    - https://embracethered.com/blog/posts/2024/hiding-and-finding-text-with-unicode-tags/
+  tags: [unicode, prompt-injection]
+
+- id: RC-AGENT-004
+  title: Bidirectional control characters in an AI agent file
+  area: agents
+  severity: high
+  confidence: high
+  files: [{set: agent_files}]
+  check:
+    type: unicode
+    ranges: ["202A-202E", "2066-2069"]
+  message: "{count} bidirectional control character(s) change how this line is displayed"
+  rationale: >
+    Bidi override and isolate characters make text appear in a different order than
+    an agent reads it, so the visible instruction may not be the real one.
+  recommendation: >
+    Look at the line in a hex viewer or with visible control characters and remove them.
+  references:
+    - https://trojansource.codes/
+  tags: [unicode, prompt-injection]
+
+- id: RC-AGENT-005
+  title: Zero-width characters in an AI agent file
+  area: agents
+  severity: medium
+  confidence: medium
+  files: [{set: agent_files}]
+  check:
+    type: unicode
+    ranges: ["180E", "200B-200D", "2060-2064", "FEFF"]
+    # Joiners inside emoji sequences and in joining scripts (Arabic, Indic) are normal.
+    ignore_between: [emoji, "0600-06FF", "0750-077F", "08A0-08FF", "0900-0DFF", "FB50-FDFF", "FE70-FEFC"]
+  message: "{count} zero-width character(s) in agent instructions"
+  rationale: >
+    Zero-width characters are invisible. In agent instructions they can split words to
+    hide them from reviewers or carry an encoded message.
+  recommendation: >
+    Check the line with visible control characters and remove them if they have no purpose.
+  references:
+    - https://www.unicode.org/charts/PDF/U2000.pdf
+  tags: [unicode, prompt-injection]
+
+- id: RC-AGENT-010
+  title: HTML comment in an AI agent file
+  area: agents
+  severity: medium
+  confidence: medium
+  files: [{set: agent_files}]
+  check:
+    type: regex
+    scope: text
+    # A comment may not contain another '<!--', which keeps the search linear.
+    pattern: '<!--(?:[^<-]|<(?!!--)|-(?!->))*+-->'
+    # Short markers (up to three words) and tool directives are ignored.
+    ignore: '\A<!--[ \t\r\n]*(?:-->\Z|\S+(?:[ \t]+\S+){0,2}[ \t\r\n]*-->\Z|(?i:prettier-ignore|markdownlint|cspell|spell-?checker|vale|textlint|eslint|doctoc|toc\b|all-contributors|start doctoc|end doctoc))'
+  message: "Text hidden from the rendered view: {match}"
+  rationale: >
+    HTML comments are invisible on GitHub and in Markdown previews, but agents read
+    them. Instructions placed there are hidden from people who review the file.
+  recommendation: >
+    Read the comment. Remove it if it contains instructions you did not expect.
+  references:
+    - https://genai.owasp.org/llmrisk/llm01-prompt-injection/
+  tags: [prompt-injection]
+
+# --- Instructions ----------------------------------------------------------------------
+
+- id: RC-AGENT-020
+  title: Instruction to override rules or hide actions from the user
+  area: agents
+  severity: high
+  confidence: medium
+  files: [{set: agent_files}]
+  check:
+    type: regex
+    flags: [ignorecase]
+    pattern: '\b(?:ignore|disregard|forget|override)[ \t]+(?:all[ \t]+|any[ \t]+)?(?:of[ \t]+)?(?:the[ \t]+|your[ \t]+|my[ \t]+)?(?:previous|prior|above|earlier|preceding|original|system)[ \t]+(?:instructions?|prompts?|rules|directions|guidelines|messages|context)\b|\b(?:do[ \t]+not|don''?t|never)[ \t]+(?:tell|inform|notify|alert|mention[ \t]+(?:this|it)[ \t]+to|reveal[ \t]+(?:this|it)[ \t]+to)[ \t]+the[ \t]+user\b|\bwithout[ \t]+(?:asking|telling|informing|notifying|alerting)[ \t]+(?:the[ \t]+)?user\b|\b(?:keep|hide)[ \t]+(?:this|it|these[ \t]+instructions)[ \t]+(?:secret[ \t]+)?from[ \t]+the[ \t]+user\b'
+  message: "Agent instruction: {match}"
+  rationale: >
+    Telling an agent to ignore earlier instructions or to keep something from the user
+    is typical for prompt injection; a normal project has no reason for it.
+  recommendation: >
+    Read the surrounding text. Do not let an agent work here until you understand why
+    the instruction is there.
+  references:
+    - https://genai.owasp.org/llmrisk/llm01-prompt-injection/
+  tags: [prompt-injection]
+
+- id: RC-AGENT-021
+  title: Agent instruction to download and run code
+  area: agents
+  severity: high
+  confidence: medium
+  files: [{set: agent_files}]
+  check:
+    type: regex
+    pattern: "{{download_exec}}"
+  message: "Agent is asked to download and run code: {match}"
+  rationale: >
+    An agent that follows this runs code from the network with your rights. The code is
+    not in the repository and can change at any time. Install instructions sometimes look
+    like this too.
+  recommendation: >
+    Check the URL and the script yourself. Do not let an agent run it unattended.
+  references:
+    - https://genai.owasp.org/llmrisk/llm01-prompt-injection/
+  tags: [prompt-injection, download]
+
+- id: RC-AGENT-023
+  title: Exfiltration target in an AI agent file
+  area: agents
+  severity: high
+  confidence: medium
+  files: [{set: agent_files}]
+  check:
+    type: regex
+    pattern: "{{exfil_host}}"
+  message: "Agent file mentions a service often used to receive stolen data: {match}"
+  rationale: >
+    Request catchers, tunnels, paste sites, chat webhooks and raw IP addresses are
+    common destinations when injected instructions make an agent send files or secrets.
+  recommendation: >
+    Read what the agent is asked to send there. Block the agent's network access if you
+    run it in this repository.
+  references:
+    - https://genai.owasp.org/llmrisk/llm02-sensitive-information-disclosure/
+  tags: [prompt-injection, exfiltration]
+
+- id: RC-AGENT-024
+  title: Agent safety checks switched off
+  area: agents
+  severity: high
+  confidence: medium
+  files: [{set: agent_files}, "**/.vscode/settings.json"]
+  exclude: [{set: vendored}]
+  check:
+    type: regex
+    pattern: '(?<![\w-])--dangerously-skip-permissions\b|(?<![\w-])--dangerously-bypass-approvals-and-sandbox\b|\bbypassPermissions\b|(?<![\w-])--yolo\b|(?i:\byolo[ _-]?mode\b)|["'']?\b(?:autoApprove|alwaysAllow|auto_approve|autoAccept)\b["'']?[ \t]*[:=][ \t]*true\b'
+  message: "Approval prompts are disabled: {match}"
+  rationale: >
+    Without approval prompts the agent runs commands and edits files without asking, so
+    injected instructions take effect immediately.
+  recommendation: >
+    Keep approvals on in this repository; remove the setting or do not follow the
+    instruction.
+  references:
+    - https://code.claude.com/docs/en/permissions
+    - https://code.visualstudio.com/docs/copilot/chat/chat-tools
+  tags: [permissions]
+
+- id: RC-AGENT-026
+  title: Agent file imports files from outside the repository
+  area: agents
+  severity: high
+  confidence: medium
+  files: [{set: agent_import_files}]
+  exclude: [{set: vendored}]
+  check:
+    type: import_ref
+    secret_regex: "{{secret_path}}"
+  message: "Import {match} reads a {value}"
+  rationale: >
+    Claude Code and other agents load @-imported files into the agent's context
+    automatically. Imports from your home directory, absolute paths or secret files put
+    private data where injected instructions can send it on.
+  recommendation: >
+    Remove the import, or make sure the imported file contains nothing private.
+  references:
+    - https://code.claude.com/docs/en/memory
+  tags: [prompt-injection, exfiltration]
+
+# --- Claude Code settings --------------------------------------------------------------
+
+- id: RC-AGENT-030
+  title: Claude Code hooks in project settings
+  area: agents
+  severity: high
+  confidence: high
+  files: [{set: claude_settings}]
+  check:
+    type: keypath
+    format: jsonc
+    paths: ["hooks.*"]
+  message: "Hooks for '{key}' run commands automatically: {value}"
+  rationale: >
+    Claude Code runs hook commands on agent events such as session start or before a
+    tool call, without asking, from settings committed to the repository.
+  recommendation: >
+    Read every hook command before starting Claude Code in this folder.
+  references:
+    - https://code.claude.com/docs/en/hooks
+  tags: [claude-code, hooks]
+
+- id: RC-AGENT-031
+  title: Broad agent permissions in project settings
+  area: agents
+  severity: high
+  confidence: high
+  files: [{set: claude_settings}]
+  check:
+    type: keypath
+    format: jsonc
+    paths:
+      - path: "permissions.allow.*"
+        value_regex: '\A[ \t]*(?:Bash|PowerShell|\*)[ \t]*(?:\([ \t]*(?::?\*|\*:\*)?[ \t]*\))?[ \t]*\Z'
+      - {path: permissions.defaultMode, value_regex: '\A[ \t]*(?:bypassPermissions|acceptEdits)[ \t]*\Z'}
+      - {path: enableAllProjectMcpServers, equals: true}
+  message: "Project settings grant broad rights: {key} = {value}"
+  rationale: >
+    These settings let the agent run any shell command, accept edits without asking or
+    start every MCP server of the project. Allow rules apply once the folder is trusted.
+    Recent Claude Code versions ignore `bypassPermissions` from project files; other
+    versions and tools may not.
+  recommendation: >
+    Remove the entries or override them in your own settings before trusting the folder.
+  references:
+    - https://code.claude.com/docs/en/permissions
+    - https://code.claude.com/docs/en/settings
+  tags: [claude-code, permissions]
+
+- id: RC-AGENT-032
+  title: Claude Code API traffic redirected or API key helper set
+  area: agents
+  severity: critical
+  confidence: high
+  files: [{set: claude_settings}]
+  check:
+    type: keypath
+    format: jsonc
+    paths:
+      - env.ANTHROPIC_BASE_URL
+      - "env.ANTHROPIC_*_BASE_URL"
+      - env.HTTP_PROXY
+      - env.HTTPS_PROXY
+      - env.ALL_PROXY
+      - env.http_proxy
+      - env.https_proxy
+      - env.all_proxy
+      - apiKeyHelper
+  message: "{key} = {value}"
+  rationale: >
+    A base URL or proxy sends your prompts, code and credentials through a server chosen
+    by the repository. An apiKeyHelper is a command that runs to produce your API key.
+  recommendation: >
+    Do not start Claude Code in this folder until the entry is removed.
+  references:
+    - https://code.claude.com/docs/en/settings
+    - https://code.claude.com/docs/en/env-vars
+  tags: [claude-code, exfiltration]
+
+- id: RC-AGENT-033
+  title: Claude Code settings run helper commands
+  area: agents
+  severity: high
+  confidence: high
+  files: [{set: claude_settings}]
+  check:
+    type: keypath
+    format: jsonc
+    paths:
+      - statusLine.command
+      - fileSuggestion.command
+      - awsAuthRefresh
+      - awsCredentialExport
+      - gcpAuthRefresh
+      - otelHeadersHelper
+  message: "{key} runs a command: {value}"
+  rationale: >
+    Claude Code runs these commands itself (for the status line, file suggestions or
+    credentials), from settings committed to the repository.
+  recommendation: >
+    Read the command and the script it calls before starting Claude Code here.
+  references:
+    - https://code.claude.com/docs/en/settings
+  tags: [claude-code]
+
+# --- MCP servers -----------------------------------------------------------------------
+
+- id: RC-AGENT-040
+  title: MCP server starts a local program
+  area: agents
+  severity: medium
+  confidence: high
+  files: [{set: mcp_configs}]
+  check:
+    type: keypath
+    format: jsonc
+    paths: ["mcpServers.*.command", "servers.*.command"]
+  message: "MCP server starts a local program: {value}"
+  rationale: >
+    Agents and editors start configured MCP servers as local processes with your user
+    rights, often as soon as the project is opened or approved.
+  recommendation: >
+    Check what the command runs before enabling the project's MCP servers.
+  references:
+    - https://code.claude.com/docs/en/mcp
+    - https://code.visualstudio.com/docs/copilot/customization/mcp-servers
+  tags: [mcp]
+
+- id: RC-AGENT-041
+  title: MCP server runs a repository script, an unpinned package or a download
+  area: agents
+  severity: high
+  confidence: high
+  files: [{set: mcp_configs}]
+  check:
+    type: keypath
+    format: jsonc
+    paths: ["mcpServers.*", "servers.*"]
+    value_regex: '(?:\A|[ \t])(?:\.{1,2}[\\/]|\$\{workspaceFolder\})|\bnpx[ \t]+(?:-y|--yes)[ \t]+(?:@[\w.-]+/)?[\w.-]+(?:@latest)?(?=[ \t]|\Z)|\buvx[ \t]+[A-Za-z0-9][\w.-]*(?=[ \t]|\Z)|\b(?:sh|bash|zsh|cmd(?:\.exe)?|powershell(?:\.exe)?|pwsh)[ \t]+(?:-c|/c|-Command)\b[^\n]{0,300}?(?:{{network_fetch}})|{{download_exec}}'
+  message: "MCP server launch is risky ({match}): {value}"
+  rationale: >
+    The server runs code from the repository, the newest version of a package that can
+    change at any time, or code fetched over the network when the agent starts it.
+  recommendation: >
+    Pin package versions, read repository scripts, and do not enable the server until
+    you trust what it runs.
+  references:
+    - https://code.claude.com/docs/en/mcp
+  tags: [mcp, supply-chain]
+
+# --- M2e ------------------------------------------------------------------------------
+
+- id: RC-AGENT-006
+  title: Run of Unicode variation selectors (hidden bytes)
+  area: agents
+  severity: high
+  confidence: high
+  exclude: [{set: vendored}]
+  check:
+    type: unicode
+    ranges: [variation_selectors]
+    min_run: 2
+  message: "{count} variation selectors in a row can encode hidden data"
+  rationale: >
+    A single variation selector after an emoji or ideograph is normal. Several in a row
+    have no visible effect and can carry arbitrary bytes inside what looks like one
+    emoji, readable by AI models and programs but not by people.
+  recommendation: >
+    Remove the characters; do not give the file to an AI agent before that.
+  references:
+    - https://paulbutler.org/2025/smuggling-arbitrary-data-through-an-emoji/
+  tags: [unicode, prompt-injection]
+
+- id: RC-AGENT-011
+  title: Hidden Markdown or HTML content in an AI agent file
+  area: agents
+  severity: medium
+  confidence: medium
+  files: [{set: agent_files}]
+  exclude: [{set: vendored}]
+  check:
+    type: regex
+    pattern: '\A[ \t]*\[[^\]\n]{0,40}\]:[ \t]*(?:#|<>)[ \t]*\(|(?i:<[a-z][^>\n]{0,200}?[ \t](?:hidden(?=[ \t>=/])|aria-hidden[ \t]*=[ \t]*["'']?true)|\b(?:display[ \t]*:[ \t]*none|visibility[ \t]*:[ \t]*hidden|font-size[ \t]*:[ \t]*0(?![.\d]))\b)'
+  message: "Content hidden from rendered view: {match}"
+  rationale: >
+    Markdown link-reference comments and hidden HTML are invisible when the file is
+    rendered (for example on GitHub) but AI agents read them as instructions.
+  recommendation: >
+    Read the raw file and remove hidden content you did not write.
+  references:
+    - https://embracethered.com/blog/posts/2025/github-copilot-remote-code-execution-via-prompt-injection/
+  tags: [prompt-injection, markdown]
+
+- id: RC-AGENT-012
+  title: Instructions for AI tools hidden in an HTML comment
+  area: agents
+  severity: medium
+  confidence: low
+  files: [{set: markdown_files}]
+  exclude: [{set: vendored}, {set: agent_files}]
+  check:
+    type: regex
+    prefilter: ["<!--"]
+    pattern: '<!--[^\n]{0,300}?(?i:\b(?:ai|assistant|agent|llm|claude|copilot|chatgpt|gpt|cursor|gemini|codex)\b[^\n]{0,120}?\b(?:must|should|always|never|ignore|do not|don''t|run|execute|instead)\b)'
+  message: "HTML comment addresses AI tools: {match}"
+  rationale: >
+    HTML comments are invisible on GitHub and in rendered documentation, but AI agents
+    that read the file see them. Instructions hidden there are a prompt-injection
+    technique. Comments spread over several lines are not checked.
+  recommendation: >
+    Read the comment in the raw file before letting an agent work with this
+    documentation.
+  references:
+    - https://simonwillison.net/series/prompt-injection/
+  tags: [prompt-injection, markdown]
+
+- id: RC-AGENT-022
+  title: AI agent file refers to secrets or credentials
+  area: agents
+  severity: medium
+  confidence: medium
+  files: [{set: agent_files}]
+  exclude: [{set: vendored}]
+  check:
+    type: regex
+    pattern: '(?i:~/\.ssh\b|\$HOME/\.ssh\b|%USERPROFILE%[\\/]\.ssh\b|\bid_(?:rsa|dsa|ecdsa|ed25519)\b|\.aws/credentials\b|\.git-credentials\b|(?:~|\$HOME)/\.netrc\b|(?:~|\$HOME)/\.(?:npmrc|pypirc)\b|\bwallet\.dat\b|\.kube/config\b|\.docker/config\.json\b|\bLogin Data\b|\bkeychain(?:-db)?\b)'
+  message: "Refers to credentials: {match}"
+  rationale: >
+    Agent instructions have no reason to point at SSH keys, cloud credentials, browser
+    password stores or wallets in your home folder. Together with network access this
+    is how injected instructions steal secrets.
+  recommendation: >
+    Read the surrounding instruction. Do not let an agent with this file read your home
+    folder.
+  references:
+    - https://attack.mitre.org/techniques/T1552/001/
+  tags: [prompt-injection, secrets]
+
+- id: RC-AGENT-025
+  title: Agent instruction loads further instructions from the web
+  area: agents
+  severity: high
+  confidence: medium
+  files: [{set: agent_files}]
+  exclude: [{set: vendored}]
+  check:
+    type: regex
+    pattern: '(?i:\b(?:fetch|download|curl|wget|load|retrieve|get|read|visit|open)\b[^\n]{0,80}?https?://\S{1,200}?[^\n]{0,80}?\b(?:follow|obey|execute|run|apply)\b[^\n]{0,40}?\b(?:the[ \t]+|its[ \t]+|any[ \t]+|all[ \t]+)?(?:instructions?|steps|commands?|directions)\b)'
+  message: "Fetches instructions from the web: {match}"
+  rationale: >
+    Instructions loaded at run time are not in the repository and can change at any
+    moment; whoever controls the URL controls the agent.
+  recommendation: >
+    Open the URL yourself first, and do not let the agent follow it automatically.
+  references:
+    - https://simonwillison.net/series/prompt-injection/
+  tags: [prompt-injection, download]
+
+- id: RC-AGENT-034
+  title: Claude Code plugins or marketplaces in project settings
+  area: agents
+  severity: medium
+  confidence: high
+  files: [{set: claude_settings}]
+  check:
+    type: keypath
+    format: jsonc
+    paths: ["enabledPlugins.*", "extraKnownMarketplaces.*"]
+  message: "Project settings add '{key}': {value}"
+  rationale: >
+    Plugins bring their own commands, hooks and MCP servers. Project settings can
+    suggest marketplaces and enable plugins for everyone who trusts the folder.
+  recommendation: >
+    Check the marketplace and plugin sources before accepting them in Claude Code.
+  references:
+    - https://code.claude.com/docs/en/settings
+  tags: [claude-code, plugins]
+
+- id: RC-AGENT-042
+  title: MCP server at a remote URL
+  area: agents
+  severity: low
+  confidence: high
+  files: [{set: mcp_configs}]
+  check:
+    type: keypath
+    format: jsonc
+    paths: ["mcpServers.*.url", "mcpServers.*.serverUrl", "mcpServers.*.httpUrl", "servers.*.url"]
+  message: "MCP server at {value}"
+  rationale: >
+    A remote MCP server receives what the agent sends to its tools and can return text
+    that steers the agent. Its operator, not the repository, decides what it does.
+  recommendation: >
+    Check who runs the server before enabling it.
+  references:
+    - https://code.claude.com/docs/en/mcp
+  tags: [mcp]
+
+- id: RC-AGENT-050
+  title: Slash command or skill runs shell commands
+  area: agents
+  severity: medium
+  confidence: medium
+  files: ["**/.claude/commands/**", "**/.claude/agents/**", "**/.claude/skills/**", "**/SKILL.md", ".gemini/commands/**", ".github/prompts/**"]
+  exclude: [{set: vendored}]
+  check:
+    type: regex
+    pattern: '!`[^`\n]{1,200}`|\A[ \t]*allowed-tools:[^\n]*?\b(?:Bash|PowerShell)\b(?![ \t]*\()'
+  message: "Runs shell commands when used: {match}"
+  rationale: >
+    Text in !`...` runs as a shell command when the command or skill is invoked, and
+    an unrestricted Bash tool lets it run anything without asking.
+  recommendation: >
+    Read the command or skill before using it; restrict allowed tools to specific
+    commands.
+  references:
+    - https://code.claude.com/docs/en/slash-commands
+  tags: [claude-code, commands]
+
+- id: RC-AGENT-060
+  title: Other AI agents set to run commands without asking
+  area: agents
+  severity: high
+  confidence: high
+  files: [".codex/**", "**/.aider.conf.yml", ".aider.conf.yaml"]
+  check:
+    type: regex
+    ignore: '\A[ \t]*#'
+    pattern: '(?i:\bapproval_policy[ \t]*=[ \t]*["'']never["'']|\bsandbox_mode[ \t]*=[ \t]*["'']danger-full-access["'']|\A[ \t]*yes-always[ \t]*:[ \t]*true\b|\A[ \t]*(?:lint|test)-cmd[ \t]*:[ \t]*\S|\A[ \t]*auto-test[ \t]*:[ \t]*true\b)'
+  message: "Agent runs commands automatically: {match}"
+  rationale: >
+    Codex without approvals or sandbox, and aider with yes-always or repository-defined
+    lint and test commands, run commands from the repository without asking you.
+  recommendation: >
+    Remove the settings before starting the agent in this folder.
+  references:
+    - https://github.com/openai/codex/blob/main/docs/config.md
+    - https://aider.chat/docs/config/aider_conf.html
+  tags: [codex, aider, permissions]

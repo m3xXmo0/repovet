@@ -1,0 +1,229 @@
+# Area obfuscation (RC-OBF): code that hides what it does.
+# Only source and script files (code_files); data, documentation and notebooks carry
+# encoded media legitimately. Build output and vendored code are excluded where long
+# lines and blobs are normal.
+
+- id: RC-OBF-001
+  title: Long encoded blob in source code
+  area: obfuscation
+  severity: medium
+  confidence: low
+  files: [{set: code_files}]
+  exclude: [{set: vendored}, {set: generated}, {set: test_files}]
+  check:
+    type: blob
+    encoding: base64
+    min_length: 300
+    min_entropy: 5.0
+    # Blobs that decode to code are reported by RC-OBF-002 instead.
+    not_decoded_regex: "{{decoded_code}}"
+  message: "Base64 blob of {count} characters in code; decodes to: {decoded}"
+  rationale: >
+    Long Base64 strings in source code can carry a hidden payload (an encrypted or
+    compressed program, a second stage) that is decoded at run time. Embedded images,
+    fonts and data URIs are not reported; test data and keys are common false alarms.
+  recommendation: >
+    Find out where the string is used. If it is decoded and executed, loaded as a
+    library or written to disk, treat the repository as untrusted.
+  tags: [obfuscation, base64]
+
+- id: RC-OBF-002
+  title: Encoded blob in source code decodes to code or commands
+  area: obfuscation
+  severity: high
+  confidence: high
+  files: [{set: code_files}]
+  exclude: [{set: vendored}, {set: test_files}]
+  check:
+    type: blob
+    encoding: [base64, hex]
+    min_length: 40
+    decoded_regex: "{{decoded_code}}"
+  message: "Encoded string ({count} characters) decodes to code: {decoded}"
+  rationale: >
+    Code stored in Base64 or hex form cannot be read or reviewed in the source and is
+    usually decoded and executed at run time. Malware uses this to hide its real
+    behaviour from people and from scanners.
+  recommendation: >
+    Do not run, install or build this repository until you know what the decoded code
+    does and where it is executed.
+  references:
+    - https://attack.mitre.org/techniques/T1027/
+  tags: [obfuscation, base64, hex]
+
+- id: RC-OBF-003
+  title: Code is decoded and executed in one step
+  area: obfuscation
+  severity: high
+  confidence: high
+  files: [{set: code_files}]
+  exclude: [{set: vendored}, {set: test_files}]
+  check:
+    type: regex
+    ignore: "{{comment_line}}"
+    # Every alternative contains a decoder name; files without one are skipped.
+    prefilter: [b64decode, b32decode, b16decode, b85decode, a85decode, decodebytes, decodestring,
+      decompress, unhexlify, fromhex, loads, codecs.decode, __import__, atob, unescape,
+      decodeuricomponent, buffer.from, fromcharcode, frombase64string, base64]
+    pattern: >-
+      (?i:\b(?:exec|eval)[ \t]*\([ \t]*(?:compile[ \t]*\([ \t]*)?(?:__import__[ \t]*\(|(?:[\w.]+\.)?(?:b64decode|b32decode|b16decode|b85decode|a85decode|decodebytes|decodestring|decompress|unhexlify|fromhex|loads)[ \t]*\(|codecs\.decode[ \t]*\())|(?i:\beval[ \t]*\([ \t]*(?:atob|unescape|decodeURIComponent|Buffer\.from|String\.fromCharCode)[ \t]*\()|(?i:\bnew[ \t]+Function[ \t]*\([ \t]*(?:atob|unescape|Buffer\.from|String\.fromCharCode)[ \t]*\()|(?i:\b(?:iex|Invoke-Expression)\b[^\n]{0,120}\bFromBase64String\b|\bFromBase64String\b[^\n]{0,200}\|[ \t]*(?:iex|Invoke-Expression)\b)|(?i:\bpowershell(?:\.exe)?\b[^\n]{0,80}[ \t]-(?:e|ec|en|enc|encodedcommand)[ \t]+[A-Za-z0-9+/]{40,}={0,2})|(?i:\bbase64[ \t]+(?:-d|--decode|-D)\b[^\n]{0,80}\|[ \t]*(?:sudo[ \t]+)?(?:ba|z|da|k)?sh\b)|(?i:\b(?:eval|(?:ba|z|da|k)?sh[ \t]+-c)[ \t]+["']?\$\([^\n]{0,80}\bbase64[ \t]+(?:-d|--decode|-D)\b)
+  message: "Decodes and executes code: {match}"
+  rationale: >
+    Executing the result of a Base64, hex or compression decoder in the same expression
+    is the classic way to hide a payload: the code that actually runs is not visible
+    in the file.
+  recommendation: >
+    Decode the string by hand (never run it) and read what it does. Do not run this
+    code until you understand it.
+  references:
+    - https://attack.mitre.org/techniques/T1140/
+  tags: [obfuscation, exec]
+
+- id: RC-OBF-004
+  title: JavaScript obfuscator or packer output
+  area: obfuscation
+  severity: high
+  confidence: medium
+  files:
+    - "**/*.js"
+    - "**/*.mjs"
+    - "**/*.cjs"
+    - "**/*.jsx"
+    - "**/*.ts"
+    - "**/*.html"
+    - "**/*.htm"
+    - "**/*.vue"
+    - "**/*.svelte"
+    - "**/*.hta"
+  exclude: [{set: vendored}, {set: test_files}]
+  check:
+    type: regex
+    long_lines: true
+    prefilter: [_0x, eval, "[]"]
+    pattern: >-
+      \b(?:var|let|const|function)[ \t]+_0x[0-9a-f]{4,6}\b|\bfunction[ \t]*\([ \t]*_0x[0-9a-f]{4,6}[ \t]*,[ \t]*_0x[0-9a-f]{4,6}\b|\beval[ \t]*\([ \t]*function[ \t]*\([ \t]*p[ \t]*,[ \t]*a[ \t]*,[ \t]*c[ \t]*,[ \t]*k[ \t]*,[ \t]*e[ \t]*,[ \t]*[dr][ \t]*\)|[\[\]()!+]{300,}
+  message: "Obfuscated JavaScript: {match}"
+  rationale: >
+    Identifiers like _0x1a2b, the p,a,c,k,e,d packer and JSFuck are produced by
+    obfuscation tools. Legitimate projects ship readable or merely minified code;
+    obfuscation is a common trait of malicious packages.
+  recommendation: >
+    Do not run or install this code. If it should be a third-party library, compare it
+    with the official release.
+  references:
+    - https://attack.mitre.org/techniques/T1027/
+  tags: [obfuscation, javascript]
+
+- id: RC-OBF-005
+  title: String built from a long chain of character codes
+  area: obfuscation
+  severity: high
+  confidence: medium
+  files: [{set: code_files}]
+  exclude: [{set: vendored}, {set: generated}, {set: test_files}]
+  check:
+    type: regex
+    ignore: "{{comment_line}}"
+    long_lines: true
+    prefilter: [fromcharcode, chr, "[char]"]
+    pattern: >-
+      \bString\.fromCharCode[ \t]*\((?:[ \t]*(?:0x[0-9a-fA-F]{1,4}|\d{1,5})[ \t]*,){15,}|(?:\bchr[ \t]*\([ \t]*\d{1,5}[ \t]*\)[ \t]*\+[ \t]*){15,}|(?i:(?:\[char\][ \t]*\d{1,5}[ \t]*[,+][ \t]*){15,})
+  message: "Text assembled from character codes: {match}"
+  rationale: >
+    Building strings from dozens of numeric character codes hides URLs, commands or
+    code from readers and simple searches.
+  recommendation: >
+    Convert the numbers to text by hand (never run the code) and check what the
+    string contains and where it is used.
+  references:
+    - https://attack.mitre.org/techniques/T1027/
+  tags: [obfuscation]
+
+- id: RC-OBF-006
+  title: Very long line in source code
+  area: obfuscation
+  severity: medium
+  confidence: low
+  files: [{set: code_files}]
+  exclude: [{set: vendored}, {set: generated}, {set: test_files}]
+  check:
+    type: blob
+    encoding: none
+    min_length: 5000
+    # Generated files say so in their first lines.
+    skip_header_regex: '(?i:@generated\b|\bdo not (?:edit|modify)\b|\bauto-?generated\b|\b(?:code|file) (?:was |is )?generated\b|\bgenerated by\b)'
+  message: "Line of {count} characters in a source file: {match}"
+  rationale: >
+    Lines this long are not reviewed by people. Outside build output they can hide a
+    minified or encoded payload in a file that otherwise looks normal; generated data
+    tables are a common harmless cause.
+  recommendation: >
+    Check whether the file is generated or vendored. If not, look at the full line
+    with a viewer that wraps text.
+  tags: [obfuscation, minified]
+
+- id: RC-OBF-007
+  title: Code pushed out of view by a long run of spaces
+  area: obfuscation
+  severity: high
+  confidence: medium
+  files: [{set: code_files}]
+  exclude: [{set: vendored}, {set: generated}, {set: test_files}]
+  check:
+    type: regex
+    pattern: '\S[ \t]{150,}\S'
+  message: "Code continues after a run of 150 or more spaces or tabs on this line"
+  rationale: >
+    Editors and web views show the start of the line; code after a long run of
+    spaces is far to the right and easily missed in review. Malicious packages use
+    this to hide an extra statement behind a harmless one.
+  recommendation: >
+    Scroll to the end of the line or view the file with wrapped lines and read what
+    follows the spaces.
+  tags: [obfuscation, whitespace]
+
+- id: RC-OBF-008
+  title: Bidirectional control characters in source code (Trojan Source)
+  area: obfuscation
+  severity: high
+  confidence: high
+  files: [{set: code_files}]
+  exclude: [{set: vendored}, {set: test_files}]
+  check:
+    type: unicode
+    ranges: ["202A-202E", "2066-2069"]
+  message: "{count} bidirectional control character(s) change how this line is displayed"
+  rationale: >
+    Bidi override and isolate characters make source code appear in a different order
+    than the compiler or interpreter reads it, so reviewed code can behave differently
+    from what is shown (CVE-2021-42574).
+  recommendation: >
+    View the line with visible control characters. Remove the characters or, inside
+    string literals, replace them with escapes.
+  references:
+    - https://trojansource.codes/
+  tags: [unicode, trojan-source]
+
+- id: RC-OBF-009
+  title: Invisible characters in source code
+  area: obfuscation
+  severity: medium
+  confidence: medium
+  files: [{set: code_files}]
+  exclude: [{set: vendored}, {set: test_files}]
+  check:
+    type: unicode
+    ranges: ["180E", "200B-200D", "2060-2064", "FEFF"]
+    # Joiners inside emoji sequences and in joining scripts (Arabic, Indic) are normal.
+    ignore_between: [emoji, "0600-06FF", "0750-077F", "08A0-08FF", "0900-0DFF", "FB50-FDFF", "FE70-FEFC"]
+  message: "{count} invisible character(s) in source code"
+  rationale: >
+    Zero-width characters are invisible in editors. In identifiers they create names
+    that look identical but differ ("homoglyph" attacks); in strings they can hide
+    data. Programs that process text sometimes contain them on purpose.
+  recommendation: >
+    Show the line with visible control characters. Replace intended characters with
+    escapes such as \u200b and remove the others.
+  references:
+    - https://trojansource.codes/
+  tags: [unicode, invisible]

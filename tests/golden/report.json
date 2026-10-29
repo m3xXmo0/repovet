@@ -1,0 +1,108 @@
+{
+  "schema_version": "1.1",
+  "tool": {
+    "name": "repocheck",
+    "version": "0.1.0"
+  },
+  "target": "D:\\src\\demo",
+  "scan": {
+    "mode": "local folder",
+    "online": false,
+    "started": "2026-10-29T00:00:00.000Z",
+    "duration_s": 0.5,
+    "files_scanned": 1284,
+    "rules_loaded": 3,
+    "min_severity": "info"
+  },
+  "summary": {
+    "findings": 3,
+    "hidden_below_min_severity": 0,
+    "by_severity": {
+      "critical": 1,
+      "high": 0,
+      "medium": 1,
+      "low": 1,
+      "info": 0
+    },
+    "by_category": {
+      "danger": 2,
+      "trust": 1,
+      "provenance": 0
+    }
+  },
+  "findings": [
+    {
+      "rule_id": "RC-AGENT-002",
+      "title": "Title",
+      "category": "danger",
+      "area": "agents",
+      "severity": "critical",
+      "confidence": "high",
+      "location": {
+        "path": "CLAUDE.md",
+        "line": 3,
+        "column": null
+      },
+      "message": "2 invisible tag characters hide this text: \"Hi\"",
+      "evidence": "Hello<U+E0048><U+E0069> <U+001B>[31m",
+      "rationale": "Unicode tag characters are invisible in editors and on GitHub, but AI models read them as text and may follow hidden instructions in them.",
+      "recommendation": "Read it first.",
+      "references": []
+    },
+    {
+      "rule_id": "RC-AUTO-001",
+      "title": "Title",
+      "category": "danger",
+      "area": "autorun",
+      "severity": "medium",
+      "confidence": "high",
+      "location": {
+        "path": "package.json",
+        "line": 3,
+        "column": null
+      },
+      "message": "package.json defines a 'postinstall' script: node x.js",
+      "evidence": null,
+      "rationale": "Because tools run this automatically.",
+      "recommendation": "Read it first.",
+      "references": []
+    },
+    {
+      "rule_id": "RC-TRUST-001",
+      "title": "Title",
+      "category": "trust",
+      "area": "trust",
+      "severity": "low",
+      "confidence": "high",
+      "location": null,
+      "message": "Something was found.",
+      "evidence": null,
+      "rationale": "Because tools run this automatically.",
+      "recommendation": "Read it first.",
+      "references": []
+    }
+  ],
+  "coverage": [
+    {
+      "scope": "area:trust",
+      "status": "not_implemented",
+      "reason": "trust (GitHub API): not implemented yet (milestone 4)",
+      "count": 1,
+      "sample": []
+    },
+    {
+      "scope": "file",
+      "status": "skipped",
+      "reason": "Files larger than 2 MB, content not checked",
+      "count": 4,
+      "sample": [
+        "assets/a.mp4",
+        "assets/b.mp4",
+        "assets/c.mp4",
+        "assets/d<U+202E>.mp4"
+      ]
+    }
+  ],
+  "facts": {},
+  "disclaimer": "repocheck reports only what its 3 rules detect in the checked scope. A missing finding is not proof that the repository is safe."
+}

