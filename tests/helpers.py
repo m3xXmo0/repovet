@@ -4,8 +4,10 @@ import base64
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
-from repocheck.analyzers import provenance
+from github_fake import case_target
+from repocheck.analyzers import provenance, trust
 from repocheck.engine.checks import BUILDERS
 from repocheck.engine.checks.base import BuildEnv, FactCheck, FileView, Match, Params
 from repocheck.engine.context import ScanContext
@@ -91,7 +93,10 @@ def scan(
     rules: Sequence[Rule] | None = None,
     ruleset: RuleSet | None = None,
     limits: Limits = DEFAULT_LIMITS,
+    github: Mapping[str, Any] | None = None,
 ) -> Outcome:
+    """Scan ``root`` with ``rules``. ``github`` (see ``github_fake.case_answers``) gives
+    the trust area recorded API answers for example-org/example-repo."""
     ruleset = ruleset or builtin_rules()
     selected = ruleset.active() if rules is None else rules
     coverage = CoverageCollector()
@@ -101,11 +106,13 @@ def scan(
     ctx = ScanContext(tree, ruleset, limits, coverage, git=source)
     try:
         # Fact rules (metric) need the facts the analyzers compute.
-        facts = (
-            provenance.profile(ctx)[0]
-            if any(isinstance(r.check, FactCheck) for r in selected)
-            else None
-        )
+        facts: dict[str, object] | None = None
+        if any(isinstance(r.check, FactCheck) for r in selected):
+            facts = provenance.profile(ctx)[0]
+            if github is not None:
+                ctx.facts.update(facts)
+                ctx.trust = case_target(github, source)
+                facts.update(trust.profile(ctx)[0])
         findings = run_rules(selected, ctx, facts=facts)
     finally:
         if source is not None:

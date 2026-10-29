@@ -207,5 +207,5 @@ def test_url_report_matches_the_json_schema(
     monkeypatch.setattr(remote, "github_transport", local_transport({"o/r": origin}))
     main(["scan", "https://github.com/o/r", "--format", "json"])
     report = json.loads(capsys.readouterr().out)
-    assert report["schema_version"] == "1.1"
+    assert report["schema_version"] == "1.2"
     validate_json(report)

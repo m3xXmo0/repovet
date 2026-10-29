@@ -57,6 +57,8 @@ ignore = [
 "src/repocheck/sources/gitmeta.py" = ["PTH"]
 # The one module that fetches from the network (dulwich.client).
 "src/repocheck/sources/remote.py" = ["TID251"]
+# The one module that opens connections to the GitHub API (urllib, HTTPS only).
+"src/repocheck/github/transport.py" = ["TID251"]
 "tests/**" = ["S101", "PLC0415"]
 # The network lock has to replace socket objects (and its test uses them).
 "tests/conftest.py" = ["TID251"]

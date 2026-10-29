@@ -52,7 +52,24 @@ the same findings, coverage and file profile as the extracted archive of the sam
 commit; it adds the Git history (provenance profile and `RC-PROV` indicators), which the
 archives do not contain.
 
+Without `--offline`, a URL scan also asks the GitHub API for the trust profile and the
+`RC-TRUST` indicators (about 7 requests per repository; without a token GitHub allows
+60 per hour, so at most about eight repositories per hour). These well-known
+repositories must not get any trust finding above `info`.
+
 ## Last run
+
+2026-10-29, all 111 M4 rules, by URL with the GitHub API and without a token (default
+branches): flask, pip, pydantic-ai, claude-code, Humanizer, vscode-extension-samples and
+vite (codex left out to stay within the hourly limit). **No trust finding** in any of
+them and no gap in the trust profile; 7 API requests per repository, 16 to 127 seconds
+per scan including the download. Danger findings as before (pip: the six accepted
+distlib launchers, RC-BIN-001). One change came out of it: for
+vscode-extension-samples the name search found a younger copy with one star and the
+same description; such copies are no longer listed as lookalikes (only repositories
+with more stars than the checked one can be the original).
+
+Earlier run (M3):
 
 2026-10-29, all 101 M3 rules, eight repositories, 93 s (was 8:48 min in M2: all file
 rules now share one pass over the files): no unjustified high/critical findings,

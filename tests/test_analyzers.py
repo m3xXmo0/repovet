@@ -25,6 +25,7 @@ def test_implemented_areas() -> None:
         "binaries",
         "dependencies",
         "provenance",
+        "trust",
     }
 
 
@@ -44,11 +45,13 @@ def test_run_all_reports_findings_and_missing_areas(tmp_path: Path) -> None:
     assert ids == ["RC-AGENT-001", "RC-AGENT-002", "RC-AUTO-001"]
     items = ctx.coverage.items()
     missing = {c.scope for c in items if c.status == CoverageStatus.NOT_IMPLEMENTED}
-    assert missing == {f"area:{name}" for name in AREAS if name not in ANALYZERS}
+    assert missing == {f"area:{name}" for name in AREAS if name not in ANALYZERS} == set()
+    # Without a trust target (no GitHub repository known) the trust area is skipped.
+    assert any(c.scope == "area:trust" and c.status == CoverageStatus.SKIPPED for c in items)
     assert any(c.scope == "ecosystem:rust" for c in items)
 
 
-def test_user_rules_for_unimplemented_areas_still_run(tmp_path: Path) -> None:
+def test_user_file_rules_of_the_trust_area_run_without_the_api(tmp_path: Path) -> None:
     rules_dir = write_rule(
         tmp_path / "rules",
         rule_id="RC-TRUST-901",

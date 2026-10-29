@@ -10,6 +10,7 @@ from repocheck.analyzers import (
     download_exec,
     obfuscation,
     provenance,
+    trust,
 )
 from repocheck.engine.context import ScanContext
 from repocheck.engine.runner import prepare_file_rules, run_rules
@@ -25,6 +26,7 @@ ANALYZERS: dict[str, Analyzer] = {
     binaries.AREA: binaries.analyze,
     dependencies.AREA: dependencies.analyze,
     provenance.AREA: provenance.analyze,
+    trust.AREA: trust.analyze,
 }
 
 
@@ -40,7 +42,9 @@ def run_all(ctx: ScanContext) -> list[AreaResult]:
     for name, info in AREAS.items():
         analyzer = ANALYZERS.get(name)
         if analyzer is not None:
-            results.append(analyzer(ctx))
+            result = analyzer(ctx)
+            ctx.facts.update(result.facts)
+            results.append(result)
             continue
         ctx.coverage.add(
             f"area:{name}",

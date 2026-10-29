@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from repocheck.limits import Limits
+from repocheck.parsers.gitconfig import loads_gitconfig
 from repocheck.sources.gitobjects import GitObjectError, GitObjects, is_hex_id
 
 _FILE_ATTRIBUTE_REPARSE_POINT = 0x400
@@ -24,6 +25,7 @@ _OPEN_FLAGS = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW
 _REF_NAME = re.compile(r"refs/[A-Za-z0-9._/@+-]{1,250}")
 _SMALL_FILE = 4096
 _PACKED_REFS_LIMIT = 16 * 1024 * 1024
+_CONFIG_LIMIT = 256 * 1024
 _MESSAGE_LIMIT = 64 * 1024
 _MAX_TREES = 100_000
 _MODE_DIR = 0o040000
@@ -144,6 +146,31 @@ def open_local(root: Path) -> GitSource | str:
         return "HEAD is not a SHA-1 commit id (SHA-256 repositories are not supported)"
     shallow = os.path.lexists(os.path.join(git_dir, "shallow"))
     return GitSource(GitObjects(objects_dir), sha.encode("ascii"), ".git folder", shallow)
+
+
+def remote_urls(root: Path) -> dict[str, str]:
+    """Remote name -> URL from ``root/.git/config`` (read as a plain file, never through
+    git). These are claims made by whoever prepared the folder, not facts."""
+    git_dir = os.path.join(str(root), ".git")
+    if not _plain(git_dir, folder=True):
+        return {}
+    data = _read_small(os.path.join(git_dir, "config"), _CONFIG_LIMIT)
+    if data is None:
+        return {}
+    try:
+        config = loads_gitconfig(data.decode("utf-8", "replace"))
+    except (ValueError, RecursionError):
+        return {}
+    remotes = config.get("remote")
+    urls: dict[str, str] = {}
+    if isinstance(remotes, dict):
+        for name, section in remotes.items():
+            url = section.get("url") if isinstance(section, dict) else None
+            if isinstance(url, list):
+                url = url[0] if url else None
+            if isinstance(url, str) and url:
+                urls[str(name)] = url
+    return urls
 
 
 # --- history ---------------------------------------------------------------------

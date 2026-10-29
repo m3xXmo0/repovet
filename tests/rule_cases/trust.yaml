@@ -1,0 +1,255 @@
+# Trust rules. `github` starts from the recorded answers of an established project
+# (tests/github_fixtures/established.json, example-org/example-repo) and changes single
+# fields; see tests/github_fake.py (case_answers, case_target). Ages are computed
+# against 2026-10-29 12:00 UTC. `github: {}` is the established project unchanged: no
+# trust rule may fire for it.
+
+RC-TRUST-001:
+  positive:
+    - name: owner account two weeks old, 300 stars
+      github:
+        owner: {created_at: "2026-10-15T09:00:00Z"}
+        repo: {stargazers_count: 300}
+      expect: [{repository: true}]
+  negative:
+    - name: established project
+      github: {}
+    - name: new account with its first small repository
+      github:
+        owner: {created_at: "2026-10-15T09:00:00Z"}
+        repo: {stargazers_count: 3}
+
+RC-TRUST-002:
+  positive:
+    - name: repository created three weeks ago with 800 stars
+      github:
+        repo: {created_at: "2026-10-08T12:00:00Z", stargazers_count: 800}
+      expect: [{repository: true}]
+  negative:
+    - name: established project
+      github: {}
+    - name: young repository with a few stars
+      github:
+        repo: {created_at: "2026-10-08T12:00:00Z", stargazers_count: 40}
+
+RC-TRUST-003:
+  positive:
+    - name: sixty stars within five hours
+      github:
+        stars: {count: 60, start: "2026-06-01T08:00:00+00:00", minutes: 5}
+      expect: [{repository: true}]
+  negative:
+    - name: established project (too many stars to sample)
+      github: {}
+    - name: sixty stars, one per day
+      github:
+        stars: {count: 60, start: "2026-06-01T08:00:00+00:00", minutes: 1440}
+    - name: thirty stars within an hour (too few to say anything)
+      github:
+        stars: {count: 30, start: "2026-06-01T08:00:00+00:00", minutes: 2}
+
+RC-TRUST-004:
+  positive:
+    - name: small fork of a popular project
+      github:
+        repo:
+          fork: true
+          stargazers_count: 3
+          parent: {full_name: upstream-org/example-repo, stargazers_count: 5000}
+          source: {full_name: upstream-org/example-repo}
+      expect: [{repository: true}]
+  negative:
+    - name: established project
+      github: {}
+    - name: fork that became more popular than its parent
+      github:
+        repo:
+          fork: true
+          stargazers_count: 3000
+          parent: {full_name: upstream-org/example-repo, stargazers_count: 500}
+    - name: fork of a small project
+      github:
+        repo:
+          fork: true
+          stargazers_count: 0
+          parent: {full_name: someone/example-repo, stargazers_count: 20}
+
+RC-TRUST-005:
+  positive:
+    - name: young repository with only a README offers an installer and an archive
+      files:
+        README.md: "# Free tool\nDownload the latest release.\n"
+      github:
+        repo: {created_at: "2026-09-01T00:00:00Z"}
+        release: {tag_name: v1.0, assets: [Setup.exe, tool-v1.0.zip]}
+      expect: [{repository: true}]
+  negative:
+    - name: established project
+      files:
+        README.md: "# demo\n"
+      github: {}
+    - name: young repository with source code for its release
+      files:
+        README.md: "# Tool\n"
+        src/main.py: "print('hi')\n"
+        src/cli.py: "print('cli')\n"
+        src/util.py: "X = 1\n"
+      github:
+        repo: {created_at: "2026-09-01T00:00:00Z"}
+        release: {tag_name: v1.0, assets: [tool-v1.0.zip]}
+    - name: young repository whose release has only a checksum file
+      files:
+        README.md: "# Tool\n"
+      github:
+        repo: {created_at: "2026-09-01T00:00:00Z"}
+        release: {tag_name: v1.0, assets: [checksums.txt]}
+
+RC-TRUST-006:
+  positive:
+    - name: archived repository
+      github:
+        repo: {archived: true}
+      expect: [{repository: true}]
+  negative:
+    - name: established project
+      github: {}
+
+RC-TRUST-007:
+  positive:
+    - name: last commit almost four years ago
+      github:
+        last_commit: "2023-01-15T10:00:00Z"
+      expect: [{repository: true}]
+  negative:
+    - name: established project
+      github: {}
+    - name: archived and old (reported as archived instead)
+      github:
+        repo: {archived: true}
+        last_commit: "2023-01-15T10:00:00Z"
+
+RC-TRUST-008:
+  positive:
+    - name: local folder whose HEAD GitHub does not know
+      history:
+        - {files: {a.txt: "a\n"}}
+      github: {local: true}
+      expect: [{repository: true}]
+  negative:
+    - name: local folder whose HEAD GitHub knows
+      history:
+        - {files: {a.txt: "a\n"}}
+      github: {local: true, head_known: true}
+    - name: URL target (nothing to look up)
+      history:
+        - {files: {a.txt: "a\n"}}
+      github: {}
+
+RC-TRUST-009:
+  positive:
+    - name: package.json names another owner's repository that does not exist
+      files:
+        package.json: |
+          {"name": "widget", "repository": {"type": "git", "url": "git+https://github.com/original-org/widget.git"}}
+      github: {}
+      expect: [{repository: true}]
+    - name: pyproject.toml names another owner's existing repository
+      files:
+        pyproject.toml: |
+          [project]
+          name = "widget"
+          [project.urls]
+          Source = "https://github.com/original-org/widget"
+      github:
+        answers:
+          /repos/original-org/widget: {body: {id: 9999, full_name: original-org/widget}}
+      expect: [{repository: true}]
+    - name: npm short form
+      files:
+        package.json: '{"name": "widget", "repository": "original-org/widget"}'
+      github: {}
+      expect: [{repository: true}]
+  negative:
+    - name: established project names itself
+      files:
+        package.json: '{"name": "widget", "repository": "github:example-org/example-repo"}'
+      github: {}
+    - name: another repository of the same owner (monorepo, rename)
+      files:
+        Cargo.toml: |
+          [package]
+          name = "widget"
+          repository = "https://github.com/example-org/widget-core"
+      github: {}
+    - name: funding and documentation links point elsewhere
+      files:
+        pyproject.toml: |
+          [project]
+          name = "widget"
+          [project.urls]
+          Funding = "https://github.com/sponsors/someone"
+          Documentation = "https://github.com/docs-org/widget-docs"
+          Homepage = "https://github.com/sponsors/someone"
+      github: {}
+    - name: fork keeps its parent's link
+      files:
+        package.json: '{"name": "widget", "repository": "https://github.com/original-org/widget"}'
+      github:
+        repo:
+          fork: true
+          parent: {full_name: original-org/widget, stargazers_count: 10}
+          source: {full_name: original-org/widget}
+    - name: generated from a template
+      files:
+        package.json: '{"name": "widget", "repository": "https://github.com/templates/starter"}'
+      github:
+        repo:
+          template_repository: {full_name: templates/starter}
+    - name: transferred repository (the old name leads to this one)
+      files:
+        package.json: '{"name": "widget", "repository": "https://github.com/old-owner/example-repo"}'
+      github:
+        answers:
+          /repos/old-owner/example-repo: {body: {id: 1001, full_name: example-org/example-repo}}
+    - name: link in a nested package
+      files:
+        packages/widget/package.json: '{"name": "widget", "repository": "original-org/widget"}'
+      github: {}
+
+RC-TRUST-010:
+  positive:
+    - name: older, far more popular repository with the same name and description
+      github:
+        repo: {stargazers_count: 40}
+        search:
+          - {full_name: example-org/example-repo, description: A small web framework (anonymized example)., stargazers_count: 40, created_at: "2010-04-06T11:11:59Z"}
+          - {full_name: original-org/example-repo, description: "A small  web framework (Anonymized example).", stargazers_count: 90000, created_at: "2008-01-01T00:00:00Z"}
+      expect: [{repository: true}]
+  negative:
+    - name: established project (finds only itself)
+      github: {}
+    - name: the popular one is the younger copy
+      github:
+        repo: {stargazers_count: 40}
+        search:
+          - {full_name: copy-org/example-repo, description: A small web framework (anonymized example)., stargazers_count: 90000, created_at: "2020-01-01T00:00:00Z"}
+    - name: same name, different description
+      github:
+        repo: {stargazers_count: 40}
+        search:
+          - {full_name: other-org/example-repo, description: Something else entirely, stargazers_count: 90000, created_at: "2008-01-01T00:00:00Z"}
+    - name: same description, different name
+      github:
+        repo: {stargazers_count: 40}
+        search:
+          - {full_name: other-org/example-repo-ng, description: A small web framework (anonymized example)., stargazers_count: 90000, created_at: "2008-01-01T00:00:00Z"}
+    - name: the other one is barely known
+      github:
+        repo: {stargazers_count: 40}
+        search:
+          - {full_name: other-org/example-repo, description: A small web framework (anonymized example)., stargazers_count: 60, created_at: "2008-01-01T00:00:00Z"}
+    - name: an older copy with fewer stars than this repository
+      github:
+        search:
+          - {full_name: example-org/example-repo, description: A small web framework (anonymized example)., stargazers_count: 74935, created_at: "2010-04-06T11:11:59Z"}
+          - {full_name: copy-org/example-repo, description: A small web framework (anonymized example)., stargazers_count: 1, created_at: "2009-01-01T00:00:00Z"}

@@ -13,7 +13,7 @@ from repocheck.models import CoverageStatus
 
 CASES_DIR = Path(__file__).parent / "rule_cases"
 _CASE_KEYS = {"positive", "negative"}
-_ENTRY_KEYS = {"name", "files", "history", "expect", "requires"}
+_ENTRY_KEYS = {"name", "files", "history", "github", "expect", "requires"}
 
 
 def load_cases() -> dict[str, dict[str, list[dict[str, Any]]]]:
@@ -58,7 +58,10 @@ def test_case_format() -> None:
             for entry in entries:
                 assert set(entry) <= _ENTRY_KEYS, (rule_id, entry)
                 assert entry.get("name"), (rule_id, entry)
-                assert entry.get("files") or entry.get("history"), (rule_id, entry)
+                assert entry.get("files") or entry.get("history") or "github" in entry, (
+                    rule_id,
+                    entry,
+                )
                 if kind == "negative":
                     assert "expect" not in entry, (rule_id, entry["name"])
 
@@ -74,7 +77,8 @@ def test_rule_case(rule_id: str, kind: str, case: dict[str, Any], tmp_path: Path
     if case.get("history"):
         # Commits go into repo/.git as a bare object store; nothing is checked out.
         build_repo(root / ".git", expand_history(case["history"]))
-    outcome = scan(root, [rule])
+    # github: recorded API answers for the trust area (tests/github_fake.py).
+    outcome = scan(root, [rule], github=case.get("github"))
 
     failed = [c for c in outcome.coverage if c.status == CoverageStatus.FAILED]
     assert not failed, f"fixture could not be read or parsed: {failed}"

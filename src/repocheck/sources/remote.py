@@ -90,6 +90,26 @@ def parse_github_url(target: str) -> GitHubRepo:
     return GitHubRepo(owner, name)
 
 
+_REMOTE = re.compile(
+    r"(?:(?:https?|git|ssh|git\+ssh)://(?:[^@/\s]*@)?github\.com(?::\d{1,5})?/"
+    r"|[A-Za-z0-9._-]+@github\.com:/?)"
+    r"([^/\s]+)/([^/\s]+?)(?:\.git)?/?",
+    re.IGNORECASE,
+)
+
+
+def github_repo_from_remote(url: str) -> GitHubRepo | None:
+    """The GitHub repository named by a Git remote URL (HTTPS, SSH or git://), or None.
+    Credentials in the URL are ignored and never kept."""
+    match = _REMOTE.fullmatch(url.strip())
+    if match is None:
+        return None
+    owner, name = match.groups()
+    if not _OWNER.fullmatch(owner) or not _REPO.fullmatch(name) or name in (".", ".."):
+        return None
+    return GitHubRepo(owner, name)
+
+
 def validate_ref(ref: str) -> str:
     """A branch, a tag or a full 40-character commit id."""
     if not _REF_NAME.fullmatch(ref) or ".." in ref or ref.startswith(("/", "-")):

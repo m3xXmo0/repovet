@@ -32,7 +32,7 @@ def test_clean_folder_exits_0(tmp_path: Path, capsys: Capture) -> None:
     assert code == EXIT_OK
     assert f"No findings from {RULE_COUNT} rules" in out
     assert "NOT CHECKED" in out
-    assert "not implemented yet (milestone 4)" in out
+    assert "trust (GitHub API): no GitHub repository is known for this folder" in out
 
 
 def test_findings_at_fail_level_exit_1(repo: Path, capsys: Capture) -> None:

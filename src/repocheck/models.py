@@ -64,7 +64,7 @@ AREAS: dict[str, AreaInfo] = {
         AreaInfo("binaries", "BIN", "danger", 2, "binaries, archives, file-system tricks"),
         AreaInfo("dependencies", "DEP", "danger", 2, "suspicious dependencies"),
         AreaInfo("provenance", "PROV", "provenance", 3, "languages, structure, history"),
-        AreaInfo("trust", "TRUST", "trust", 4, "GitHub API"),
+        AreaInfo("trust", "TRUST", "trust", 4, "trust signals from the GitHub API"),
     )
 }
 

@@ -10,6 +10,9 @@ from typing import Any, NoReturn
 
 import pytest
 
+from repocheck.github import target as github_target
+from repocheck.github.client import TOKEN_VARIABLES, Request, Response, TransportError
+
 _monkeypatch = pytest.MonkeyPatch()
 _REAL_SOCKET = socket.socket
 _REAL_GETADDRINFO = socket.getaddrinfo
@@ -69,6 +72,21 @@ def pytest_configure(config: pytest.Config) -> None:
 
 def pytest_unconfigure(config: pytest.Config) -> None:
     _monkeypatch.undo()
+
+
+class _NoApiTransport:
+    """Default GitHub API transport in tests: every request fails like a network error.
+    Tests that need API answers install recorded responses (``github_fixtures``)."""
+
+    def __call__(self, request: Request, max_bytes: int) -> Response:
+        raise TransportError("network access is blocked in tests")
+
+
+@pytest.fixture(autouse=True)
+def _no_github_api(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(github_target, "DEFAULT_TRANSPORT", _NoApiTransport)
+    for name in TOKEN_VARIABLES:
+        monkeypatch.delenv(name, raising=False)
 
 
 @pytest.fixture

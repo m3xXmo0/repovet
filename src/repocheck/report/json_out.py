@@ -6,7 +6,7 @@ from repocheck.models import CATEGORIES, CoverageItem, Finding, ScanResult, Seve
 from repocheck.report.common import disclaimer, no_findings, visible_findings
 from repocheck.report.sanitize import sanitize, sanitize_data, sanitize_path
 
-SCHEMA_VERSION = "1.1"
+SCHEMA_VERSION = "1.2"
 
 
 def _finding(finding: Finding) -> dict[str, object]:

@@ -18,6 +18,7 @@ from repocheck import __version__
 from repocheck.analyzers import run_all
 from repocheck.engine.context import ScanContext
 from repocheck.engine.loader import RuleError, RuleSet, load_rules
+from repocheck.github import target as github_target
 from repocheck.limits import DEFAULT_LIMITS, Limits, format_size, parse_size
 from repocheck.models import AREAS, CoverageCollector, ScanResult, Severity
 from repocheck.report import json_out, sarif, terminal
@@ -76,8 +77,9 @@ def build_parser() -> argparse.ArgumentParser:
     scan.add_argument(
         "--offline",
         action="store_true",
-        help="no GitHub API queries (the analysis itself is always offline; a URL target "
-        "is still cloned)",
+        help="no GitHub API queries for the trust area (the analysis itself is always "
+        "offline; a URL target is still cloned). An optional token is read from "
+        "GITHUB_TOKEN or GH_TOKEN",
     )
     scan.add_argument(
         "--ref",
@@ -210,6 +212,7 @@ def _scan(args: argparse.Namespace) -> int:
     tree = LocalTree(root.resolve(), limits, coverage)
     git = gitmeta.open_local(root.resolve())
     source = git if isinstance(git, gitmeta.GitSource) else None
+    trust = _local_trust(args, root.resolve(), source)
     try:
         return _analyze(
             args,
@@ -223,6 +226,7 @@ def _scan(args: argparse.Namespace) -> int:
             t0,
             git=source,
             git_note=git if isinstance(git, str) else None,
+            trust=trust,
         )
     finally:
         if source is not None:
@@ -276,7 +280,32 @@ def _scan_url(args: argparse.Namespace) -> int:
             facts={"source": source},
             root_uri=f"{repo.url}/blob/{commit}/",
             git=gitmeta.GitSource(cloned.objects, cloned.commit, "clone"),
+            trust=github_target.setup(repo, offline=args.offline, environ=os.environ),
         )
+
+
+def _local_trust(
+    args: argparse.Namespace, root: Path, source: gitmeta.GitSource | None
+) -> github_target.TrustTarget:
+    """A local folder names its GitHub repository only through a remote in
+    .git/config. That is a claim; the trust area checks whether HEAD exists there."""
+    urls = gitmeta.remote_urls(root)
+    name = "origin" if "origin" in urls else (next(iter(urls)) if len(urls) == 1 else None)
+    if name is None:
+        missing = "no remote 'origin'" if urls else "no Git remote"
+        note = f"no GitHub repository is known for this folder ({missing} in .git/config)"
+        return github_target.setup(None, offline=args.offline, environ=os.environ, note=note)
+    repo = remote.github_repo_from_remote(urls[name])
+    if repo is None:
+        note = f"the remote '{name}' in .git/config is not a GitHub repository"
+        return github_target.setup(None, offline=args.offline, environ=os.environ, note=note)
+    return github_target.setup(
+        repo,
+        offline=args.offline,
+        environ=os.environ,
+        claimed_by=f"remote '{name}' in .git/config",
+        local_head=source.head.decode("ascii") if source is not None else None,
+    )
 
 
 def _analyze(
@@ -294,8 +323,9 @@ def _analyze(
     root_uri: str | None = None,
     git: gitmeta.GitSource | None = None,
     git_note: str | None = None,
+    trust: github_target.TrustTarget | None = None,
 ) -> int:
-    ctx = ScanContext(tree, rules, limits, coverage, git=git, git_note=git_note)
+    ctx = ScanContext(tree, rules, limits, coverage, git=git, git_note=git_note, trust=trust)
     results = run_all(ctx)
     findings = [f for r in results for f in r.findings]
     all_facts: dict[str, object] = dict(facts or {})
@@ -308,7 +338,7 @@ def _analyze(
     result = ScanResult(
         target=tree.label,
         mode=mode,
-        online=False,
+        online=trust is not None and trust.client is not None and trust.client.sent > 0,
         tool_version=__version__,
         rules_loaded=len(rules.active()),
         files_scanned=len(tree.files()),

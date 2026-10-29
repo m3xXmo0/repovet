@@ -1,0 +1,65 @@
+# Data for the trust profile (facts from the GitHub API). The thresholds of the trust
+# indicators are in rules/trust.yaml.
+
+# Release asset names that are programs, installers or archives (case-insensitive
+# endings). A release that offers these from a repository with hardly any code is a
+# common way to hand out malware: the download cannot be compared with the source.
+binary_assets:
+  - .exe
+  - .msi
+  - .msix
+  - .appx
+  - .scr
+  - .com
+  - .bat
+  - .cmd
+  - .ps1
+  - .vbs
+  - .hta
+  - .lnk
+  - .jar
+  - .apk
+  - .dmg
+  - .pkg
+  - .deb
+  - .rpm
+  - .appimage
+  - .zip
+  - .rar
+  - .7z
+  - .tar.gz
+  - .tgz
+  - .tar.xz
+  - .tar.bz2
+  - .iso
+  - .img
+
+# Fields of root manifests that name the project's own repository. `keys` (for
+# mappings such as project.urls) is a regex the key must match; other keys there
+# (documentation, funding, changelog) often point elsewhere on purpose.
+declared_repository:
+  - {file: package.json, format: json, paths: [repository, repository.url]}
+  - file: pyproject.toml
+    format: toml
+    paths: ["project.urls.*"]
+    keys: "(?i)^(source|source[ _-]?code|code|repo|repository|github|homepage|home)$"
+  - {file: pyproject.toml, format: toml, paths: [tool.poetry.repository]}
+  - {file: Cargo.toml, format: toml, paths: [package.repository]}
+  - {file: composer.json, format: json, paths: [support.source]}
+
+# First path segments on github.com that are not owners.
+github_reserved:
+  - about
+  - apps
+  - collections
+  - enterprise
+  - features
+  - login
+  - marketplace
+  - orgs
+  - pricing
+  - security
+  - settings
+  - site
+  - sponsors
+  - topics

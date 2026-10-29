@@ -1,0 +1,397 @@
+{
+ "answers": {
+  "/repos/example-org/example-repo": {
+   "body": {
+    "id": 1001,
+    "name": "example-repo",
+    "full_name": "example-org/example-repo",
+    "private": false,
+    "owner": {
+     "login": "example-org",
+     "id": 2001,
+     "url": "https://api.github.com/users/example-org",
+     "html_url": "https://github.com/example-org",
+     "type": "Organization",
+     "user_view_type": "public",
+     "site_admin": false
+    },
+    "html_url": "https://github.com/example-org/example-repo",
+    "description": "A small web framework (anonymized example).",
+    "fork": false,
+    "url": "https://api.github.com/repos/example-org/example-repo",
+    "created_at": "2010-04-06T11:11:59Z",
+    "updated_at": "2026-10-29T14:12:28Z",
+    "pushed_at": "2026-10-07T14:02:59Z",
+    "homepage": "https://example-repo.example.invalid",
+    "size": 12216,
+    "stargazers_count": 74935,
+    "watchers_count": 74935,
+    "language": "Python",
+    "has_issues": true,
+    "has_projects": false,
+    "has_downloads": false,
+    "has_wiki": false,
+    "has_pages": false,
+    "has_discussions": false,
+    "forks_count": 17200,
+    "archived": false,
+    "disabled": false,
+    "open_issues_count": 4,
+    "license": {
+     "key": "bsd-3-clause",
+     "name": "BSD 3-Clause \"New\" or \"Revised\" License",
+     "spdx_id": "BSD-3-Clause",
+     "url": "https://api.github.com/licenses/bsd-3-clause"
+    },
+    "allow_forking": true,
+    "is_template": false,
+    "web_commit_signoff_required": false,
+    "has_pull_requests": true,
+    "pull_request_creation_policy": "collaborators_only",
+    "topics": [
+     "example-repo",
+     "jinja",
+     "example-org",
+     "python",
+     "web-framework",
+     "werkzeug",
+     "wsgi"
+    ],
+    "visibility": "public",
+    "forks": 17200,
+    "open_issues": 4,
+    "watchers": 74935,
+    "default_branch": "main",
+    "network_count": 17200,
+    "subscribers_count": 2130
+   }
+  },
+  "/users/example-org": {
+   "body": {
+    "login": "example-org",
+    "id": 2001,
+    "url": "https://api.github.com/users/example-org",
+    "html_url": "https://github.com/example-org",
+    "type": "Organization",
+    "user_view_type": "public",
+    "site_admin": false,
+    "name": "Example Org",
+    "company": null,
+    "blog": "https://example.invalid",
+    "location": null,
+    "email": "user-1@example.invalid",
+    "hireable": null,
+    "bio": null,
+    "twitter_username": null,
+    "public_repos": 16,
+    "public_gists": 0,
+    "followers": 2654,
+    "following": 0,
+    "created_at": "2016-01-17T21:29:18Z",
+    "updated_at": "2026-10-09T14:11:55Z"
+   }
+  },
+  "/repos/example-org/example-repo/contributors?anon=true&per_page=1": {
+   "body": [
+    {
+     "login": "user-1",
+     "id": 3001,
+     "url": "https://api.github.com/users/user-1",
+     "html_url": "https://github.com/user-1",
+     "type": "User",
+     "user_view_type": "public",
+     "site_admin": false,
+     "contributions": 1861
+    }
+   ],
+   "headers": {
+    "link": "<https://api.github.com/repositories/1001/contributors?anon=true&per_page=1&page=2>; rel=\"next\", <https://api.github.com/repositories/1001/contributors?anon=true&per_page=1&page=864>; rel=\"last\""
+   }
+  },
+  "/repos/example-org/example-repo/commits?per_page=1&sha=main": {
+   "body": [
+    {
+     "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1",
+     "commit": {
+      "author": {
+       "name": "User One",
+       "email": "user-1@example.invalid",
+       "date": "2026-10-07T14:02:54Z"
+      },
+      "committer": {
+       "name": "User One",
+       "email": "user-1@example.invalid",
+       "date": "2026-10-07T14:02:54Z"
+      },
+      "message": "Fix typing",
+      "tree": {
+       "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa2",
+       "url": "https://api.github.com/repos/example-org/example-repo/git/trees/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa2"
+      },
+      "url": "https://api.github.com/repos/example-org/example-repo/git/commits/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1",
+      "comment_count": 0
+     },
+     "url": "https://api.github.com/repos/example-org/example-repo/commits/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1",
+     "html_url": "https://github.com/example-org/example-repo/commit/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1",
+     "author": {
+      "login": "user-1",
+      "id": 3001,
+      "url": "https://api.github.com/users/user-1",
+      "html_url": "https://github.com/user-1",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+     },
+     "committer": {
+      "login": "user-1",
+      "id": 3001,
+      "url": "https://api.github.com/users/user-1",
+      "html_url": "https://github.com/user-1",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+     },
+     "parents": [
+      {
+       "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa3",
+       "url": "https://api.github.com/repos/example-org/example-repo/commits/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa3",
+       "html_url": "https://github.com/example-org/example-repo/commit/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa3"
+      }
+     ]
+    }
+   ],
+   "headers": {
+    "link": "<https://api.github.com/repositories/1001/commits?per_page=1&sha=main&page=2>; rel=\"next\", <https://api.github.com/repositories/1001/commits?per_page=1&sha=main&page=5562>; rel=\"last\""
+   }
+  },
+  "/repos/example-org/example-repo/releases?per_page=1": {
+   "body": [
+    {
+     "url": "https://api.github.com/repos/example-org/example-repo/releases/287999283",
+     "html_url": "https://github.com/example-org/example-repo/releases/tag/3.1.3",
+     "id": 5004,
+     "author": {
+      "login": "github-actions[bot]",
+      "id": 3002,
+      "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+      "html_url": "https://github.com/apps/github-actions",
+      "type": "Bot",
+      "user_view_type": "public",
+      "site_admin": false
+     },
+     "tag_name": "3.1.3",
+     "target_commitish": "main",
+     "name": "",
+     "draft": false,
+     "immutable": false,
+     "prerelease": false,
+     "created_at": "2026-02-19T04:56:48Z",
+     "updated_at": "2026-02-19T05:01:30Z",
+     "published_at": "2026-02-19T05:01:30Z",
+     "assets": [
+      {
+       "url": "https://api.github.com/repos/example-org/example-repo/releases/assets/358372431",
+       "id": 5005,
+       "name": "example-repo-3.1.3-py3-none-any.whl",
+       "label": "",
+       "uploader": {
+        "login": "github-actions[bot]",
+        "id": 3002,
+        "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+        "html_url": "https://github.com/apps/github-actions",
+        "type": "Bot",
+        "user_view_type": "public",
+        "site_admin": false
+       },
+       "content_type": "application/octet-stream",
+       "state": "uploaded",
+       "size": 103424,
+       "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa4",
+       "download_count": 668,
+       "created_at": "2026-02-19T04:57:18Z",
+       "updated_at": "2026-02-19T04:57:18Z",
+       "browser_download_url": "https://github.com/example-org/example-repo/releases/download/3.1.3/example-repo-3.1.3-py3-none-any.whl"
+      },
+      {
+       "url": "https://api.github.com/repos/example-org/example-repo/releases/assets/358372432",
+       "id": 5006,
+       "name": "example-repo-3.1.3.tar.gz",
+       "label": "",
+       "uploader": {
+        "login": "github-actions[bot]",
+        "id": 3002,
+        "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+        "html_url": "https://github.com/apps/github-actions",
+        "type": "Bot",
+        "user_view_type": "public",
+        "site_admin": false
+       },
+       "content_type": "application/x-gtar",
+       "state": "uploaded",
+       "size": 759004,
+       "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa5",
+       "download_count": 618,
+       "created_at": "2026-02-19T04:57:18Z",
+       "updated_at": "2026-02-19T04:57:18Z",
+       "browser_download_url": "https://github.com/example-org/example-repo/releases/download/3.1.3/example-repo-3.1.3.tar.gz"
+      }
+     ]
+    }
+   ],
+   "headers": {
+    "link": "<https://api.github.com/repositories/1001/releases?per_page=1&page=2>; rel=\"next\", <https://api.github.com/repositories/1001/releases?per_page=1&page=38>; rel=\"last\""
+   }
+  },
+  "/repos/example-org/example-repo/branches/main": {
+   "body": {
+    "name": "main",
+    "commit": {
+     "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1",
+     "commit": {
+      "author": {
+       "name": "User One",
+       "email": "user-1@example.invalid",
+       "date": "2026-10-07T14:02:54Z"
+      },
+      "committer": {
+       "name": "User One",
+       "email": "user-1@example.invalid",
+       "date": "2026-10-07T14:02:54Z"
+      },
+      "message": "Fix typing",
+      "tree": {
+       "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa2",
+       "url": "https://api.github.com/repos/example-org/example-repo/git/trees/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa2"
+      },
+      "url": "https://api.github.com/repos/example-org/example-repo/git/commits/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1",
+      "comment_count": 0
+     },
+     "url": "https://api.github.com/repos/example-org/example-repo/commits/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1",
+     "html_url": "https://github.com/example-org/example-repo/commit/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1",
+     "author": {
+      "login": "user-1",
+      "id": 3001,
+      "url": "https://api.github.com/users/user-1",
+      "html_url": "https://github.com/user-1",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+     },
+     "committer": {
+      "login": "user-1",
+      "id": 3001,
+      "url": "https://api.github.com/users/user-1",
+      "html_url": "https://github.com/user-1",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+     },
+     "parents": [
+      {
+       "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa3",
+       "url": "https://api.github.com/repos/example-org/example-repo/commits/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa3",
+       "html_url": "https://github.com/example-org/example-repo/commit/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa3"
+      }
+     ]
+    },
+    "protected": true,
+    "protection": {
+     "enabled": false,
+     "required_status_checks": {
+      "enforcement_level": "off",
+      "contexts": [],
+      "checks": []
+     }
+    }
+   }
+  },
+  "/search/repositories?order=desc&per_page=5&q=example-repo+in%3Aname&sort=stars": {
+   "body": {
+    "total_count": 467232,
+    "incomplete_results": false,
+    "items": [
+     {
+      "id": 1001,
+      "name": "example-repo",
+      "full_name": "example-org/example-repo",
+      "owner": {
+       "login": "example-org",
+       "type": "Organization"
+      },
+      "html_url": "https://github.com/example-org/example-repo",
+      "description": "A small web framework (anonymized example).",
+      "fork": false,
+      "created_at": "2010-04-06T11:11:59Z",
+      "stargazers_count": 74934,
+      "forks_count": 17202,
+      "archived": false
+     },
+     {
+      "id": 6001,
+      "name": "awesome-example-repo",
+      "full_name": "user-2/awesome-example-repo",
+      "owner": {
+       "login": "user-2",
+       "type": "User"
+      },
+      "html_url": "https://github.com/user-2/awesome-example-repo",
+      "description": "Anonymized description 1.",
+      "fork": false,
+      "created_at": "2014-03-08T07:54:36Z",
+      "stargazers_count": 12794,
+      "forks_count": 1565,
+      "archived": false
+     },
+     {
+      "id": 6002,
+      "name": "example-repoy",
+      "full_name": "user-3/example-repoy",
+      "owner": {
+       "login": "user-3",
+       "type": "User"
+      },
+      "html_url": "https://github.com/user-3/example-repoy",
+      "description": "Anonymized description 2.",
+      "fork": false,
+      "created_at": "2013-12-24T05:38:12Z",
+      "stargazers_count": 8736,
+      "forks_count": 4248,
+      "archived": false
+     },
+     {
+      "id": 6003,
+      "name": "example-repo-restful",
+      "full_name": "user-4/example-repo-restful",
+      "owner": {
+       "login": "user-4",
+       "type": "Organization"
+      },
+      "html_url": "https://github.com/user-4/example-repo-restful",
+      "description": "Anonymized description 3.",
+      "fork": false,
+      "created_at": "2012-10-12T00:08:51Z",
+      "stargazers_count": 6905,
+      "forks_count": 1049,
+      "archived": false
+     },
+     {
+      "id": 6004,
+      "name": "example-repo-admin",
+      "full_name": "user-5/example-repo-admin",
+      "owner": {
+       "login": "user-5",
+       "type": "Organization"
+      },
+      "html_url": "https://github.com/user-5/example-repo-admin",
+      "description": "Anonymized description 4.",
+      "fork": false,
+      "created_at": "2012-03-18T23:21:57Z",
+      "stargazers_count": 6071,
+      "forks_count": 1651,
+      "archived": false
+     }
+    ]
+   }
+  }
+ }
+}

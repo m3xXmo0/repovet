@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://repocheck.invalid/schemas/report-1.1.json",
+  "$id": "https://repocheck.invalid/schemas/report-1.2.json",
   "title": "repocheck JSON report",
-  "description": "Output of `repocheck scan --format json`, schema_version 1.1. All strings that come from the checked repository are sanitized: invisible and control characters appear as <U+XXXX>. A report without findings does not mean the repository is safe; see 'coverage'.",
+  "description": "Output of `repocheck scan --format json`, schema_version 1.2. All strings that come from the checked repository are sanitized: invisible and control characters appear as <U+XXXX>. A report without findings does not mean the repository is safe; see 'coverage'.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -17,7 +17,7 @@
     "disclaimer"
   ],
   "properties": {
-    "schema_version": {"const": "1.1"},
+    "schema_version": {"const": "1.2"},
     "tool": {
       "type": "object",
       "additionalProperties": false,
@@ -87,9 +87,10 @@
     },
     "facts": {
       "type": "object",
-      "description": "Facts, not findings: where the scanned content came from and the provenance profile. Other keys may appear in later versions.",
+      "description": "Facts, not findings: where the scanned content came from, the trust profile (GitHub API) and the provenance profile. Other keys may appear in later versions.",
       "properties": {
         "source": {"$ref": "#/$defs/source"},
+        "trust": {"$ref": "#/$defs/trust"},
         "provenance": {"$ref": "#/$defs/provenance"}
       }
     },
@@ -156,6 +157,535 @@
         "url": {"type": "string"},
         "ref": {"type": "string"},
         "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"}
+      }
+    },
+    "nullable_count": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/count"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "nullable_string": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "nullable_bool": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "nullable_date": {
+      "oneOf": [
+        {
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "trust": {
+      "description": "From the GitHub API (only when it was queried). Stars, forks, followers and accounts can be bought or faked: indicators, not proof. Missing values are null; why they are missing is in 'coverage'.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository",
+        "owner",
+        "activity",
+        "security_policy",
+        "code_files",
+        "stars",
+        "lookalike",
+        "manifest",
+        "local",
+        "api"
+      ],
+      "properties": {
+        "repository": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "full_name",
+            "requested",
+            "url",
+            "description",
+            "created",
+            "pushed",
+            "age_days",
+            "days_since_push",
+            "stars",
+            "forks",
+            "watchers",
+            "open_issues",
+            "has_issues",
+            "archived",
+            "disabled",
+            "fork",
+            "parent",
+            "parent_stars",
+            "parent_star_ratio",
+            "source",
+            "is_template",
+            "template",
+            "default_branch",
+            "default_branch_protected",
+            "license",
+            "license_other"
+          ],
+          "properties": {
+            "full_name": {
+              "$ref": "#/$defs/nullable_string"
+            },
+            "requested": {
+              "$ref": "#/$defs/nullable_string",
+              "description": "The name that was asked for, if GitHub answered for another one (renamed or transferred)."
+            },
+            "url": {
+              "$ref": "#/$defs/nullable_string"
+            },
+            "description": {
+              "$ref": "#/$defs/nullable_string"
+            },
+            "created": {
+              "$ref": "#/$defs/nullable_date"
+            },
+            "pushed": {
+              "$ref": "#/$defs/nullable_date"
+            },
+            "age_days": {
+              "$ref": "#/$defs/nullable_count"
+            },
+            "days_since_push": {
+              "$ref": "#/$defs/nullable_count"
+            },
+            "stars": {
+              "$ref": "#/$defs/nullable_count"
+            },
+            "forks": {
+              "$ref": "#/$defs/nullable_count"
+            },
+            "watchers": {
+              "$ref": "#/$defs/nullable_count"
+            },
+            "open_issues": {
+              "$ref": "#/$defs/nullable_count",
+              "description": "Open issues and pull requests."
+            },
+            "has_issues": {
+              "$ref": "#/$defs/nullable_bool"
+            },
+            "archived": {
+              "$ref": "#/$defs/nullable_bool"
+            },
+            "disabled": {
+              "$ref": "#/$defs/nullable_bool"
+            },
+            "fork": {
+              "$ref": "#/$defs/nullable_bool"
+            },
+            "parent": {
+              "$ref": "#/$defs/nullable_string",
+              "description": "For a fork: the repository it was forked from."
+            },
+            "parent_stars": {
+              "$ref": "#/$defs/nullable_count"
+            },
+            "parent_star_ratio": {
+              "oneOf": [
+                {
+                  "type": "number",
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Parent stars divided by this fork's stars (at least 1)."
+            },
+            "source": {
+              "$ref": "#/$defs/nullable_string",
+              "description": "For a fork: the root of the fork network."
+            },
+            "is_template": {
+              "$ref": "#/$defs/nullable_bool"
+            },
+            "template": {
+              "$ref": "#/$defs/nullable_string",
+              "description": "The template this repository was generated from."
+            },
+            "default_branch": {
+              "$ref": "#/$defs/nullable_string"
+            },
+            "default_branch_protected": {
+              "$ref": "#/$defs/nullable_bool"
+            },
+            "license": {
+              "$ref": "#/$defs/nullable_string",
+              "description": "SPDX id as detected by GitHub."
+            },
+            "license_other": {
+              "type": "boolean",
+              "description": "GitHub found a license it does not recognize."
+            }
+          }
+        },
+        "owner": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "login",
+                "type",
+                "created",
+                "age_days",
+                "public_repos",
+                "followers"
+              ],
+              "properties": {
+                "login": {
+                  "$ref": "#/$defs/nullable_string"
+                },
+                "type": {
+                  "$ref": "#/$defs/nullable_string",
+                  "description": "User or Organization."
+                },
+                "created": {
+                  "$ref": "#/$defs/nullable_date"
+                },
+                "age_days": {
+                  "$ref": "#/$defs/nullable_count"
+                },
+                "public_repos": {
+                  "$ref": "#/$defs/nullable_count"
+                },
+                "followers": {
+                  "$ref": "#/$defs/nullable_count"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "activity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "commits",
+            "last_commit",
+            "days_since_commit",
+            "contributors",
+            "releases",
+            "latest_release"
+          ],
+          "properties": {
+            "commits": {
+              "$ref": "#/$defs/nullable_count",
+              "description": "Commits on the default branch."
+            },
+            "last_commit": {
+              "$ref": "#/$defs/nullable_date"
+            },
+            "days_since_commit": {
+              "$ref": "#/$defs/nullable_count"
+            },
+            "contributors": {
+              "$ref": "#/$defs/nullable_count",
+              "description": "Including contributors without a GitHub account."
+            },
+            "releases": {
+              "$ref": "#/$defs/nullable_count"
+            },
+            "latest_release": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "tag",
+                    "published",
+                    "age_days",
+                    "prerelease",
+                    "assets",
+                    "binary_assets",
+                    "asset_names"
+                  ],
+                  "properties": {
+                    "tag": {
+                      "$ref": "#/$defs/nullable_string"
+                    },
+                    "published": {
+                      "$ref": "#/$defs/nullable_date"
+                    },
+                    "age_days": {
+                      "$ref": "#/$defs/nullable_count"
+                    },
+                    "prerelease": {
+                      "$ref": "#/$defs/nullable_bool"
+                    },
+                    "assets": {
+                      "$ref": "#/$defs/count"
+                    },
+                    "binary_assets": {
+                      "$ref": "#/$defs/count",
+                      "description": "Assets that are programs, installers or archives."
+                    },
+                    "asset_names": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "At most 20."
+                    }
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        },
+        "security_policy": {
+          "type": "boolean",
+          "description": "A security policy file is among the checked files."
+        },
+        "code_files": {
+          "$ref": "#/$defs/nullable_count",
+          "description": "Files in a programming language among the checked files."
+        },
+        "stars": {
+          "description": "When the stars arrived; only for 50 to 200 stars (all of them fit into two requests).",
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "sampled",
+                "complete",
+                "first",
+                "last",
+                "max_24h",
+                "max_24h_share"
+              ],
+              "properties": {
+                "sampled": {
+                  "$ref": "#/$defs/count"
+                },
+                "complete": {
+                  "type": "boolean"
+                },
+                "first": {
+                  "$ref": "#/$defs/nullable_date"
+                },
+                "last": {
+                  "$ref": "#/$defs/nullable_date"
+                },
+                "max_24h": {
+                  "$ref": "#/$defs/count",
+                  "description": "Most stars within any 24 hours."
+                },
+                "max_24h_share": {
+                  "$ref": "#/$defs/share"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "lookalike": {
+          "description": "A repository of another owner with the same name and the same description (from a name search).",
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "full_name",
+                "stars",
+                "star_ratio",
+                "created",
+                "older"
+              ],
+              "properties": {
+                "full_name": {
+                  "type": "string"
+                },
+                "stars": {
+                  "$ref": "#/$defs/nullable_count"
+                },
+                "star_ratio": {
+                  "oneOf": [
+                    {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "created": {
+                  "$ref": "#/$defs/nullable_date"
+                },
+                "older": {
+                  "type": "boolean"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "manifest": {
+          "description": "GitHub repositories that root manifests name as the project's repository.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "declared",
+            "other",
+            "other_file",
+            "other_exists"
+          ],
+          "properties": {
+            "declared": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "file",
+                  "repository"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string"
+                  },
+                  "repository": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "other": {
+              "$ref": "#/$defs/nullable_string",
+              "description": "One of them that belongs to another owner and is not related (fork, template, transfer)."
+            },
+            "other_file": {
+              "$ref": "#/$defs/nullable_string"
+            },
+            "other_exists": {
+              "$ref": "#/$defs/nullable_bool"
+            }
+          }
+        },
+        "local": {
+          "description": "Local folders only: the repository is named by a Git remote, which is a claim. head_found says whether GitHub knows the local HEAD commit there (GitHub also finds commits that exist only in forks).",
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "claimed_by",
+                "head",
+                "head_found"
+              ],
+              "properties": {
+                "claimed_by": {
+                  "type": "string"
+                },
+                "head": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{40}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "head_found": {
+                  "$ref": "#/$defs/nullable_bool"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "api": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "requests",
+            "token",
+            "token_source",
+            "rate_limit",
+            "stopped"
+          ],
+          "properties": {
+            "requests": {
+              "$ref": "#/$defs/count"
+            },
+            "token": {
+              "type": "boolean"
+            },
+            "token_source": {
+              "enum": [
+                "GITHUB_TOKEN",
+                "GH_TOKEN",
+                null
+              ],
+              "description": "Where the token came from; its value never appears in a report."
+            },
+            "rate_limit": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "limit",
+                    "remaining",
+                    "reset"
+                  ],
+                  "properties": {
+                    "limit": {
+                      "$ref": "#/$defs/count"
+                    },
+                    "remaining": {
+                      "$ref": "#/$defs/count"
+                    },
+                    "reset": {
+                      "type": "integer",
+                      "description": "Unix time."
+                    }
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "stopped": {
+              "$ref": "#/$defs/nullable_string",
+              "description": "Why no further requests were sent (rate limit, budget, time)."
+            }
+          }
+        }
       }
     },
     "count": {"type": "integer", "minimum": 0},

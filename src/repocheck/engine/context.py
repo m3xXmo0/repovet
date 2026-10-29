@@ -4,6 +4,7 @@ import time
 from dataclasses import dataclass, field
 
 from repocheck.engine.loader import RuleSet
+from repocheck.github.target import TrustTarget
 from repocheck.limits import Limits
 from repocheck.models import CoverageCollector, CoverageStatus, Finding
 from repocheck.sources.gitmeta import GitSource
@@ -24,6 +25,10 @@ class ScanContext:
     prepared: dict[str, list[Finding]] | None = None
     # Per-area state collected during the shared pass (e.g. the provenance profile).
     observed: dict[str, object] = field(default_factory=dict)
+    # The repository the trust area asks the GitHub API about (None: not set up).
+    trust: TrustTarget | None = None
+    # Facts of the areas that already ran (trust reads the provenance profile).
+    facts: dict[str, object] = field(default_factory=dict)
     _timed_out: bool = False
 
     def __post_init__(self) -> None:

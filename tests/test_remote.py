@@ -1,7 +1,9 @@
 """URL targets: URL validation, fetching through a local test transport, limits, cleanup."""
 
+import itertools
 import json
 import stat
+import time
 from pathlib import Path
 
 import pytest
@@ -129,7 +131,7 @@ def test_missing_ref_and_empty_remote(tmp_path: Path) -> None:
         pass
 
 
-def test_size_and_time_limits(tmp_path: Path) -> None:
+def test_size_and_time_limits(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     origin, _ = _origin(tmp_path)
     transport = local_transport({"octo/demo": origin})
     seen: list[tuple[Path, str | None]] = []
@@ -143,9 +145,13 @@ def test_size_and_time_limits(tmp_path: Path) -> None:
     ):
         pass
     assert seen and seen[0][1] is None and not seen[0][0].exists()
+    # A clock that advances one second per reading: on Windows the real monotonic clock
+    # ticks only every ~16 ms, so a tiny timeout may not have passed yet when checked.
+    ticks = itertools.count()
+    monkeypatch.setattr(time, "monotonic", lambda: float(next(ticks)))
     with (
         pytest.raises(CloneError, match="time limit"),
-        clone(REPO, timeout=1e-9, transport=transport),
+        clone(REPO, timeout=0.5, transport=transport),
     ):
         pass
 
@@ -257,11 +263,17 @@ def test_folder_and_url_of_the_same_content_give_identical_findings(
     assert build_repo(folder / ".git", [CommitSpec(files)]) == build_repo(
         tmp_path / "again.git", [CommitSpec(files)]
     )
+    # The folder names the same GitHub repository as its remote, so with --offline both
+    # scans skip the trust area for the same reason.
+    config = folder / ".git" / "config"
+    with config.open("a", encoding="utf-8") as handle:
+        handle.write('[remote "origin"]\n\turl = git@github.com:octo/demo.git\n')
     monkeypatch.setattr(remote, "github_transport", local_transport({"octo/demo": origin}))
 
-    assert main(["scan", str(folder), "--format", "json"]) == EXIT_FINDINGS
+    assert main(["scan", str(folder), "--format", "json", "--offline"]) == EXIT_FINDINGS
     local = json.loads(capsys.readouterr().out)
-    assert main(["scan", "https://github.com/octo/demo", "--format", "json"]) == EXIT_FINDINGS
+    url_args = ["scan", "https://github.com/octo/demo", "--format", "json", "--offline"]
+    assert main(url_args) == EXIT_FINDINGS
     url = json.loads(capsys.readouterr().out)
 
     assert local["findings"] and url["findings"] == local["findings"]
