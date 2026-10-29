@@ -1,11 +1,101 @@
 # repovet
 
-Vet a Git repository before you run it.
+**Vet a Git repository before you run it.**
+
+[![PyPI version](https://img.shields.io/pypi/v/repovet.svg)](https://pypi.org/project/repovet/)
+[![Python versions](https://img.shields.io/pypi/pyversions/repovet.svg)](https://pypi.org/project/repovet/)
+[![CI](https://github.com/m3xXmo0/repovet/actions/workflows/ci.yml/badge.svg)](https://github.com/m3xXmo0/repovet/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/pypi/l/repovet.svg)](https://github.com/m3xXmo0/repovet/blob/main/LICENSE)
 
 repovet statically checks an untrusted Git repository **before** you run, install,
-build or open anything from it, and never executes code from it.
+build or open anything from it, and never executes code from it. You give it a local
+folder or a public GitHub URL; it gives you a list of findings and an honest list of
+what it could not check.
 
-It is built around three questions:
+[![repovet scanning the demo repository](https://raw.githubusercontent.com/m3xXmo0/repovet/main/docs/demo.gif)](https://github.com/m3xXmo0/repovet-demo)
+
+## Why?
+
+A repository can run code on your machine long before you think you have "run" it:
+
+- **Opening it** in an editor can run code: VS Code tasks set to start on folder open,
+  dev containers, workspace settings that point tools into the repository.
+- **Installing or building it** can run code: npm `postinstall` scripts, `setup.py`,
+  Python build hooks, Makefiles, Git hooks.
+- **Letting an AI agent read it** can act on hidden instructions: a `CLAUDE.md` or
+  `AGENTS.md` can carry prompts hidden in HTML comments or invisible Unicode.
+
+repovet looks for exactly these things, reading the files only as data.
+
+## Quick start
+
+Install it as a command-line tool with [uv](https://docs.astral.sh/uv/) (it downloads a
+matching Python if needed) or with pipx:
+
+```
+uv tool install repovet
+# or
+pipx install repovet
+```
+
+Scan a public repository without cloning it yourself:
+
+```
+repovet scan https://github.com/pallets/flask
+```
+
+Or try it on the demo repository, a harmless project built to show what repovet finds:
+
+```
+repovet scan https://github.com/m3xXmo0/repovet-demo
+```
+
+## What it looks for
+
+Eight areas, with one plain example each:
+
+| Area | One example it catches |
+|------|------------------------|
+| **autorun** | a VS Code task set to run the moment you open the folder |
+| **agents** | a `CLAUDE.md` with an instruction hidden in an HTML comment |
+| **obfuscation** | a Base64 blob that is decoded and executed in one step |
+| **download & execute** | a script that pipes `curl …` straight into `sh` |
+| **binaries** | an executable program disguised as `logo.png` |
+| **dependencies** | a typosquatted package name sitting next to the real ones |
+| **provenance** | a whole project committed in a single initial commit |
+| **trust** | a brand-new account whose repository gained thousands of stars in a day |
+
+## What it does not do
+
+repovet **never runs anything** from the repository, so it cannot be tricked into
+executing a payload while it checks for one.
+
+And **"no findings" does not mean "safe".** It means only that none of the rules matched
+in the part of the repository that was checked. repovet looks for known patterns with
+few false alarms; it never gives a safe/unsafe verdict or a score. Always read the
+"Not checked" section of the report.
+
+---
+
+## Contents
+
+- [Status](#status)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Sample output](#sample-output)
+- [Trust (GitHub API)](#trust-github-api)
+- [JSON and SARIF](#json-and-sarif)
+- [What is checked](#what-is-checked)
+- [Limits: what is not checked](#limits-what-is-not-checked)
+- [Security model](#security-model)
+- [Exit codes](#exit-codes)
+- [Development](#development)
+- [Roadmap](#roadmap)
+- [License](#license)
+
+## Status
+
+Early: version 0.1.0 is the first release. It is built around three questions:
 
 | Category   | Question                                                                    |
 |------------|-----------------------------------------------------------------------------|
@@ -13,49 +103,44 @@ It is built around three questions:
 | trust      | How do the owner, stars, contributors and maintenance look?                 |
 | provenance | What is the repository made of, and how did it come about?                  |
 
-The result is a list of findings plus an honest list of what was **not** checked.
-repovet never says that a repository is safe.
-
-## Status
-
-Early: version 0.1.0 is the first release. What works today:
+What works today:
 
 - **Local folders and public GitHub repositories.** A URL like
   `https://github.com/<owner>/<repo>` is fetched into a temporary folder as Git objects
-  only (no checkout, nothing from the repository is written under its own file name)
-  and deleted after the scan.
+  only (no checkout, nothing from the repository is written under its own file name) and
+  deleted after the scan.
 - **Reports** for the terminal, as JSON (`docs/report.schema.json`) or as SARIF 2.1.0
   for code-scanning tools.
-- **Provenance profile** (facts, not findings): languages, size, largest files,
-  top-level structure, usual project files that are present or missing, share of
-  generated or vendored files, license (file text and manifest) and notable files such
-  as AI agent configuration, dev containers or editor settings. With Git history (a URL
-  target, or a local folder with a `.git` folder): commits, time span, authors and
-  e-mail domains, signed commits, the share of files that arrived in the first commit
-  and AI tools named in commit messages.
-- **Provenance indicators** (`info`/`low`, rules `RC-PROV-*`): one large initial commit,
-  commit dates in the future or edited, a history rewritten or created in one go, AI
-  tool trailers, "generated with" notes and committed AI session histories. They are
-  hints about how a repository came about, never a verdict: commit dates and authors
-  can be set by anyone.
-- **Trust profile** (facts from the GitHub API, see [Trust](#trust-github-api)):
-  repository and owner age, account type, stars, forks, watchers, contributors,
-  commits, last commit, releases, open issues, archived/fork/template, default-branch
-  protection, the license GitHub detects, and for a local folder whether its HEAD
-  commit exists in the GitHub repository its Git remote names. `--offline` turns it off.
-- **Trust indicators** (`info` to `medium`, rules `RC-TRUST-*`): a very new owner
-  account or a very young repository with many stars, most stars within one day, a fork
-  of a much more popular repository, a release that offers programs or archives from a
-  repository with hardly any code, archived or inactive repositories, a local HEAD that
-  GitHub does not know, a manifest that names another owner's repository, and an older,
-  more popular repository with the same name and description. They are indicators,
-  never a verdict, and there is no score.
 - **Danger, six areas:** auto-run code (`autorun`), AI agent instructions and
   configuration (`agents`), obfuscated code (`obfuscation`), download-and-execute
   (`download_exec`), binaries and file-system tricks (`binaries`) and suspicious
   dependencies (`dependencies`); see [What is checked](#what-is-checked).
-- Windows, macOS and Linux with Python 3.12 or 3.13; the test suite runs on all three
-  in CI.
+- **Provenance profile** (facts, not findings): languages, size, largest files,
+  top-level structure, usual project files present or missing, share of generated or
+  vendored files, license (file text and manifest) and notable files such as AI agent
+  configuration, dev containers or editor settings. With Git history (a URL target, or a
+  local folder with a `.git` folder): commits, time span, authors and e-mail domains,
+  signed commits, the share of files that arrived in the first commit and AI tools named
+  in commit messages.
+- **Provenance indicators** (`info`/`low`, rules `RC-PROV-*`): one large initial commit,
+  commit dates in the future or edited, a history rewritten or created in one go, AI tool
+  trailers, "generated with" notes and committed AI session histories. They are hints
+  about how a repository came about, never a verdict: commit dates and authors can be set
+  by anyone.
+- **Trust profile** (facts from the GitHub API, see [Trust](#trust-github-api)):
+  repository and owner age, account type, stars, forks, watchers, contributors, commits,
+  last commit, releases, open issues, archived/fork/template, default-branch protection,
+  the license GitHub detects, and for a local folder whether its HEAD commit exists in
+  the GitHub repository its Git remote names. `--offline` turns it off.
+- **Trust indicators** (`info` to `medium`, rules `RC-TRUST-*`): a very new owner account
+  or a very young repository with many stars, most stars within one day, a fork of a much
+  more popular repository, a release that offers programs or archives from a repository
+  with hardly any code, archived or inactive repositories, a local HEAD that GitHub does
+  not know, a manifest that names another owner's repository, and an older, more popular
+  repository with the same name and description. They are indicators, never a verdict, and
+  there is no score.
+- Windows, macOS and Linux with Python 3.12 or 3.13; the test suite runs on all three in
+  CI.
 
 ## Installation
 
@@ -71,8 +156,8 @@ pipx install repovet
 repovet --version
 ```
 
-Runtime dependencies are PyYAML and [dulwich](https://www.dulwich.io/) (pure-Python
-Git, which brings urllib3).
+Runtime dependencies are PyYAML and [dulwich](https://www.dulwich.io/) (pure-Python Git,
+which brings urllib3).
 
 From source, with the exact versions pinned in `uv.lock`:
 
@@ -106,6 +191,9 @@ repovet scan https://github.com/pallets/flask --ref <40-character commit id> --k
 
 # Plain output without colors (also set by the NO_COLOR environment variable)
 repovet scan ./some-repo --no-color
+
+# Keep colors when piping into a pager (FORCE_COLOR; NO_COLOR and --no-color win)
+FORCE_COLOR=1 repovet scan ./some-repo | less -R
 
 # Only show high and critical findings
 repovet scan ./some-repo --min-severity high
@@ -144,7 +232,7 @@ All `scan` options:
 | `--clone-timeout SECONDS` | URL targets: abort the download after this time (default: `300`). |
 | `--format FORMAT`       | `text` (default), `json` or `sarif`.                                 |
 | `-o`, `--output FILE`   | Write the report to FILE instead of stdout. FILE must be outside the checked folder. |
-| `--no-color`            | Plain output without colors.                                         |
+| `--no-color`            | Plain output without colors. `NO_COLOR` does the same; a non-empty `FORCE_COLOR` keeps colors when the output is piped. Reports written with `-o` never contain colors. |
 | `--offline`             | No GitHub API queries for the trust area (a URL target is still downloaded). |
 | `-v`, `--verbose`       | More detail.                                                         |
 
@@ -190,9 +278,8 @@ A missing finding is not proof that the repository is safe.
 Each finding has a rule ID, severity, confidence, file and line (where it applies), the
 reason (`Why`) and a recommendation (`Do`). Text quoted from the repository is masked
 before output: control characters and invisible Unicode characters are shown as
-`<U+XXXX>`, so they cannot change your terminal or mislead a reader.
-
-On a terminal with UTF-8 output, `|` in the header is shown as `·`.
+`<U+XXXX>`, so they cannot change your terminal or mislead a reader. On a terminal with
+UTF-8 output, `|` in the header is shown as `·`.
 
 Before "Not checked", the report shows the provenance profile. It describes the
 repository; it is not a finding and not a quality score (same demo folder):
@@ -215,10 +302,10 @@ PROVENANCE PROFILE                       facts, not findings
 
 ## Trust (GitHub API)
 
-For a GitHub URL, and for a local folder whose `.git/config` names a GitHub repository
-as remote `origin` (or as its only remote), repovet asks the GitHub REST API about the
-repository and its owner. The trust profile comes before the provenance profile
-(excerpt, anonymized):
+For a GitHub URL, and for a local folder whose `.git/config` names a GitHub repository as
+remote `origin` (or as its only remote), repovet asks the GitHub REST API about the
+repository and its owner. The trust profile comes before the provenance profile (excerpt,
+anonymized):
 
 ```
 TRUST PROFILE                            facts, not findings
@@ -238,25 +325,25 @@ TRUST PROFILE                            facts, not findings
 ```
 
 - **A local folder's remote is only a claim.** Whoever prepared the folder chose it.
-  repovet therefore looks up the folder's HEAD commit in that repository (`Local`
-  line). GitHub also finds commits that exist only in forks of the repository, so
-  "found" is no proof either.
-- **Requests:** usually 6 to 8 per scan: repository, owner, commits, contributors,
-  latest release, default branch, a name search (only for descriptions of 20 or more
+  repovet therefore looks up the folder's HEAD commit in that repository (`Local` line).
+  GitHub also finds commits that exist only in forks of the repository, so "found" is no
+  proof either.
+- **Requests:** usually 6 to 8 per scan: repository, owner, commits, contributors, latest
+  release, default branch, a name search (only for descriptions of 20 or more
   characters), the local HEAD of a folder, the star times (one or two requests, only for
   50 to 200 stars) and the repository a manifest names (only if it belongs to another
-  owner). Counts come from one-item pages, so large repositories cost the same. Each scan stops after 25 requests
-  without a token (100 with one) and after 60 seconds.
+  owner). Counts come from one-item pages, so large repositories cost the same. Each scan
+  stops after 25 requests without a token (100 with one) and after 60 seconds.
 - **Rate limit:** without a token GitHub allows 60 requests per hour and IP address.
   repovet checks the remaining requests first (that check is free), waits at most 20
   seconds when GitHub asks for a short pause, and otherwise stops and lists what was not
-  checked under "Not checked", with the time the limit resets. The scan itself
-  continues; the exit code does not change.
+  checked under "Not checked", with the time the limit resets. The scan itself continues;
+  the exit code does not change.
 - **Token (optional):** set `GITHUB_TOKEN` or `GH_TOKEN` to raise the limit to 5,000
-  requests per hour. A fine-grained token without any permissions is enough, because
-  only public data is read. The token is sent only to `https://api.github.com`, never
-  on the command line, and never appears in reports, error messages or `-v` output.
-  The report says only whether a token was used and from which variable.
+  requests per hour. A fine-grained token without any permissions is enough, because only
+  public data is read. The token is sent only to `https://api.github.com`, never on the
+  command line, and never appears in reports, error messages or `-v` output. The report
+  says only whether a token was used and from which variable.
 
   ```
   # Bash
@@ -265,12 +352,12 @@ TRUST PROFILE                            facts, not findings
   # PowerShell
   $env:GITHUB_TOKEN = "github_pat_..."; uv run repovet scan https://github.com/pallets/flask
   ```
-- **What is not used:** private repositories, GraphQL, the stargazer accounts
-  themselves, and any cache (every scan asks again).
+- **What is not used:** private repositories, GraphQL, the stargazer accounts themselves,
+  and any cache (every scan asks again).
 - **Limits of the indicators:** the name search looks at the five most starred
-  repositories whose name contains the checked name; star times are only fetched for
-  50 to 200 stars; only the latest release is looked at; manifests only in the root
-  folder. Stars, accounts, dates and descriptions can all be faked.
+  repositories whose name contains the checked name; star times are only fetched for 50 to
+  200 stars; only the latest release is looked at; manifests only in the root folder.
+  Stars, accounts, dates and descriptions can all be faked.
 
 ## JSON and SARIF
 
@@ -282,11 +369,11 @@ TRUST PROFILE                            facts, not findings
   (`schema_version` 1.2).
 - **SARIF 2.1.0** (`--format sarif`) for GitHub code scanning and SARIF viewers: every
   rule with title, reason, recommendation and `security-severity`; `critical`/`high`
-  findings have level `error`, `medium` `warning`, `low`/`info` `note`. Paths are
-  relative to `SRCROOT` (the checked folder). Coverage gaps appear as tool execution
-  notifications. Findings that concern a whole file point to line 1. The trust and
-  provenance profiles are in `runs[0].properties.facts`. For URL targets, `SRCROOT` is the GitHub
-  URL of the checked commit.
+  findings have level `error`, `medium` `warning`, `low`/`info` `note`. Paths are relative
+  to `SRCROOT` (the checked folder). Coverage gaps appear as tool execution notifications.
+  Findings that concern a whole file point to line 1. The trust and provenance profiles
+  are in `runs[0].properties.facts`. For URL targets, `SRCROOT` is the GitHub URL of the
+  checked commit.
 
 Both formats contain only ASCII: text from the repository is sanitized like in the
 terminal report, and file paths in SARIF are percent-encoded. `--min-severity` filters
@@ -294,15 +381,14 @@ both; the exit code never depends on the format.
 
 ## What is checked
 
-Severity says how bad it is if the finding means what the rule claims; confidence says
-how likely that is. `critical` and `high` mean code runs automatically during normal use
-(install, build, opening the folder, starting an agent) or something is clearly
-disguised.
+Severity says how bad it is if the finding means what the rule claims; confidence says how
+likely that is. `critical` and `high` mean code runs automatically during normal use
+(install, build, opening the folder, starting an agent) or something is clearly disguised.
 
-[RULES.md](https://github.com/m3xXmo0/repovet/blob/main/RULES.md) lists every rule
-with its ID, severity and description; it is generated from the YAML rules in
-`src/repovet/rules/`. `repovet rules list` shows the same list in the terminal
-(`--area` to pick one area). The rules are grouped in these areas:
+[RULES.md](https://github.com/m3xXmo0/repovet/blob/main/RULES.md) lists every rule with
+its ID, severity and description; it is generated from the YAML rules in
+`src/repovet/rules/`. `repovet rules list` shows the same list in the terminal (`--area`
+to pick one area). The rules are grouped in these areas:
 
 | Area | IDs | Looks for |
 |------|-----|-----------|
@@ -315,57 +401,57 @@ with its ID, severity and description; it is generated from the YAML rules in
 | `provenance` | `RC-PROV` | indicators from languages, structure and Git history |
 | `trust` | `RC-TRUST` | indicators from the GitHub API (owner, stars, activity, copies) |
 
-Rules are data, not code: each one is a YAML entry with an ID, severity, confidence,
-file patterns, a check, and texts for message, reason and recommendation. Rule IDs are
-never renamed or reused.
+Rules are data, not code: each one is a YAML entry with an ID, severity, confidence, file
+patterns, a check, and texts for message, reason and recommendation. Rule IDs are never
+renamed or reused.
 
 ## Limits: what is not checked
 
-**"No findings" does not mean "safe".** It only means that none of the rules matched
-in the part of the repository that was checked. repovet looks for known patterns with
-few false alarms; an attacker who knows the rules can avoid them.
+**"No findings" does not mean "safe".** It only means that none of the rules matched in
+the part of the repository that was checked. repovet looks for known patterns with few
+false alarms; an attacker who knows the rules can avoid them.
 
 Not checked today:
 
-- **Trust** needs the GitHub API: with `--offline`, for a folder without a GitHub
-  remote, or when the API cannot be reached or its rate limit is used up, the report
-  lists it under "Not checked" (the scan itself continues).
+- **Trust** needs the GitHub API: with `--offline`, for a folder without a GitHub remote,
+  or when the API cannot be reached or its rate limit is used up, the report lists it
+  under "Not checked" (the scan itself continues).
 - **Provenance profile:** languages are recognized by file extension or name only, and
   licenses by distinctive phrases of common license texts; neither is a code or legal
   review. A local folder's `.git` folder is not part of the profile.
 - **Git history** is read only from a URL clone or a local `.git` folder that has no
-  links, no alternates and no `commondir` (otherwise it is listed under "Not checked");
-  at most 100,000 commits. Commit dates, authors and trailers are free text chosen by
-  whoever commits, so all history facts are indicators. AI indicators only show that a
-  tool was named, not who or what wrote the code. SHA-256 repositories and reftable
-  refs are not supported.
+  links, no alternates and no `commondir` (otherwise it is listed under "Not checked"); at
+  most 100,000 commits. Commit dates, authors and trailers are free text chosen by whoever
+  commits, so all history facts are indicators. AI indicators only show that a tool was
+  named, not who or what wrote the code. SHA-256 repositories and reftable refs are not
+  supported.
 - **Dependencies** are checked by name and declared source only, offline: names are
-  compared with lists of the most downloaded PyPI and npm packages shipped with
-  repovet (see `src/repovet/data/SOURCES.md`). The code and install scripts of
-  dependencies, known vulnerabilities and transitive dependencies are not checked;
-  Rust, Go, Ruby, PHP and Java dependencies are not checked at all.
+  compared with lists of the most downloaded PyPI and npm packages shipped with repovet
+  (see `src/repovet/data/SOURCES.md`). The code and install scripts of dependencies, known
+  vulnerabilities and transitive dependencies are not checked; Rust, Go, Ruby, PHP and
+  Java dependencies are not checked at all.
 - **Binary files** are recognized by their signature only: archives are not unpacked,
-  programs and documents are not analyzed. Content of Git submodules and Git LFS
-  objects is not checked; both are listed under "Not checked".
+  programs and documents are not analyzed. Content of Git submodules and Git LFS objects is
+  not checked; both are listed under "Not checked".
 - **Obfuscation and download-and-execute** are only checked in source and script files
   (not in Markdown, JSON or notebooks), not in test modules (`test_*.py`, `*.test.ts`,
-  `testdata/`, `fixtures/`, ...) and, for the noisier rules, not in build output
-  (`dist/`, `build/`, `*.min.js`, ...). Code in comment lines is ignored. Downloads
-  that are split over several lines or files are not recognized.
-- **Auto-run surfaces that are recognized but not analyzed:** Maven, `go:generate`,
-  CMake, JetBrains `.idea/` settings. Others are only partly checked: GitHub Actions
-  workflows for `pull_request_target` checkouts and encoded commands, MSBuild files for
-  `Exec`, `DownloadFile` and inline tasks, Rust `build.rs` for network access, Composer
-  for install hooks and downloads, Gradle for external commands, downloads and the
-  wrapper URL, Ruby gemspecs, Rakefiles and Gemfiles for native extensions and
-  downloads. If present, they are listed under "Not checked".
-- **URL targets:** only public repositories on `https://github.com/<owner>/<repo>`;
-  other hosts and SSH, `git://` or `file://` URLs are rejected. Git submodules are
-  listed, never fetched. The default limits are 500 MB download and 300 seconds.
+  `testdata/`, `fixtures/`, ...) and, for the noisier rules, not in build output (`dist/`,
+  `build/`, `*.min.js`, ...). Code in comment lines is ignored. Downloads that are split
+  over several lines or files are not recognized.
+- **Auto-run surfaces that are recognized but not analyzed:** Maven, `go:generate`, CMake,
+  JetBrains `.idea/` settings. Others are only partly checked: GitHub Actions workflows for
+  `pull_request_target` checkouts and encoded commands, MSBuild files for `Exec`,
+  `DownloadFile` and inline tasks, Rust `build.rs` for network access, Composer for install
+  hooks and downloads, Gradle for external commands, downloads and the wrapper URL, Ruby
+  gemspecs, Rakefiles and Gemfiles for native extensions and downloads. If present, they
+  are listed under "Not checked".
+- **URL targets:** only public repositories on `https://github.com/<owner>/<repo>`; other
+  hosts and SSH, `git://` or `file://` URLs are rejected. Git submodules are listed, never
+  fetched. The default limits are 500 MB download and 300 seconds.
 - **Skipped files:** files larger than `--max-file-size` (default 2 MB), environment and
   tool cache folders unless `--include-env-dirs` is given, symlinks and junctions (listed,
-  never followed), files that cannot be read or parsed. All of them appear under
-  "Not checked".
+  never followed), files that cannot be read or parsed. All of them appear under "Not
+  checked".
 - **Line numbers** in JSON, TOML and YAML files are best effort.
 - **Out of scope by design:** running, sandboxing or dynamic analysis of repository code;
   known vulnerabilities (CVE) in dependencies (use pip-audit, npm audit or OSV-Scanner);
@@ -378,30 +464,30 @@ code.
 
 - **Nothing from the checked repository is executed:** no scripts, hooks, builds, package
   managers or imports. Python files are only parsed with `ast.parse`; YAML is only read
-  with a safe loader with size and alias limits. Ruff rules (`banned-api`,
-  flake8-bandit) and a self-check test forbid `subprocess`, `os.system`, `eval`, `exec`,
-  `pickle` and similar in repovet's own code.
+  with a safe loader with size and alias limits. Ruff rules (`banned-api`, flake8-bandit)
+  and a self-check test forbid `subprocess`, `os.system`, `eval`, `exec`, `pickle` and
+  similar in repovet's own code.
 - **Offline analysis:** the analysis of files and history makes no network connections.
-  There are only two: for a URL target the HTTPS download from github.com (TLS
-  verified, no Git configuration, credential helpers or stored passwords are used),
-  and for the trust area HTTPS requests to `api.github.com` only (no other host, no
-  redirect elsewhere, at most 1 MiB per answer, a fixed request budget per scan).
-  `--offline` switches the API off; a local folder with `--offline` makes no
-  connection at all. The test suite blocks sockets to make sure of that; API tests use
-  recorded answers, and the clone tests use a local Git server on 127.0.0.1 only.
+  There are only two: for a URL target the HTTPS download from github.com (TLS verified, no
+  Git configuration, credential helpers or stored passwords are used), and for the trust
+  area HTTPS requests to `api.github.com` only (no other host, no redirect elsewhere, at
+  most 1 MiB per answer, a fixed request budget per scan). `--offline` switches the API
+  off; a local folder with `--offline` makes no connection at all. The test suite blocks
+  sockets to make sure of that; API tests use recorded answers, and the clone tests use a
+  local Git server on 127.0.0.1 only.
 - **Read-only:** files are only opened for reading; nothing in the checked folder is
   changed. Symlinks, junctions and reparse points are not followed. Inside `.git/`, only
   `config`, `hooks/*` and `info/attributes` are read, as plain files.
 - **No `git` binary:** repovet never calls `git`, so Git configuration in the checked
-  repository (for example `core.fsmonitor`, filters or pagers) can never run. GitHub
-  URLs are fetched with [dulwich](https://www.dulwich.io/), a pure-Python Git
-  implementation: only the pack file is downloaded into a fresh temporary folder (no
-  working tree, refs, hooks, submodules, LFS or filters), and files are read from the
-  Git objects in memory. Object sizes are checked before anything is unpacked, so a
-  small download cannot inflate into gigabytes. The folder is deleted after the scan.
+  repository (for example `core.fsmonitor`, filters or pagers) can never run. GitHub URLs
+  are fetched with [dulwich](https://www.dulwich.io/), a pure-Python Git implementation:
+  only the pack file is downloaded into a fresh temporary folder (no working tree, refs,
+  hooks, submodules, LFS or filters), and files are read from the Git objects in memory.
+  Object sizes are checked before anything is unpacked, so a small download cannot inflate
+  into gigabytes. The folder is deleted after the scan.
 
-Found a way to break one of these guarantees? Please report it privately, as described
-in [SECURITY.md](https://github.com/m3xXmo0/repovet/blob/main/SECURITY.md).
+Found a way to break one of these guarantees? Please report it privately, as described in
+[SECURITY.md](https://github.com/m3xXmo0/repovet/blob/main/SECURITY.md).
 
 ## Exit codes
 
@@ -434,14 +520,14 @@ pathological inputs (ReDoS).
 
 After changing rules, regenerate the tables in
 [RULES.md](https://github.com/m3xXmo0/repovet/blob/main/RULES.md) with
-`uv run repovet rules list --markdown` and paste them between the `rules-table`
-markers; `tests/test_readme.py` checks it.
+`uv run repovet rules list --markdown` and paste them between the `rules-table` markers;
+`tests/test_readme.py` checks it.
 
-**False-positive corpus:** `tests/corpus/corpus.yaml` lists real open-source
-repositories pinned to a commit (each one can also be checked by URL, see the corpus
-README). `tests/test_corpus.py` scans each and fails on high or critical findings that
-are not explicitly accepted. Tests never download anything, so the test is skipped
-unless `REPOVET_CORPUS_DIR` points to the extracted repositories. See
+**False-positive corpus:** `tests/corpus/corpus.yaml` lists real open-source repositories
+pinned to a commit (each one can also be checked by URL, see the corpus README).
+`tests/test_corpus.py` scans each and fails on high or critical findings that are not
+explicitly accepted. Tests never download anything, so the test is skipped unless
+`REPOVET_CORPUS_DIR` points to the extracted repositories. See
 [tests/corpus/README.md](https://github.com/m3xXmo0/repovet/blob/main/tests/corpus/README.md)
 for downloading and running it:
 
@@ -456,16 +542,15 @@ $env:REPOVET_CORPUS_DIR = "C:\path\to\corpus"; uv run pytest -m corpus
 ## Roadmap
 
 Changes per version are listed in
-[CHANGELOG.md](https://github.com/m3xXmo0/repovet/blob/main/CHANGELOG.md). Possible
-next steps, without dates: Maven (`pom.xml`), Python 3.14 in CI, and an optional
-online lookup of known malicious packages.
+[CHANGELOG.md](https://github.com/m3xXmo0/repovet/blob/main/CHANGELOG.md). Possible next
+steps, without dates: Maven (`pom.xml`), Python 3.14 in CI, and an optional online lookup
+of known malicious packages.
 
 ## License
 
-MIT, see [LICENSE](https://github.com/m3xXmo0/repovet/blob/main/LICENSE).
-Copyright (c) 2026 m3xXmo0.
+MIT, see [LICENSE](https://github.com/m3xXmo0/repovet/blob/main/LICENSE). Copyright (c)
+2026 m3xXmo0.
 
-repovet ships two lists of package names as data (see
-`src/repovet/data/SOURCES.md`): the most downloaded PyPI projects from
-"top-pypi-packages" by Hugo van Kemenade (CC BY 4.0), and the most downloaded npm
-packages from npm-high-impact by Titus Wormer (MIT).
+repovet ships two lists of package names as data (see `src/repovet/data/SOURCES.md`): the
+most downloaded PyPI projects from "top-pypi-packages" by Hugo van Kemenade (CC BY 4.0),
+and the most downloaded npm packages from npm-high-impact by Titus Wormer (MIT).

@@ -5,6 +5,26 @@ All notable changes to repovet are listed here. The format follows
 [Semantic Versioning](https://semver.org/). Rule IDs are never renamed or reused; the
 exit codes and the JSON report (`schema_version`) are stable interfaces.
 
+## [Unreleased]
+
+### Added
+
+- The terminal report honours `FORCE_COLOR`: when it is set to a non-empty value,
+  colors are kept even when the output is piped, for example into `less -R`. `NO_COLOR`
+  and `--no-color` still take precedence, and reports written with `-o` never contain
+  colors.
+- A demo GIF on the README (`docs/demo.gif`), rendered from `docs/demo.tape` with
+  [VHS](https://github.com/charmbracelet/vhs). The manual workflow
+  `.github/workflows/demo.yml` (trigger: `workflow_dispatch`) installs repovet from
+  source, renders the tape against the public demo repository and uploads the GIF as an
+  artifact; it commits nothing.
+
+### Changed
+
+- Reworked the README into a short introduction for new users (tagline, badges, the demo
+  GIF, why it matters, a quick start and a one-line-per-area overview) followed by the
+  existing detailed sections, now with a table of contents.
+
 ## [0.1.0] - 2026-10-29
 
 First release.
@@ -34,4 +54,5 @@ First release.
   threshold, 2 usage error, 3 analysis aborted.
 - Windows, macOS and Linux with Python 3.12 and 3.13.
 
+[Unreleased]: https://github.com/m3xXmo0/repovet/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/m3xXmo0/repovet/releases/tag/v0.1.0

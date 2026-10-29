@@ -5,6 +5,8 @@ import os
 from datetime import UTC, datetime
 from pathlib import Path
 
+import pytest
+
 from repovet.models import (
     Confidence,
     CoverageItem,
@@ -14,7 +16,8 @@ from repovet.models import (
     ScanResult,
     Severity,
 )
-from repovet.report.terminal import no_findings, render, supports_unicode
+from repovet.report import terminal
+from repovet.report.terminal import color_wanted, no_findings, render, supports_unicode
 
 GOLDEN = Path(__file__).parent / "golden" / "terminal_report.txt"
 
@@ -164,6 +167,27 @@ def test_ascii_mode_replaces_decorations() -> None:
 class _Stream:
     def __init__(self, encoding: object) -> None:
         self.encoding = encoding
+
+
+class _Pipe:
+    def isatty(self) -> bool:
+        return False
+
+
+def test_color_wanted_on_a_pipe() -> None:
+    pipe = _Pipe()
+    assert not color_wanted({}, pipe)
+    assert color_wanted({"FORCE_COLOR": "1"}, pipe)
+    assert color_wanted({"FORCE_COLOR": "true"}, pipe)
+    assert not color_wanted({"FORCE_COLOR": ""}, pipe)
+    assert not color_wanted({"FORCE_COLOR": "1", "NO_COLOR": "1"}, pipe)
+
+
+def test_color_wanted_on_a_terminal(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(terminal, "enable_color", lambda stream=None: True)
+    assert color_wanted({})
+    assert not color_wanted({"NO_COLOR": "1"})
+    assert color_wanted({"NO_COLOR": ""})
 
 
 def test_supports_unicode() -> None:

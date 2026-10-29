@@ -89,6 +89,13 @@ def _no_github_api(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv(name, raising=False)
 
 
+@pytest.fixture(autouse=True)
+def _no_color_settings(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Color variables of the developer's shell must not change test output."""
+    for name in ("NO_COLOR", "FORCE_COLOR"):
+        monkeypatch.delenv(name, raising=False)
+
+
 @pytest.fixture
 def loopback_network(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     """Allow sockets on 127.0.0.1/::1 for one test; everything else stays blocked."""

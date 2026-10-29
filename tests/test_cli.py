@@ -156,6 +156,53 @@ def test_no_color_env(repo: Path, capsys: Capture, monkeypatch: pytest.MonkeyPat
     assert "\x1b[" not in out
 
 
+def test_piped_output_has_no_color_by_default(repo: Path, capsys: Capture) -> None:
+    _, out, _ = run(capsys, "scan", str(repo))
+    assert "\x1b[" not in out
+
+
+def test_force_color_env_colors_piped_output(
+    repo: Path, capsys: Capture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("FORCE_COLOR", "1")
+    _, out, _ = run(capsys, "scan", str(repo))
+    assert "\x1b[91mHIGH" in out
+    assert "\x1b[0m" in out
+
+
+@pytest.mark.parametrize(
+    ("env", "args"),
+    [
+        ({"FORCE_COLOR": ""}, ()),
+        ({"FORCE_COLOR": "1", "NO_COLOR": "1"}, ()),
+        ({"FORCE_COLOR": "1"}, ("--no-color",)),
+    ],
+    ids=["empty-force-color", "no-color-wins", "flag-wins"],
+)
+def test_force_color_is_overridden(
+    repo: Path,
+    capsys: Capture,
+    monkeypatch: pytest.MonkeyPatch,
+    env: dict[str, str],
+    args: tuple[str, ...],
+) -> None:
+    for name, value in env.items():
+        monkeypatch.setenv(name, value)
+    _, out, _ = run(capsys, "scan", str(repo), *args)
+    assert "\x1b[" not in out
+
+
+def test_force_color_does_not_color_report_files(
+    repo: Path, tmp_path: Path, capsys: Capture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("FORCE_COLOR", "1")
+    report = tmp_path / "report.txt"
+    run(capsys, "scan", str(repo), "-o", str(report))
+    text = report.read_text(encoding="utf-8")
+    assert "HIGH" in text
+    assert "\x1b[" not in text
+
+
 def test_internal_error_exits_3(
     repo: Path, capsys: Capture, monkeypatch: pytest.MonkeyPatch
 ) -> None:

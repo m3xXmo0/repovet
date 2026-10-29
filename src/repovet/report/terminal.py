@@ -3,12 +3,20 @@
 import codecs
 import sys
 import textwrap
+from collections.abc import Mapping
 
 from repovet.models import CATEGORIES, CoverageItem, Finding, ScanResult, Severity
 from repovet.report.common import disclaimer, no_findings, visible_findings
 from repovet.report.sanitize import ELLIPSIS, sanitize, sanitize_path
 
-__all__ = ["disclaimer", "enable_color", "no_findings", "render", "supports_unicode"]
+__all__ = [
+    "color_wanted",
+    "disclaimer",
+    "enable_color",
+    "no_findings",
+    "render",
+    "supports_unicode",
+]
 
 WIDTH = 79
 INDENT = " " * 12
@@ -194,6 +202,22 @@ def supports_unicode(stream: object = None) -> bool:
         return codecs.lookup(encoding).name.startswith("utf")
     except LookupError:
         return False
+
+
+def color_wanted(environ: Mapping[str, str], stream: object = None) -> bool:
+    """Color decision for a report on ``stream`` (default: stdout).
+
+    A non-empty NO_COLOR turns colors off (no-color.org). Otherwise a non-empty
+    FORCE_COLOR turns them on even when the output is not a terminal, for example when
+    it is piped into a pager (force-color.org). Otherwise colors are used on terminals
+    that support them.
+    """
+    if environ.get("NO_COLOR"):
+        return False
+    if environ.get("FORCE_COLOR"):
+        enable_color(stream)  # switches on VT processing if stream is a Windows console
+        return True
+    return enable_color(stream)
 
 
 def enable_color(stream: object = None) -> bool:

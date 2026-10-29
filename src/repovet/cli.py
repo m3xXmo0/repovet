@@ -159,7 +159,12 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="FILE",
         help="write the report to FILE instead of stdout (never inside the checked folder)",
     )
-    scan.add_argument("--no-color", action="store_true", help="plain output without colors")
+    scan.add_argument(
+        "--no-color",
+        action="store_true",
+        help="plain output without colors (NO_COLOR does the same; FORCE_COLOR keeps "
+        "colors when the output is piped, for example into a pager)",
+    )
     scan.add_argument("-v", "--verbose", action="store_true", help="more detail")
 
     rules = commands.add_parser("rules", help="inspect the detection rules")
@@ -357,12 +362,7 @@ def _analyze(
         report = sarif.render(result, rules.active(), min_severity=min_severity)
     else:
         to_terminal = output is None
-        use_color = (
-            to_terminal
-            and not args.no_color
-            and not os.environ.get("NO_COLOR")
-            and terminal.enable_color()
-        )
+        use_color = to_terminal and not args.no_color and terminal.color_wanted(os.environ)
         report = terminal.render(
             result,
             color=use_color,
