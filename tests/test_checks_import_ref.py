@@ -3,8 +3,8 @@ import re
 import pytest
 
 from helpers import run_check
-from repocheck.engine.checks.base import CheckError
-from repocheck.engine.checks.import_ref import classify, markdown_lines
+from repovet.engine.checks.base import CheckError
+from repovet.engine.checks.import_ref import classify, markdown_lines
 
 SECRET = re.compile(r"(?:\A|[\\/])\.env\Z")
 

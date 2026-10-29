@@ -1,6 +1,6 @@
 import pytest
 
-from repocheck.models import (
+from repovet.models import (
     AREAS,
     CATEGORIES,
     Confidence,

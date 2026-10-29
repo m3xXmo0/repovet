@@ -1,10 +1,10 @@
-"""Dogfooding: repocheck checks its own repository without crashing."""
+"""Dogfooding: repovet checks its own repository without crashing."""
 
 from pathlib import Path
 
 import pytest
 
-from repocheck.cli import EXIT_FINDINGS, EXIT_OK, main
+from repovet.cli import EXIT_FINDINGS, EXIT_OK, main
 
 PROJECT = Path(__file__).parent.parent
 

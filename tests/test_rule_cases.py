@@ -9,7 +9,7 @@ import yaml
 
 from gitrepo import build_repo, expand_history
 from helpers import builtin_rules, can_create, materialize, scan
-from repocheck.models import CoverageStatus
+from repovet.models import CoverageStatus
 
 CASES_DIR = Path(__file__).parent / "rule_cases"
 _CASE_KEYS = {"positive", "negative"}

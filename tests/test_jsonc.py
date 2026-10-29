@@ -3,7 +3,7 @@ import time
 
 import pytest
 
-from repocheck.parsers.jsonc import loads_jsonc, strip_jsonc
+from repovet.parsers.jsonc import loads_jsonc, strip_jsonc
 
 
 def test_comments_and_trailing_commas() -> None:

@@ -7,19 +7,19 @@ import pytest
 
 from gitrepo import CommitSpec, build_repo, local_transport
 from helpers import builtin_rules
-from repocheck.engine.context import ScanContext
-from repocheck.engine.runner import run_rules
-from repocheck.limits import DEFAULT_LIMITS, Limits
-from repocheck.models import CoverageCollector
-from repocheck.sources.gitobjects import GitObjectError, GitObjects, is_hex_id
-from repocheck.sources.gittree import (
+from repovet.engine.context import ScanContext
+from repovet.engine.runner import run_rules
+from repovet.limits import DEFAULT_LIMITS, Limits
+from repovet.models import CoverageCollector
+from repovet.sources.gitobjects import GitObjectError, GitObjects, is_hex_id
+from repovet.sources.gittree import (
     REASON_DOT_GIT,
     REASON_SUBMODULE,
     GitTree,
 )
-from repocheck.sources.local import REASON_ENV_DIR, REASON_LINK
-from repocheck.sources.remote import GitHubRepo, clone
-from repocheck.sources.tree import LinkKind
+from repovet.sources.local import REASON_ENV_DIR, REASON_LINK
+from repovet.sources.remote import GitHubRepo, clone
+from repovet.sources.tree import LinkKind
 
 SUB = "a" * 40
 

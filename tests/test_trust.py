@@ -7,9 +7,9 @@ import pytest
 
 from github_fake import Answer, FakeTransport, install
 from helpers import materialize
-from repocheck.cli import EXIT_OK, main
-from repocheck.github import target as github_target
-from repocheck.github.client import Request, Response, TransportError
+from repovet.cli import EXIT_OK, main
+from repovet.github import target as github_target
+from repovet.github.client import Request, Response, TransportError
 
 SECRET = "ghp_" + "S3cr3tT0kenValue" * 2 + "abcd"
 REPO = "/repos/example-org/example-repo"

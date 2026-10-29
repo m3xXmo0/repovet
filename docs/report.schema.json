@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://repocheck.invalid/schemas/report-1.2.json",
-  "title": "repocheck JSON report",
-  "description": "Output of `repocheck scan --format json`, schema_version 1.2. All strings that come from the checked repository are sanitized: invisible and control characters appear as <U+XXXX>. A report without findings does not mean the repository is safe; see 'coverage'.",
+  "$id": "https://repovet.invalid/schemas/report-1.2.json",
+  "title": "repovet JSON report",
+  "description": "Output of `repovet scan --format json`, schema_version 1.2. All strings that come from the checked repository are sanitized: invisible and control characters appear as <U+XXXX>. A report without findings does not mean the repository is safe; see 'coverage'.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -23,7 +23,7 @@
       "additionalProperties": false,
       "required": ["name", "version"],
       "properties": {
-        "name": {"const": "repocheck"},
+        "name": {"const": "repovet"},
         "version": {"type": "string"}
       }
     },

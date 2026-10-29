@@ -3,9 +3,9 @@ from pathlib import Path
 import pytest
 
 from helpers import builtin_rules, materialize, write_rule
-from repocheck import cli
-from repocheck.cli import EXIT_ABORTED, EXIT_FINDINGS, EXIT_OK, EXIT_USAGE, main
-from repocheck.report import terminal
+from repovet import cli
+from repovet.cli import EXIT_ABORTED, EXIT_FINDINGS, EXIT_OK, EXIT_USAGE, main
+from repovet.report import terminal
 
 TASKS = '{"tasks": [{"label": "x", "runOptions": {"runOn": "folderOpen"}}]}'
 
@@ -94,7 +94,7 @@ def test_argument_errors_exit_2(repo: Path, capsys: Capture) -> None:
 def test_help_and_version_exit_0(capsys: Capture) -> None:
     code, out, _ = run(capsys, "--version")
     assert code == EXIT_OK
-    assert "repocheck 0.1.0" in out
+    assert "repovet 0.1.0" in out
     assert run(capsys, "scan", "--help")[0] == EXIT_OK
 
 

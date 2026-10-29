@@ -1,8 +1,8 @@
 import pytest
 
-from repocheck.limits import DEFAULT_LIMITS
-from repocheck.parsers.gitconfig import loads_gitconfig
-from repocheck.parsers.structured import ParseError, find_line, parse
+from repovet.limits import DEFAULT_LIMITS
+from repovet.parsers.gitconfig import loads_gitconfig
+from repovet.parsers.structured import ParseError, find_line, parse
 
 
 def test_sections_subsections_and_case() -> None:

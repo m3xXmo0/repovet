@@ -15,7 +15,7 @@ from multiprocessing.connection import Connection
 from typing import Any
 
 from helpers import builtin_rules
-from repocheck.analyzers import provenance
+from repovet.analyzers import provenance
 
 LENGTH = 50_000
 PER_INPUT_SECONDS = 1.0

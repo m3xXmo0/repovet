@@ -4,9 +4,9 @@ import zlib
 import pytest
 
 from helpers import run_check, view_of
-from repocheck.engine.checks import BUILDERS
-from repocheck.engine.checks.base import BuildEnv, CheckError, Params
-from repocheck.engine.checks.blob import decode_run, decompress, entropy, is_media
+from repovet.engine.checks import BUILDERS
+from repovet.engine.checks.base import BuildEnv, CheckError, Params
+from repovet.engine.checks.blob import decode_run, decompress, entropy, is_media
 
 CODE = base64.b64encode(b"import os\nos.system('echo harmless')\n").decode()
 RANDOM = base64.b64encode(bytes(range(256)) * 2).decode()

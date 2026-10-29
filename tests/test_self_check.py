@@ -1,7 +1,7 @@
-"""Static self-check of repocheck's own source, beyond what ruff can ban.
+"""Static self-check of repovet's own source, beyond what ruff can ban.
 
 ruff (banned-api, bandit) covers imports like subprocess, pickle and yaml.load. This
-test covers bare builtins that ruff cannot ban and writing calls: repocheck only
+test covers bare builtins that ruff cannot ban and writing calls: repovet only
 reads the scanned folder and writes nothing but its report (stdout/stderr, or the
 file named with -o in the one function listed in REPORT_WRITERS) and, for URL
 targets, the temporary clone folder (only in the functions in CLONE_WORKSPACE).
@@ -11,7 +11,7 @@ import ast
 import unicodedata
 from pathlib import Path
 
-SRC = Path(__file__).parent.parent / "src" / "repocheck"
+SRC = Path(__file__).parent.parent / "src" / "repovet"
 FORBIDDEN_CALLS = {"compile", "exec", "eval", "__import__", "breakpoint", "input"}
 FORBIDDEN_METHODS = {
     "write_text",

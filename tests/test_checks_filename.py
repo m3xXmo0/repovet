@@ -1,7 +1,7 @@
 import pytest
 
 from helpers import run_check
-from repocheck.engine.checks.base import CheckError
+from repovet.engine.checks.base import CheckError
 
 
 def test_existence_without_regex() -> None:

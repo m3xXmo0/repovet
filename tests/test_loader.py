@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from helpers import write_rule
-from repocheck.engine.loader import (
+from repovet.engine.loader import (
     FILESETS_FILE,
     PATTERNS_FILE,
     RULES_DIR,
@@ -11,7 +11,7 @@ from repocheck.engine.loader import (
     load_rule_dirs,
     load_rules,
 )
-from repocheck.models import Severity
+from repovet.models import Severity
 
 
 def test_builtin_rules_load() -> None:

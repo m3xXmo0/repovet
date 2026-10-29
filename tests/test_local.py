@@ -4,17 +4,17 @@ from pathlib import Path
 import pytest
 
 from helpers import materialize
-from repocheck.limits import DEFAULT_LIMITS, Limits
-from repocheck.models import CoverageCollector, CoverageItem, CoverageStatus
-from repocheck.sources import local
-from repocheck.sources.local import (
+from repovet.limits import DEFAULT_LIMITS, Limits
+from repovet.models import CoverageCollector, CoverageItem, CoverageStatus
+from repovet.sources import local
+from repovet.sources.local import (
     REASON_ENV_DIR,
     REASON_GITFILE,
     REASON_LINK,
     FileChangedError,
     LocalTree,
 )
-from repocheck.sources.tree import LinkKind
+from repovet.sources.tree import LinkKind
 
 
 def walk(root: Path, limits: Limits = DEFAULT_LIMITS) -> tuple[LocalTree, list[CoverageItem]]:

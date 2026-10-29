@@ -1,11 +1,11 @@
 """Golden test for the terminal report. Regenerate after an intended layout change with
-``REPOCHECK_UPDATE_GOLDEN=1 uv run pytest tests/test_terminal.py`` and review the diff."""
+``REPOVET_UPDATE_GOLDEN=1 uv run pytest tests/test_terminal.py`` and review the diff."""
 
 import os
 from datetime import UTC, datetime
 from pathlib import Path
 
-from repocheck.models import (
+from repovet.models import (
     Confidence,
     CoverageItem,
     CoverageStatus,
@@ -14,7 +14,7 @@ from repocheck.models import (
     ScanResult,
     Severity,
 )
-from repocheck.report.terminal import no_findings, render, supports_unicode
+from repovet.report.terminal import no_findings, render, supports_unicode
 
 GOLDEN = Path(__file__).parent / "golden" / "terminal_report.txt"
 
@@ -98,7 +98,7 @@ def sample_findings() -> list[Finding]:
 
 def test_terminal_report_matches_golden_output() -> None:
     text = render(sample_result(sample_findings()), color=False)
-    if os.environ.get("REPOCHECK_UPDATE_GOLDEN"):
+    if os.environ.get("REPOVET_UPDATE_GOLDEN"):
         GOLDEN.parent.mkdir(exist_ok=True)
         GOLDEN.write_bytes(text.encode("utf-8"))
     assert text == GOLDEN.read_bytes().decode("utf-8")
@@ -153,7 +153,7 @@ def test_ascii_mode_replaces_decorations() -> None:
     text = render(sample_result(sample_findings()), unicode=False)
     header = text.splitlines()[0]
     assert header == (
-        "repocheck 0.1.0 | local folder D:\\src\\demo | offline | 1,284 files | 3 rules"
+        "repovet 0.1.0 | local folder D:\\src\\demo | offline | 1,284 files | 3 rules"
     )
     assert "1 critical | 1 medium" in text
     assert "\u00b7" not in text

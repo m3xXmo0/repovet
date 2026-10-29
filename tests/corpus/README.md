@@ -2,13 +2,13 @@
 
 `corpus.yaml` lists eight public repositories pinned to a commit. `tests/test_corpus.py`
 scans each and fails on high/critical findings that are not listed as `accepted`.
-The test is skipped unless `REPOCHECK_CORPUS_DIR` points to the extracted repositories,
+The test is skipped unless `REPOVET_CORPUS_DIR` points to the extracted repositories,
 because tests never download anything.
 
 ## Getting the repositories
 
 Download each archive yourself (outside the test run), for example with curl, into an
-empty folder, and extract it so that `REPOCHECK_CORPUS_DIR/<name>/` contains one folder
+empty folder, and extract it so that `REPOVET_CORPUS_DIR/<name>/` contains one folder
 with the repository:
 
 ```
@@ -29,22 +29,22 @@ with tarfile.open("flask.tar.gz") as tar:
 Then run:
 
 ```
-REPOCHECK_CORPUS_DIR=/path/to/corpus uv run pytest -m corpus
+REPOVET_CORPUS_DIR=/path/to/corpus uv run pytest -m corpus
 ```
 
-On Windows PowerShell: `$env:REPOCHECK_CORPUS_DIR = "C:\path\to\corpus"`.
+On Windows PowerShell: `$env:REPOVET_CORPUS_DIR = "C:\path\to\corpus"`.
 
-Never run anything from these folders; repocheck only reads them.
+Never run anything from these folders; repovet only reads them.
 
 ## Checking a corpus repository by URL
 
-Since M3, repocheck can fetch a repository itself (manual check, not part of the test
+Since M3, repovet can fetch a repository itself (manual check, not part of the test
 run, because tests never use the network). The commit must be given in full, so look it
 up on GitHub first:
 
 ```
-uv run repocheck scan https://github.com/pallets/flask --ref <40-character commit id>
-uv run repocheck scan https://github.com/pallets/flask --format json -o flask-url.json
+uv run repovet scan https://github.com/pallets/flask --ref <40-character commit id>
+uv run repovet scan https://github.com/pallets/flask --format json -o flask-url.json
 ```
 
 A URL scan reads the files straight from the Git objects of that commit and must give

@@ -1,12 +1,12 @@
 from pathlib import Path
 
 from helpers import materialize, write_rule
-from repocheck.analyzers import ANALYZERS, run_all
-from repocheck.engine.context import ScanContext
-from repocheck.engine.loader import load_rules
-from repocheck.limits import DEFAULT_LIMITS
-from repocheck.models import AREAS, CoverageCollector, CoverageStatus
-from repocheck.sources.local import LocalTree
+from repovet.analyzers import ANALYZERS, run_all
+from repovet.engine.context import ScanContext
+from repovet.engine.loader import load_rules
+from repovet.limits import DEFAULT_LIMITS
+from repovet.models import AREAS, CoverageCollector, CoverageStatus
+from repovet.sources.local import LocalTree
 
 
 def context(repo: Path, extra: list[Path] | None = None) -> ScanContext:

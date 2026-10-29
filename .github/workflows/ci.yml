@@ -68,12 +68,12 @@ jobs:
       - run: uv run --no-project python scripts/check_dist.py dist
       - name: Install the wheel as a tool
         run: |
-          uv tool install dist/repocheck-*.whl
+          uv tool install dist/repovet-*.whl
           uv tool dir --bin >> "$GITHUB_PATH"
       - name: Run the installed tool outside the project
         working-directory: ${{ runner.temp }}
         run: |
-          repocheck --help > /dev/null
-          repocheck rules list > /dev/null
+          repovet --help > /dev/null
+          repovet rules list > /dev/null
           mkdir sample && printf 'print("hello")\n' > sample/hello.py
-          repocheck scan sample --offline --no-color
+          repovet scan sample --offline --no-color

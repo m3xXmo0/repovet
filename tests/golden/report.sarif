@@ -5,7 +5,7 @@
     {
       "tool": {
         "driver": {
-          "name": "repocheck",
+          "name": "repovet",
           "version": "0.1.0",
           "semanticVersion": "0.1.0",
           "rules": [
@@ -194,7 +194,7 @@
         "minSeverity": "info",
         "hiddenBelowMinSeverity": 0,
         "facts": {},
-        "disclaimer": "repocheck reports only what its 3 rules detect in the checked scope. A missing finding is not proof that the repository is safe."
+        "disclaimer": "repovet reports only what its 3 rules detect in the checked scope. A missing finding is not proof that the repository is safe."
       },
       "originalUriBaseIds": {
         "SRCROOT": {

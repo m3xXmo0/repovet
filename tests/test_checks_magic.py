@@ -3,9 +3,9 @@ import gzip
 import pytest
 
 from helpers import run_check
-from repocheck.engine.checks.base import CheckError
-from repocheck.engine.checks.magic import SIGNATURES
-from repocheck.limits import Limits
+from repovet.engine.checks.base import CheckError
+from repovet.engine.checks.magic import SIGNATURES
+from repovet.limits import Limits
 
 PE = b"MZ" + b"\x00" * 58 + (0x40).to_bytes(4, "little") + b"PE\x00\x00" + b"\x00" * 8
 

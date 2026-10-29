@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from helpers import builtin_rules
-from repocheck.cli import EXIT_OK, main
+from repovet.cli import EXIT_OK, main
 
 RULES = Path(__file__).parent.parent / "RULES.md"
 START = "<!-- rules-table:start -->"
@@ -20,8 +20,7 @@ def test_rule_tables_are_current(capsys: pytest.CaptureFixture[str]) -> None:
     assert text.count(END) == 1
     table = text.split(START)[1].split(END)[0]
     assert table.strip() == generated.strip(), (
-        "RULES.md is out of date; regenerate the tables with "
-        "`uv run repocheck rules list --markdown`"
+        "RULES.md is out of date; regenerate the tables with `uv run repovet rules list --markdown`"
     )
 
 

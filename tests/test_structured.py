@@ -1,7 +1,7 @@
 import pytest
 
-from repocheck.limits import DEFAULT_LIMITS, Limits
-from repocheck.parsers.structured import ParseError, find_line, parse
+from repovet.limits import DEFAULT_LIMITS, Limits
+from repovet.parsers.structured import ParseError, find_line, parse
 
 
 def test_parse_each_format() -> None:

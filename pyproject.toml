@@ -1,26 +1,49 @@
 [project]
-name = "repocheck"
+name = "repovet"
 version = "0.1.0"
-description = "Static check of an untrusted Git repository before you run anything from it."
+description = "Vet a Git repository before you run it."
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "m3xXmo0" }]
 requires-python = ">=3.12"
 dependencies = ["PyYAML==6.0.3", "dulwich==1.2.17"]
-keywords = ["security", "supply-chain", "static-analysis", "git", "github"]
+keywords = [
+    "security",
+    "supply-chain",
+    "static-analysis",
+    "git",
+    "github",
+    "code-review",
+    "sarif",
+    "ai-agents",
+]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",
     "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "Natural Language :: English",
     "Operating System :: OS Independent",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Topic :: Security",
     "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Software Development :: Version Control :: Git",
 ]
 
+[project.urls]
+Homepage = "https://github.com/m3xXmo0/repovet"
+Issues = "https://github.com/m3xXmo0/repovet/issues"
+Changelog = "https://github.com/m3xXmo0/repovet/blob/main/CHANGELOG.md"
+
 [project.scripts]
-repocheck = "repocheck.cli:main"
+repovet = "repovet.cli:main"
 
 [dependency-groups]
 dev = [
@@ -37,19 +60,22 @@ requires = ["hatchling==1.33.0"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/repocheck"]
+packages = ["src/repovet"]
 
 # The sdist lists its content explicitly: anything else in the project folder (local
 # working files, caches, virtual environments) stays out even if Git ignores it only
 # through .git/info/exclude. scripts/check_dist.py verifies both distributions.
 [tool.hatch.build.targets.sdist]
 include = [
-    "/src/repocheck",
+    "/src/repovet",
     "/tests",
     "/docs",
     "/scripts",
     "/README.md",
     "/RULES.md",
+    "/LICENSE",
+    "/CHANGELOG.md",
+    "/SECURITY.md",
     "/pyproject.toml",
     "/uv.lock",
 ]
@@ -81,14 +107,14 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 # The walker works on plain strings with os.scandir/os.lstat for speed and exact
 # no-follow semantics; os.path.join is platform-neutral.
-"src/repocheck/sources/local.py" = ["PTH"]
+"src/repovet/sources/local.py" = ["PTH"]
 # Git objects are read with os.open (no-follow flags) and plain string paths.
-"src/repocheck/sources/gitobjects.py" = ["PTH"]
-"src/repocheck/sources/gitmeta.py" = ["PTH"]
+"src/repovet/sources/gitobjects.py" = ["PTH"]
+"src/repovet/sources/gitmeta.py" = ["PTH"]
 # The one module that fetches from the network (dulwich.client).
-"src/repocheck/sources/remote.py" = ["TID251"]
+"src/repovet/sources/remote.py" = ["TID251"]
 # The one module that opens connections to the GitHub API (urllib, HTTPS only).
-"src/repocheck/github/transport.py" = ["TID251"]
+"src/repovet/github/transport.py" = ["TID251"]
 "tests/**" = ["S101", "PLC0415"]
 # The network lock has to replace socket objects (and its test uses them).
 "tests/conftest.py" = ["TID251"]
@@ -103,24 +129,24 @@ ignore = [
 ban-relative-imports = "all"
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
-"subprocess".msg = "repocheck never starts processes."
-"multiprocessing".msg = "repocheck never starts processes."
-"os.system".msg = "repocheck never starts processes."
-"os.popen".msg = "repocheck never starts processes."
-"os.startfile".msg = "repocheck never starts processes."
-"os.execl".msg = "repocheck never starts processes."
-"os.execle".msg = "repocheck never starts processes."
-"os.execlp".msg = "repocheck never starts processes."
-"os.execv".msg = "repocheck never starts processes."
-"os.execve".msg = "repocheck never starts processes."
-"os.execvp".msg = "repocheck never starts processes."
-"os.execvpe".msg = "repocheck never starts processes."
-"os.spawnl".msg = "repocheck never starts processes."
-"os.spawnv".msg = "repocheck never starts processes."
-"os.posix_spawn".msg = "repocheck never starts processes."
-"os.posix_spawnp".msg = "repocheck never starts processes."
-"os.fork".msg = "repocheck never starts processes."
-"pty".msg = "repocheck never starts processes."
+"subprocess".msg = "repovet never starts processes."
+"multiprocessing".msg = "repovet never starts processes."
+"os.system".msg = "repovet never starts processes."
+"os.popen".msg = "repovet never starts processes."
+"os.startfile".msg = "repovet never starts processes."
+"os.execl".msg = "repovet never starts processes."
+"os.execle".msg = "repovet never starts processes."
+"os.execlp".msg = "repovet never starts processes."
+"os.execv".msg = "repovet never starts processes."
+"os.execve".msg = "repovet never starts processes."
+"os.execvp".msg = "repovet never starts processes."
+"os.execvpe".msg = "repovet never starts processes."
+"os.spawnl".msg = "repovet never starts processes."
+"os.spawnv".msg = "repovet never starts processes."
+"os.posix_spawn".msg = "repovet never starts processes."
+"os.posix_spawnp".msg = "repovet never starts processes."
+"os.fork".msg = "repovet never starts processes."
+"pty".msg = "repovet never starts processes."
 "runpy".msg = "Repository code is never run."
 "importlib.import_module".msg = "Repository code is never imported."
 "importlib.util".msg = "Repository code is never imported."
@@ -128,16 +154,16 @@ ban-relative-imports = "all"
 "pickle".msg = "Unsafe deserialization."
 "marshal".msg = "Unsafe deserialization."
 "shelve".msg = "Unsafe deserialization."
-"yaml.load".msg = "Use yaml.safe_load or repocheck.parsers.structured."
-"yaml.load_all".msg = "Use yaml.safe_load or repocheck.parsers.structured."
-"yaml.full_load".msg = "Use yaml.safe_load or repocheck.parsers.structured."
-"yaml.full_load_all".msg = "Use yaml.safe_load or repocheck.parsers.structured."
-"yaml.unsafe_load".msg = "Use yaml.safe_load or repocheck.parsers.structured."
-"yaml.unsafe_load_all".msg = "Use yaml.safe_load or repocheck.parsers.structured."
+"yaml.load".msg = "Use yaml.safe_load or repovet.parsers.structured."
+"yaml.load_all".msg = "Use yaml.safe_load or repovet.parsers.structured."
+"yaml.full_load".msg = "Use yaml.safe_load or repovet.parsers.structured."
+"yaml.full_load_all".msg = "Use yaml.safe_load or repovet.parsers.structured."
+"yaml.unsafe_load".msg = "Use yaml.safe_load or repovet.parsers.structured."
+"yaml.unsafe_load_all".msg = "Use yaml.safe_load or repovet.parsers.structured."
 "yaml.Loader".msg = "Use yaml.SafeLoader."
 "yaml.FullLoader".msg = "Use yaml.SafeLoader."
 "yaml.UnsafeLoader".msg = "Use yaml.SafeLoader."
-"webbrowser".msg = "repocheck never opens programs."
+"webbrowser".msg = "repovet never opens programs."
 "socket".msg = "Local analysis is offline."
 "urllib.request".msg = "Network access only in sources/remote.py and github/."
 "http.client".msg = "Network access only in sources/remote.py and github/."
@@ -168,6 +194,6 @@ testpaths = ["tests"]
 addopts = ["-ra", "--strict-markers"]
 markers = [
     "slow: takes several seconds (performance test); runs by default",
-    "corpus: needs REPOCHECK_CORPUS_DIR with downloaded real-world repositories",
+    "corpus: needs REPOVET_CORPUS_DIR with downloaded real-world repositories",
 ]
 xfail_strict = true

@@ -7,7 +7,7 @@ import pytest
 
 from conftest import NetworkBlockedError
 from helpers import materialize
-from repocheck.cli import main
+from repovet.cli import main
 
 
 def test_socket_creation_is_blocked() -> None:

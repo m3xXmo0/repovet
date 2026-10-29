@@ -1,8 +1,8 @@
 import pytest
 
 from helpers import run_check
-from repocheck.engine.checks.base import CheckError
-from repocheck.engine.checks.unicode import decode_tags, parse_ranges
+from repovet.engine.checks.base import CheckError
+from repovet.engine.checks.unicode import decode_tags, parse_ranges
 
 TAGS = {"type": "unicode", "ranges": ["tags"], "decode": "tags"}
 

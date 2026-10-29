@@ -1,7 +1,7 @@
-# repocheck rules
+# repovet rules
 
-All detection rules that ship with repocheck, grouped by area. Each rule is a YAML entry
-in `src/repocheck/rules/` with an ID, severity, confidence, file patterns, a check, and
+All detection rules that ship with repovet, grouped by area. Each rule is a YAML entry
+in `src/repovet/rules/` with an ID, severity, confidence, file patterns, a check, and
 texts for message, reason and recommendation. Rule IDs are never renamed or reused.
 
 Severity says how bad it is if the finding means what the rule claims; confidence says
@@ -9,7 +9,7 @@ how likely that is. `critical` and `high` mean code runs automatically during no
 (install, build, opening the folder, starting an agent) or something is clearly
 disguised.
 
-The tables below are generated with `uv run repocheck rules list --markdown`; a test
+The tables below are generated with `uv run repovet rules list --markdown`; a test
 fails if they are out of date.
 
 <!-- rules-table:start -->

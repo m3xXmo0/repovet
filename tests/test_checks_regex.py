@@ -1,10 +1,10 @@
 import pytest
 
 from helpers import run_check, view_of
-from repocheck.engine.checks import BUILDERS
-from repocheck.engine.checks.base import BuildEnv, CheckError, Params
-from repocheck.limits import Limits
-from repocheck.models import CoverageStatus
+from repovet.engine.checks import BUILDERS
+from repovet.engine.checks.base import BuildEnv, CheckError, Params
+from repovet.limits import Limits
+from repovet.models import CoverageStatus
 
 
 def test_line_scope_reports_line_and_column() -> None:

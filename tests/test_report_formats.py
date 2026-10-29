@@ -1,7 +1,7 @@
 """JSON and SARIF reports: golden output and schema validation (schemas are local files).
 
 Regenerate the golden files after an intended change with
-``REPOCHECK_UPDATE_GOLDEN=1 uv run pytest tests/test_report_formats.py`` and review the diff.
+``REPOVET_UPDATE_GOLDEN=1 uv run pytest tests/test_report_formats.py`` and review the diff.
 """
 
 import json
@@ -14,10 +14,10 @@ import pytest
 from jsonschema import Draft4Validator, Draft202012Validator
 
 from helpers import builtin_rules, materialize
-from repocheck.cli import EXIT_FINDINGS, EXIT_OK, EXIT_USAGE, main
-from repocheck.engine.loader import Rule
-from repocheck.models import Location, Severity
-from repocheck.report import json_out, sarif
+from repovet.cli import EXIT_FINDINGS, EXIT_OK, EXIT_USAGE, main
+from repovet.engine.loader import Rule
+from repovet.models import Location, Severity
+from repovet.report import json_out, sarif
 from test_terminal import sample_findings, sample_result
 
 ROOT = Path(__file__).parent.parent
@@ -37,7 +37,7 @@ def sample_rules() -> list[Rule]:
 
 def check_golden(name: str, text: str) -> None:
     path = GOLDEN / name
-    if os.environ.get("REPOCHECK_UPDATE_GOLDEN"):
+    if os.environ.get("REPOVET_UPDATE_GOLDEN"):
         path.write_bytes(text.encode("utf-8"))
     assert text == path.read_bytes().decode("utf-8")
 

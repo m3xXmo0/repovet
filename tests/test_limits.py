@@ -1,6 +1,6 @@
 import pytest
 
-from repocheck.limits import DEFAULT_LIMITS, KIB, MIB, format_size, parse_size
+from repovet.limits import DEFAULT_LIMITS, KIB, MIB, format_size, parse_size
 
 
 @pytest.mark.parametrize(

@@ -9,16 +9,16 @@ import pytest
 
 from gitrepo import CommitSpec, build_repo, local_transport
 from helpers import builtin_rules, materialize, run_check
-from repocheck.analyzers import provenance
-from repocheck.cli import main
-from repocheck.engine.checks import BUILDERS
-from repocheck.engine.checks.base import BuildEnv, CheckError, Params
-from repocheck.engine.checks.metric import MetricCheck
-from repocheck.engine.context import ScanContext
-from repocheck.limits import DEFAULT_LIMITS, Limits
-from repocheck.models import CoverageCollector
-from repocheck.sources import gitmeta, remote
-from repocheck.sources.local import LocalTree
+from repovet.analyzers import provenance
+from repovet.cli import main
+from repovet.engine.checks import BUILDERS
+from repovet.engine.checks.base import BuildEnv, CheckError, Params
+from repovet.engine.checks.metric import MetricCheck
+from repovet.engine.context import ScanContext
+from repovet.limits import DEFAULT_LIMITS, Limits
+from repovet.models import CoverageCollector
+from repovet.sources import gitmeta, remote
+from repovet.sources.local import LocalTree
 
 Capture = pytest.CaptureFixture[str]
 

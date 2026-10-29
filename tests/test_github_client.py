@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 
 from github_fake import RESET, Answer, FakeTransport
-from repocheck.github.client import (
+from repovet.github.client import (
     API_ROOT,
     BUDGET_ANONYMOUS,
     BUDGET_TOKEN,
@@ -23,9 +23,9 @@ from repocheck.github.client import (
     TransportError,
     token_from_env,
 )
-from repocheck.github.transport import UrllibTransport, _describe
-from repocheck.sources import gitmeta
-from repocheck.sources.remote import GitHubRepo, github_repo_from_remote
+from repovet.github.transport import UrllibTransport, _describe
+from repovet.sources import gitmeta
+from repovet.sources.remote import GitHubRepo, github_repo_from_remote
 
 SECRET = "ghp_" + "S3cr3tT0kenValue" * 2 + "abcd"
 REPO = "/repos/example-org/example-repo"
@@ -91,7 +91,7 @@ def test_headers_without_and_with_token() -> None:
     headers = transport.requests[-1].headers
     assert headers["Accept"] == "application/vnd.github+json"
     assert headers["X-GitHub-Api-Version"] == "2022-11-28"
-    assert headers["User-Agent"].startswith("repocheck")
+    assert headers["User-Agent"].startswith("repovet")
     assert "Authorization" not in headers
     assert anonymous.budget == BUDGET_ANONYMOUS
 

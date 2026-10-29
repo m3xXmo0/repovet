@@ -3,7 +3,7 @@ import tomllib
 
 import pytest
 
-from repocheck.parsers.manifests import (
+from repovet.parsers.manifests import (
     Manifest,
     classify_npm,
     classify_target,

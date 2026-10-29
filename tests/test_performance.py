@@ -4,14 +4,14 @@ Only the scan is timed, not the generation of the files.
 The first scan of freshly written files is not timed: on Windows, Defender scans every
 new file when it is first opened, which costs more than the scan itself (measured up to
 16 s). That run still has to finish with correct results; the second run measures
-repocheck's own work, which is what the limit is about (measured 1.4 s)."""
+repovet's own work, which is what the limit is about (measured 1.4 s)."""
 
 import time
 from pathlib import Path
 
 import pytest
 
-from repocheck.cli import EXIT_FINDINGS, main
+from repovet.cli import EXIT_FINDINGS, main
 
 FILES = 10_000
 LIMIT_SECONDS = 15.0

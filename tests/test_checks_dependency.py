@@ -1,8 +1,8 @@
 import pytest
 
 from helpers import run_check
-from repocheck.engine.checks.base import CheckError
-from repocheck.engine.checks.dependency import distance, popular
+from repovet.engine.checks.base import CheckError
+from repovet.engine.checks.dependency import distance, popular
 
 
 def test_popular_lists_are_ranked_and_normalized() -> None:

@@ -1,9 +1,9 @@
 import pytest
 
 from helpers import view_of
-from repocheck.engine.checks.base import BuildEnv, CheckError, Params, Wildcard, format_value
-from repocheck.limits import Limits
-from repocheck.models import CoverageCollector, CoverageStatus
+from repovet.engine.checks.base import BuildEnv, CheckError, Params, Wildcard, format_value
+from repovet.limits import Limits
+from repovet.models import CoverageCollector, CoverageStatus
 
 
 def test_params_reject_unknown_keys() -> None:
@@ -77,7 +77,7 @@ def test_file_view_lines_and_positions() -> None:
 def test_file_view_records_unreadable_content() -> None:
     coverage = CoverageCollector()
     from helpers import MemFile
-    from repocheck.engine.checks.base import FileView
+    from repovet.engine.checks.base import FileView
 
     big = FileView(MemFile("big.txt", b"x" * 100), Limits(max_file_size=10), coverage)
     binary = FileView(MemFile("a.bin", b"\x00\x01"), Limits(), coverage)

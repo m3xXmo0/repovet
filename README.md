@@ -1,6 +1,8 @@
-# repocheck
+# repovet
 
-repocheck statically checks an untrusted Git repository **before** you run, install,
+Vet a Git repository before you run it.
+
+repovet statically checks an untrusted Git repository **before** you run, install,
 build or open anything from it, and never executes code from it.
 
 It is built around three questions:
@@ -12,11 +14,11 @@ It is built around three questions:
 | provenance | What is the repository made of, and how did it come about?                  |
 
 The result is a list of findings plus an honest list of what was **not** checked.
-repocheck never says that a repository is safe.
+repovet never says that a repository is safe.
 
 ## Status
 
-Early (version 0.1.0, milestones M1 to M4 of 5 done). What works today:
+Early: version 0.1.0 is the first release. What works today:
 
 - **Local folders and public GitHub repositories.** A URL like
   `https://github.com/<owner>/<repo>` is fetched into a temporary folder as Git objects
@@ -51,66 +53,79 @@ Early (version 0.1.0, milestones M1 to M4 of 5 done). What works today:
 - **Danger, six areas:** auto-run code (`autorun`), AI agent instructions and
   configuration (`agents`), obfuscated code (`obfuscation`), download-and-execute
   (`download_exec`), binaries and file-system tricks (`binaries`) and suspicious
-  dependencies (`dependencies`); see the rule table below.
-- Developed and tested on Windows 11. The code is platform-neutral, but macOS and Linux
-  are not tested yet.
+  dependencies (`dependencies`); see [What is checked](#what-is-checked).
+- Windows, macOS and Linux with Python 3.12 or 3.13; the test suite runs on all three
+  in CI.
 
 ## Installation
 
-repocheck is not on PyPI yet. Install from source with [uv](https://docs.astral.sh/uv/)
-(Python 3.12 or newer; uv downloads a matching Python if needed):
+repovet needs Python 3.12 or newer. Install it as a command-line tool in its own
+environment with [uv](https://docs.astral.sh/uv/) (uv downloads a matching Python if
+needed) or pipx:
 
 ```
-git clone <repository URL> repocheck
-cd repocheck
+uv tool install repovet
+# or
+pipx install repovet
+
+repovet --version
+```
+
+Runtime dependencies are PyYAML and [dulwich](https://www.dulwich.io/) (pure-Python
+Git, which brings urllib3).
+
+From source, with the exact versions pinned in `uv.lock`:
+
+```
+git clone https://github.com/m3xXmo0/repovet.git
+cd repovet
 uv sync
-uv run repocheck --version
+uv run repovet --version
 ```
 
-`uv sync` installs the exact versions pinned in `uv.lock`. Runtime dependencies are
-PyYAML and [dulwich](https://www.dulwich.io/) (pure-Python Git, which brings urllib3).
+In a source checkout, put `uv run` in front of the commands below.
 
 ## Usage
 
 ```
-uv run repocheck scan PATH|URL [options]
+repovet scan PATH|URL [options]
 ```
 
 Examples:
 
 ```
 # Check a folder you downloaded or cloned
-uv run repocheck scan D:\downloads\some-repo
+repovet scan D:\downloads\some-repo
 
 # Check a public GitHub repository without cloning it yourself (default branch)
-uv run repocheck scan https://github.com/pallets/flask
+repovet scan https://github.com/pallets/flask
 
 # A branch, a tag or a full commit id; keep the temporary Git objects for a look
-uv run repocheck scan https://github.com/pallets/flask --ref 3.1.0
-uv run repocheck scan https://github.com/pallets/flask --ref <40-character commit id> --keep-clone
+repovet scan https://github.com/pallets/flask --ref 3.1.0
+repovet scan https://github.com/pallets/flask --ref <40-character commit id> --keep-clone
 
 # Plain output without colors (also set by the NO_COLOR environment variable)
-uv run repocheck scan ./some-repo --no-color
+repovet scan ./some-repo --no-color
 
 # Only show high and critical findings
-uv run repocheck scan ./some-repo --min-severity high
+repovet scan ./some-repo --min-severity high
 
 # Exit with 1 already on medium findings (default threshold: high)
-uv run repocheck scan ./some-repo --fail-on medium
+repovet scan ./some-repo --fail-on medium
 
 # Also check .venv, venv, node_modules, .tox, .nox and tool caches (skipped by default)
-uv run repocheck scan ./some-repo --include-env-dirs
+repovet scan ./some-repo --include-env-dirs
 
 # JSON report to stdout, SARIF report into a file (never inside the checked folder)
-uv run repocheck scan ./some-repo --format json
-uv run repocheck scan ./some-repo --format sarif -o repocheck.sarif
+repovet scan ./some-repo --format json
+repovet scan ./some-repo --format sarif -o repovet.sarif
 
 # Skip one rule, check larger files, add your own rules folder
-uv run repocheck scan ./some-repo --ignore-rule RC-AGENT-001 --max-file-size 8MB --rules ./my-rules
+repovet scan ./some-repo --ignore-rule RC-AGENT-001 --max-file-size 8MB --rules ./my-rules
 
 # List the rules, optionally for one area
-uv run repocheck rules list
-uv run repocheck rules list --area agents
+repovet rules list
+repovet rules list --area agents
 ```
 
 All `scan` options:
@@ -142,7 +157,7 @@ An excerpt from a real scan of a small test folder (path shortened, the URLs are
 placeholders):
 
 ```
-repocheck 0.1.0 | local folder D:\src\demo | offline | 5 files | 111 rules
+repovet 0.1.0 | local folder D:\src\demo | offline | 5 files | 126 rules
 Lines starting with '>' are untrusted content quoted from the repository.
 
 DANGER                                   1 critical | 2 high | 1 medium
@@ -168,7 +183,7 @@ NOT CHECKED
   - No .git folder; the Git history was not checked
   - Dependencies are checked by name and declared source only; their code and install scripts are not checked (no registry queries) (2): package.json, requirements.txt
 
-repocheck reports only what its 111 rules detect in the checked scope.
+repovet reports only what its 126 rules detect in the checked scope.
 A missing finding is not proof that the repository is safe.
 ```
 
@@ -201,7 +216,7 @@ PROVENANCE PROFILE                       facts, not findings
 ## Trust (GitHub API)
 
 For a GitHub URL, and for a local folder whose `.git/config` names a GitHub repository
-as remote `origin` (or as its only remote), repocheck asks the GitHub REST API about the
+as remote `origin` (or as its only remote), repovet asks the GitHub REST API about the
 repository and its owner. The trust profile comes before the provenance profile
 (excerpt, anonymized):
 
@@ -223,7 +238,7 @@ TRUST PROFILE                            facts, not findings
 ```
 
 - **A local folder's remote is only a claim.** Whoever prepared the folder chose it.
-  repocheck therefore looks up the folder's HEAD commit in that repository (`Local`
+  repovet therefore looks up the folder's HEAD commit in that repository (`Local`
   line). GitHub also finds commits that exist only in forks of the repository, so
   "found" is no proof either.
 - **Requests:** usually 6 to 8 per scan: repository, owner, commits, contributors,
@@ -233,7 +248,7 @@ TRUST PROFILE                            facts, not findings
   owner). Counts come from one-item pages, so large repositories cost the same. Each scan stops after 25 requests
   without a token (100 with one) and after 60 seconds.
 - **Rate limit:** without a token GitHub allows 60 requests per hour and IP address.
-  repocheck checks the remaining requests first (that check is free), waits at most 20
+  repovet checks the remaining requests first (that check is free), waits at most 20
   seconds when GitHub asks for a short pause, and otherwise stops and lists what was not
   checked under "Not checked", with the time the limit resets. The scan itself
   continues; the exit code does not change.
@@ -245,10 +260,10 @@ TRUST PROFILE                            facts, not findings
 
   ```
   # Bash
-  GITHUB_TOKEN=github_pat_... uv run repocheck scan https://github.com/pallets/flask
+  GITHUB_TOKEN=github_pat_... uv run repovet scan https://github.com/pallets/flask
 
   # PowerShell
-  $env:GITHUB_TOKEN = "github_pat_..."; uv run repocheck scan https://github.com/pallets/flask
+  $env:GITHUB_TOKEN = "github_pat_..."; uv run repovet scan https://github.com/pallets/flask
   ```
 - **What is not used:** private repositories, GraphQL, the stargazer accounts
   themselves, and any cache (every scan asks again).
@@ -261,8 +276,10 @@ TRUST PROFILE                            facts, not findings
 
 - **JSON** (`--format json`): tool, target, scan data, a summary per severity and
   category, the findings, the coverage gaps ("Not checked"), facts (`source` for URL
-  targets, `trust` and `provenance` profiles) and the disclaimer. The structure is described in
-  [docs/report.schema.json](docs/report.schema.json) (`schema_version` 1.2).
+  targets, `trust` and `provenance` profiles) and the disclaimer. The structure is
+  described in
+  [docs/report.schema.json](https://github.com/m3xXmo0/repovet/blob/main/docs/report.schema.json)
+  (`schema_version` 1.2).
 - **SARIF 2.1.0** (`--format sarif`) for GitHub code scanning and SARIF viewers: every
   rule with title, reason, recommendation and `security-severity`; `critical`/`high`
   findings have level `error`, `medium` `warning`, `low`/`info` `note`. Paths are
@@ -282,10 +299,10 @@ how likely that is. `critical` and `high` mean code runs automatically during no
 (install, build, opening the folder, starting an agent) or something is clearly
 disguised.
 
-[RULES.md](RULES.md) lists every rule with its ID, severity and description; it is
-generated from the YAML rules in `src/repocheck/rules/`. `repocheck rules list` shows the
-same list in the terminal (`--area` to pick one area). The rules are grouped in these
-areas:
+[RULES.md](https://github.com/m3xXmo0/repovet/blob/main/RULES.md) lists every rule
+with its ID, severity and description; it is generated from the YAML rules in
+`src/repovet/rules/`. `repovet rules list` shows the same list in the terminal
+(`--area` to pick one area). The rules are grouped in these areas:
 
 | Area | IDs | Looks for |
 |------|-----|-----------|
@@ -305,7 +322,7 @@ never renamed or reused.
 ## Limits: what is not checked
 
 **"No findings" does not mean "safe".** It only means that none of the rules matched
-in the part of the repository that was checked. repocheck looks for known patterns with
+in the part of the repository that was checked. repovet looks for known patterns with
 few false alarms; an attacker who knows the rules can avoid them.
 
 Not checked today:
@@ -324,7 +341,7 @@ Not checked today:
   refs are not supported.
 - **Dependencies** are checked by name and declared source only, offline: names are
   compared with lists of the most downloaded PyPI and npm packages shipped with
-  repocheck (see `src/repocheck/data/SOURCES.md`). The code and install scripts of
+  repovet (see `src/repovet/data/SOURCES.md`). The code and install scripts of
   dependencies, known vulnerabilities and transitive dependencies are not checked;
   Rust, Go, Ruby, PHP and Java dependencies are not checked at all.
 - **Binary files** are recognized by their signature only: archives are not unpacked,
@@ -363,7 +380,7 @@ code.
   managers or imports. Python files are only parsed with `ast.parse`; YAML is only read
   with a safe loader with size and alias limits. Ruff rules (`banned-api`,
   flake8-bandit) and a self-check test forbid `subprocess`, `os.system`, `eval`, `exec`,
-  `pickle` and similar in repocheck's own code.
+  `pickle` and similar in repovet's own code.
 - **Offline analysis:** the analysis of files and history makes no network connections.
   There are only two: for a URL target the HTTPS download from github.com (TLS
   verified, no Git configuration, credential helpers or stored passwords are used),
@@ -375,13 +392,16 @@ code.
 - **Read-only:** files are only opened for reading; nothing in the checked folder is
   changed. Symlinks, junctions and reparse points are not followed. Inside `.git/`, only
   `config`, `hooks/*` and `info/attributes` are read, as plain files.
-- **No `git` binary:** repocheck never calls `git`, so Git configuration in the checked
+- **No `git` binary:** repovet never calls `git`, so Git configuration in the checked
   repository (for example `core.fsmonitor`, filters or pagers) can never run. GitHub
   URLs are fetched with [dulwich](https://www.dulwich.io/), a pure-Python Git
   implementation: only the pack file is downloaded into a fresh temporary folder (no
   working tree, refs, hooks, submodules, LFS or filters), and files are read from the
   Git objects in memory. Object sizes are checked before anything is unpacked, so a
   small download cannot inflate into gigabytes. The folder is deleted after the scan.
+
+Found a way to break one of these guarantees? Please report it privately, as described
+in [SECURITY.md](https://github.com/m3xXmo0/repovet/blob/main/SECURITY.md).
 
 ## Exit codes
 
@@ -412,42 +432,40 @@ Every rule has at least one positive and one harmless test case in
 temporary folder only during the test, and every regular expression is tested against
 pathological inputs (ReDoS).
 
-After changing rules, regenerate the tables in [RULES.md](RULES.md) with
-`uv run repocheck rules list --markdown` and paste them between the
-`rules-table` markers; `tests/test_readme.py` checks it.
+After changing rules, regenerate the tables in
+[RULES.md](https://github.com/m3xXmo0/repovet/blob/main/RULES.md) with
+`uv run repovet rules list --markdown` and paste them between the `rules-table`
+markers; `tests/test_readme.py` checks it.
 
-**False-positive corpus:** `tests/corpus/corpus.yaml` lists real open-source repositories
-pinned to a commit (each one can also be checked by URL, see the corpus README). `tests/test_corpus.py` scans each and fails on high or critical
-findings that are not explicitly accepted. Tests never download anything, so the test is
-skipped unless `REPOCHECK_CORPUS_DIR` points to the extracted repositories. See
-[tests/corpus/README.md](tests/corpus/README.md) for downloading and running it:
+**False-positive corpus:** `tests/corpus/corpus.yaml` lists real open-source
+repositories pinned to a commit (each one can also be checked by URL, see the corpus
+README). `tests/test_corpus.py` scans each and fails on high or critical findings that
+are not explicitly accepted. Tests never download anything, so the test is skipped
+unless `REPOVET_CORPUS_DIR` points to the extracted repositories. See
+[tests/corpus/README.md](https://github.com/m3xXmo0/repovet/blob/main/tests/corpus/README.md)
+for downloading and running it:
 
 ```
 # Bash
-REPOCHECK_CORPUS_DIR=/path/to/corpus uv run pytest -m corpus
+REPOVET_CORPUS_DIR=/path/to/corpus uv run pytest -m corpus
 
 # PowerShell
-$env:REPOCHECK_CORPUS_DIR = "C:\path\to\corpus"; uv run pytest -m corpus
+$env:REPOVET_CORPUS_DIR = "C:\path\to\corpus"; uv run pytest -m corpus
 ```
 
 ## Roadmap
 
-- **M2** *(done)*: JSON and SARIF output, the six danger areas, more auto-run
-  surfaces (GitHub Actions, MSBuild, `.gitattributes`), eight-repository
-  false-positive corpus.
-- **M3** *(done)*: GitHub URLs via dulwich, provenance profile from files and Git
-  history, provenance indicators (`RC-PROV`).
-- **M4** *(done)*: trust profile and trust indicators (`RC-TRUST`) from the GitHub
-  API, optional token, rate limit and request budget, checked against real
-  repositories.
-- **M5** *(planned)*: macOS and Linux support with CI, platform-specific rules, more
-  ecosystems, installation with `uv tool install`.
+Changes per version are listed in
+[CHANGELOG.md](https://github.com/m3xXmo0/repovet/blob/main/CHANGELOG.md). Possible
+next steps, without dates: Maven (`pom.xml`), Python 3.14 in CI, and an optional
+online lookup of known malicious packages.
 
 ## License
 
-TBD.
+MIT, see [LICENSE](https://github.com/m3xXmo0/repovet/blob/main/LICENSE).
+Copyright (c) 2026 m3xXmo0.
 
-repocheck ships two lists of package names as data (see
-`src/repocheck/data/SOURCES.md`): the most downloaded PyPI projects from
+repovet ships two lists of package names as data (see
+`src/repovet/data/SOURCES.md`): the most downloaded PyPI projects from
 "top-pypi-packages" by Hugo van Kemenade (CC BY 4.0), and the most downloaded npm
 packages from npm-high-impact by Titus Wormer (MIT).

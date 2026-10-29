@@ -14,11 +14,11 @@ from typing import Any
 
 import pytest
 
-from repocheck.github import target as github_target
-from repocheck.github.client import API_ROOT, GitHubClient, Request, Response
-from repocheck.github.target import TrustTarget
-from repocheck.sources.gitmeta import GitSource
-from repocheck.sources.remote import GitHubRepo
+from repovet.github import target as github_target
+from repovet.github.client import API_ROOT, GitHubClient, Request, Response
+from repovet.github.target import TrustTarget
+from repovet.sources.gitmeta import GitSource
+from repovet.sources.remote import GitHubRepo
 
 FIXTURES = Path(__file__).parent / "github_fixtures"
 RESET = 1_900_000_000  # far in the future: limits never reset during a test

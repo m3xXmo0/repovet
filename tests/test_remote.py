@@ -10,9 +10,9 @@ import pytest
 
 from gitrepo import CommitSpec, build_repo, local_transport
 from helpers import materialize
-from repocheck.cli import EXIT_ABORTED, EXIT_FINDINGS, EXIT_USAGE, main
-from repocheck.sources import remote
-from repocheck.sources.remote import CloneError, GitHubRepo, UrlError, clone, parse_github_url
+from repovet.cli import EXIT_ABORTED, EXIT_FINDINGS, EXIT_USAGE, main
+from repovet.sources import remote
+from repovet.sources.remote import CloneError, GitHubRepo, UrlError, clone, parse_github_url
 
 Capture = pytest.CaptureFixture[str]
 REPO = GitHubRepo("octo", "demo")

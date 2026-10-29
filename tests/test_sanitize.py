@@ -1,6 +1,6 @@
 import pytest
 
-from repocheck.report.sanitize import ELLIPSIS, is_masked, sanitize, sanitize_path
+from repovet.report.sanitize import ELLIPSIS, is_masked, sanitize, sanitize_path
 
 
 @pytest.mark.parametrize(

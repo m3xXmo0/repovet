@@ -1,5 +1,5 @@
 """False-positive corpus: real repositories must not produce unjustified high/critical
-findings. Skipped unless REPOCHECK_CORPUS_DIR is set; see
+findings. Skipped unless REPOVET_CORPUS_DIR is set; see
 tests/corpus/README.md."""
 
 import os
@@ -10,11 +10,11 @@ import pytest
 import yaml
 
 from helpers import builtin_rules, scan
-from repocheck.models import Severity
+from repovet.models import Severity
 
 MANIFEST = Path(__file__).parent / "corpus" / "corpus.yaml"
 ENTRIES: list[dict[str, Any]] = yaml.safe_load(MANIFEST.read_text(encoding="utf-8"))
-CORPUS_DIR = os.environ.get("REPOCHECK_CORPUS_DIR")
+CORPUS_DIR = os.environ.get("REPOVET_CORPUS_DIR")
 
 
 def test_manifest_is_complete() -> None:
@@ -37,7 +37,7 @@ def repository_root(name: str) -> Path:
 
 
 @pytest.mark.corpus
-@pytest.mark.skipif(CORPUS_DIR is None, reason="REPOCHECK_CORPUS_DIR is not set")
+@pytest.mark.skipif(CORPUS_DIR is None, reason="REPOVET_CORPUS_DIR is not set")
 @pytest.mark.parametrize("entry", ENTRIES, ids=[e["name"] for e in ENTRIES])
 def test_no_unjustified_high_findings(entry: dict[str, Any]) -> None:
     root = repository_root(entry["name"])

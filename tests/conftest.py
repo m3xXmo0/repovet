@@ -10,8 +10,8 @@ from typing import Any, NoReturn
 
 import pytest
 
-from repocheck.github import target as github_target
-from repocheck.github.client import TOKEN_VARIABLES, Request, Response, TransportError
+from repovet.github import target as github_target
+from repovet.github.client import TOKEN_VARIABLES, Request, Response, TransportError
 
 _monkeypatch = pytest.MonkeyPatch()
 _REAL_SOCKET = socket.socket

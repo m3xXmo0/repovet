@@ -3,11 +3,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from helpers import MemFile, builtin_rules, materialize, run_check, scan
-from repocheck.engine.checks import BUILDERS
-from repocheck.engine.checks.base import BuildEnv, Params, TreeCheck
-from repocheck.engine.checks.tree import case_collisions, leaves_repository, orphan_bytecode
-from repocheck.models import CoverageStatus
-from repocheck.sources.tree import LinkEntry, LinkKind
+from repovet.engine.checks import BUILDERS
+from repovet.engine.checks.base import BuildEnv, Params, TreeCheck
+from repovet.engine.checks.tree import case_collisions, leaves_repository, orphan_bytecode
+from repovet.models import CoverageStatus
+from repovet.sources.tree import LinkEntry, LinkKind
 
 
 @dataclass
@@ -79,11 +79,11 @@ def test_filename_target_path() -> None:
 def test_lfs_pointers_are_listed_as_not_checked(tmp_path: Path) -> None:
     pointer = "version https://git-lfs.github.com/spec/v1\noid sha256:00\nsize 12\n"
     repo = materialize(tmp_path / "repo", {"assets/big.bin": pointer, ".gitmodules": ""})
-    from repocheck.analyzers import run_all
-    from repocheck.engine.context import ScanContext
-    from repocheck.limits import DEFAULT_LIMITS
-    from repocheck.models import CoverageCollector
-    from repocheck.sources.local import LocalTree
+    from repovet.analyzers import run_all
+    from repovet.engine.context import ScanContext
+    from repovet.limits import DEFAULT_LIMITS
+    from repovet.models import CoverageCollector
+    from repovet.sources.local import LocalTree
 
     coverage = CoverageCollector()
     tree = LocalTree(repo, DEFAULT_LIMITS, coverage)

@@ -7,16 +7,16 @@ from pathlib import Path
 from typing import Any
 
 from github_fake import case_target
-from repocheck.analyzers import provenance, trust
-from repocheck.engine.checks import BUILDERS
-from repocheck.engine.checks.base import BuildEnv, FactCheck, FileView, Match, Params
-from repocheck.engine.context import ScanContext
-from repocheck.engine.loader import Rule, RuleSet, load_rules
-from repocheck.engine.runner import run_rules
-from repocheck.limits import DEFAULT_LIMITS, Limits
-from repocheck.models import CoverageCollector, CoverageItem, Finding
-from repocheck.sources import gitmeta
-from repocheck.sources.local import LocalTree
+from repovet.analyzers import provenance, trust
+from repovet.engine.checks import BUILDERS
+from repovet.engine.checks.base import BuildEnv, FactCheck, FileView, Match, Params
+from repovet.engine.context import ScanContext
+from repovet.engine.loader import Rule, RuleSet, load_rules
+from repovet.engine.runner import run_rules
+from repovet.limits import DEFAULT_LIMITS, Limits
+from repovet.models import CoverageCollector, CoverageItem, Finding
+from repovet.sources import gitmeta
+from repovet.sources.local import LocalTree
 
 _RULES: RuleSet | None = None
 _REPEAT_KEYS = {"prefix", "repeat", "count", "suffix"}
@@ -56,7 +56,7 @@ def materialize(root: Path, files: Mapping[str, object]) -> Path:
     """Write fixture files. Text is written as UTF-8 bytes (no newline translation);
     ``{base64: ...}`` gives raw bytes; ``{prefix, repeat, count, suffix}`` gives
     ``prefix + repeat * count + suffix`` (long lines without huge fixtures);
-    ``{symlink: target}`` creates a symbolic link (never followed by repocheck)."""
+    ``{symlink: target}`` creates a symbolic link (never followed by repovet)."""
     root.mkdir(parents=True, exist_ok=True)
     for rel, content in files.items():
         parts = rel.split("/")

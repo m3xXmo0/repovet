@@ -1,4 +1,4 @@
-repocheck 0.1.0 · local folder D:\src\demo · offline · 1,284 files · 3 rules
+repovet 0.1.0 · local folder D:\src\demo · offline · 1,284 files · 3 rules
 Lines starting with '>' are untrusted content quoted from the repository.
 
 DANGER                                   1 critical · 1 medium
@@ -33,5 +33,5 @@ NOT CHECKED
   - Files larger than 2 MB, content not checked (4): assets/a.mp4,
     assets/b.mp4, assets/c.mp4, …
 
-repocheck reports only what its 3 rules detect in the checked scope.
+repovet reports only what its 3 rules detect in the checked scope.
 A missing finding is not proof that the repository is safe.

@@ -1,8 +1,8 @@
 import pytest
 
 from helpers import run_check
-from repocheck.engine.checks.base import CheckError
-from repocheck.engine.checks.keypath import parse_path
+from repovet.engine.checks.base import CheckError
+from repovet.engine.checks.keypath import parse_path
 
 
 def test_exists_on_json() -> None:
@@ -144,7 +144,7 @@ def test_git_config_format() -> None:
 
 
 def test_flatten_budget() -> None:
-    from repocheck.engine.checks.keypath import flatten
+    from repovet.engine.checks.keypath import flatten
 
     assert flatten({"a": [1, {"b": "x"}], "c": True}) == "1 x true"
     assert flatten(list(range(100)), budget=10) == "0 1 2 3 4 5 6 7 8"

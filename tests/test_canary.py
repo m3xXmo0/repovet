@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 
 from helpers import materialize
-from repocheck.cli import main
+from repovet.cli import main
 
 
 def canary_files(marker: Path) -> dict[str, str]:

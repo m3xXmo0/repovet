@@ -1,6 +1,6 @@
 import pytest
 
-from repocheck.sources.tree import GlobSet, basename, decode_text, validate_glob
+from repovet.sources.tree import GlobSet, basename, decode_text, validate_glob
 
 
 @pytest.mark.parametrize(

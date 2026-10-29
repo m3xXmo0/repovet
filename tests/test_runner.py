@@ -1,12 +1,12 @@
 from pathlib import Path
 
 from helpers import materialize, scan, write_rule
-from repocheck.engine.context import ScanContext
-from repocheck.engine.loader import load_rules
-from repocheck.engine.runner import record_unsupported, render_message, run_rules
-from repocheck.limits import DEFAULT_LIMITS, Limits
-from repocheck.models import CoverageCollector, CoverageStatus
-from repocheck.sources.local import LocalTree
+from repovet.engine.context import ScanContext
+from repovet.engine.loader import load_rules
+from repovet.engine.runner import record_unsupported, render_message, run_rules
+from repovet.limits import DEFAULT_LIMITS, Limits
+from repovet.models import CoverageCollector, CoverageStatus
+from repovet.sources.local import LocalTree
 
 REGEX_RULE = "{type: regex, pattern: 'TODO'}"
 

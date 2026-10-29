@@ -1,7 +1,7 @@
 {
   "schema_version": "1.2",
   "tool": {
-    "name": "repocheck",
+    "name": "repovet",
     "version": "0.1.0"
   },
   "target": "D:\\src\\demo",
@@ -104,5 +104,5 @@
     }
   ],
   "facts": {},
-  "disclaimer": "repocheck reports only what its 3 rules detect in the checked scope. A missing finding is not proof that the repository is safe."
+  "disclaimer": "repovet reports only what its 3 rules detect in the checked scope. A missing finding is not proof that the repository is safe."
 }

@@ -10,10 +10,10 @@ import pytest
 from github_fake import Answer, FakeTransport, case_answers, install, load_fixture
 from gitrepo import CommitSpec, build_repo, local_transport
 from helpers import materialize
-from repocheck.analyzers import trust
-from repocheck.cli import EXIT_OK, main
-from repocheck.github.client import GitHubClient
-from repocheck.sources import remote
+from repovet.analyzers import trust
+from repovet.cli import EXIT_OK, main
+from repovet.github.client import GitHubClient
+from repovet.sources import remote
 from test_report_formats import validate_json, validate_sarif
 from test_trust import REPO, Capture, folder, scan_json, trust_coverage
 

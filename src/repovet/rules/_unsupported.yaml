@@ -1,0 +1,94 @@
+# Auto-run surfaces that repovet recognizes but does not analyze yet. A match is
+# listed under "Not checked" (status: unsupported), never as a finding.
+# Fields: scope, files, reason; optional: exclude, contains (regex, multiline).
+
+- scope: ecosystem:rust
+  files: ["**/build.rs"]
+  exclude: [{set: vendored}]
+  reason: >
+    Rust build scripts (build.rs) are only checked for network access; what else they
+    do during cargo build is not analyzed
+
+- scope: ecosystem:php
+  files: ["**/composer.json"]
+  exclude: [{set: vendored}, "**/vendor/**"]
+  reason: >
+    Composer scripts (composer.json) are only checked for install and update hooks and
+    downloads; the PHP code they call and Composer plugins are not analyzed
+
+- scope: ecosystem:jvm
+  files:
+    - "**/build.gradle"
+    - "**/build.gradle.kts"
+    - "**/settings.gradle"
+    - "**/settings.gradle.kts"
+    - "**/pom.xml"
+  exclude: [{set: vendored}]
+  reason: >
+    Gradle build files are only checked for external commands, downloads and the
+    wrapper URL; Gradle plugins and Maven build files (pom.xml) are not analyzed
+
+- scope: ecosystem:ruby
+  files: ["**/*.gemspec", "**/Rakefile", "**/Gemfile"]
+  exclude: [{set: vendored}, "**/vendor/**"]
+  reason: >
+    Ruby gemspecs, Rakefiles and Gemfiles are only checked for native extensions and
+    downloads; other Ruby code in them is not analyzed
+
+- scope: ecosystem:go
+  files: ["**/*.go"]
+  exclude: [{set: vendored}, "**/vendor/**"]
+  contains: '^//go:generate[ \t]'
+  reason: go:generate directives are not analyzed
+
+- scope: build:cmake
+  files: ["**/CMakeLists.txt", "**/*.cmake"]
+  exclude: [{set: vendored}]
+  reason: CMake files are not analyzed
+
+- scope: ide:jetbrains
+  files: [".idea/**"]
+  reason: JetBrains IDE settings (.idea/) are not analyzed
+
+- scope: ci:github-actions
+  files: [".github/workflows/*.yml", ".github/workflows/*.yaml"]
+  reason: >
+    GitHub Actions workflows are only checked for pull_request_target checkouts and
+    encoded commands; actions they use and other risks are not analyzed
+
+- scope: build:msbuild
+  files:
+    - "**/*.csproj"
+    - "**/*.vbproj"
+    - "**/*.fsproj"
+    - "**/*.vcxproj"
+    - "**/Directory.Build.props"
+    - "**/Directory.Build.targets"
+  exclude: [{set: vendored}]
+  reason: >
+    MSBuild files are only checked for Exec, DownloadFile and inline tasks; imported
+    targets from packages and compiled tasks are not analyzed
+
+- scope: git:submodules
+  files: ["**/.gitmodules"]
+  exclude: [{set: vendored}]
+  reason: Git submodules are listed in .gitmodules but their content is not checked
+
+- scope: git:lfs
+  files: ["**"]
+  exclude: [{set: vendored}]
+  max_size: 1024
+  contains: '\Aversion https://git-lfs\.github\.com/spec/v1'
+  reason: Git LFS pointer files; the real content is stored elsewhere and not checked
+
+- scope: dependencies:contents
+  files: [{set: dependency_manifests}]
+  exclude: [{set: vendored}]
+  reason: >
+    Dependencies are checked by name and declared source only; their code and install
+    scripts are not checked (no registry queries)
+
+- scope: ecosystem:rust-go-dependencies
+  files: ["**/Cargo.toml", "**/go.mod"]
+  exclude: [{set: vendored}, "**/vendor/**"]
+  reason: Rust (Cargo.toml) and Go (go.mod) dependencies are not checked

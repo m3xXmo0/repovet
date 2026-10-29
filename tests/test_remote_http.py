@@ -16,9 +16,9 @@ from dulwich.server import BackendRepo, DictBackend
 from dulwich.web import WSGIRequestHandlerLogger, WSGIServerLogger, make_server, make_wsgi_chain
 
 from gitrepo import CommitSpec, build_repo
-from repocheck.cli import EXIT_ABORTED, EXIT_FINDINGS, main
-from repocheck.sources import remote
-from repocheck.sources.remote import GitHubRepo
+from repovet.cli import EXIT_ABORTED, EXIT_FINDINGS, main
+from repovet.sources import remote
+from repovet.sources.remote import GitHubRepo
 
 Capture = pytest.CaptureFixture[str]
 

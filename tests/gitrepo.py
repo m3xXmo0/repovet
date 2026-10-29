@@ -15,7 +15,7 @@ from dulwich.objects import Blob, Commit, ObjectID, Tag, Tree
 from dulwich.refs import Ref
 from dulwich.repo import Repo
 
-from repocheck.sources.remote import GitHubRepo
+from repovet.sources.remote import GitHubRepo
 
 AUTHOR = "Test Author <author@example.invalid>"
 BASE_TIME = 1_700_000_000
