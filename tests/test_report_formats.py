@@ -130,6 +130,17 @@ def test_root_uri() -> None:
     assert sarif.root_uri("D:\\src\\demo") == "file:///D:/src/demo/"
     assert sarif.root_uri("/home/u/my repo") == "file:///home/u/my%20repo/"
     assert sarif.root_uri("relative/path") is None
+    assert sarif.root_uri("/") == "file:///"
+
+
+def test_sarif_uri_of_a_name_that_is_not_utf8() -> None:
+    # POSIX file systems and Git trees can hold names that are not valid UTF-8; they
+    # arrive with surrogate escapes and must not crash the SARIF output.
+    odd = replace(sample_findings()[0], location=Location("bad\udcff.md", 1, None))
+    report: Any = sarif.build(sample_result([odd]), sample_rules())
+    location = report["runs"][0]["results"][0]["locations"][0]["physicalLocation"]
+    assert location["artifactLocation"]["uri"] == "bad%FF.md"
+    validate_sarif(report)
 
 
 # --- CLI ---------------------------------------------------------------------
@@ -183,6 +194,22 @@ def test_cli_output_never_inside_target(repo: Path, tmp_path: Path, capsys: Capt
     assert not (repo / "report.json").exists()
     assert main(["scan", str(repo), "-o", str(tmp_path / "missing" / "r.json")]) == EXIT_USAGE
     assert main(["scan", str(repo), "-o", str(tmp_path)]) == EXIT_USAGE
+
+
+def test_cli_output_inside_target_under_another_name(repo: Path, capsys: Capture) -> None:
+    # The same folder reached through another case (macOS, Windows) or a link is still
+    # the checked folder.
+    other = repo.parent / repo.name.upper()
+    if not other.is_dir():
+        try:
+            other.symlink_to(repo, target_is_directory=True)
+        except OSError:
+            pytest.skip("cannot create a second name for the folder")
+    code = main(["scan", str(other), "--format", "json", "-o", str(repo / "r.json")])
+    assert code == EXIT_USAGE
+    code = main(["scan", str(repo), "--format", "json", "-o", str(other / "r.json")])
+    assert code == EXIT_USAGE
+    assert not (repo / "r.json").exists()
 
 
 def test_cli_min_severity_applies_to_json(repo: Path, capsys: Capture) -> None:

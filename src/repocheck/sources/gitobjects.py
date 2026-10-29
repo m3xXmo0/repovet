@@ -7,6 +7,7 @@ writes. The caller vouches for the directory: repocheck's own clone, or a local
 ``.git/objects`` that ``gitmeta`` checked for links and alternates first.
 """
 
+import errno
 import os
 import stat
 import zlib
@@ -23,7 +24,28 @@ _REF_DELTA = 7
 _HEX = frozenset("0123456789abcdef")
 _HEADER_PROBE = 64
 _MAX_CHAIN = 128
-_OPEN_FLAGS = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
+_OPEN_FLAGS = (
+    os.O_RDONLY
+    | getattr(os, "O_BINARY", 0)
+    | getattr(os, "O_NOFOLLOW", 0)
+    | getattr(os, "O_NONBLOCK", 0)
+    | getattr(os, "O_NOCTTY", 0)
+)
+
+
+def open_regular(path: str) -> BinaryIO:
+    """Open ``path`` for reading if it is a regular file, without following a final
+    link. O_NONBLOCK keeps a pipe that replaced the file after an earlier check from
+    blocking the open on POSIX; the type is checked again on the open file."""
+    fd = os.open(path, _OPEN_FLAGS)
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            raise OSError(errno.EINVAL, "not a regular file")
+    except BaseException:
+        os.close(fd)
+        raise
+    return os.fdopen(fd, "rb")
+
 
 # Objects up to this size are inflated completely (and the last one is cached); larger
 # blobs can only be read from the start, and only when they are not stored as a delta.
@@ -94,8 +116,7 @@ class GitObjects:
         path = os.fspath(pack.data.path)
         handle = self._handles.get(path)
         if handle is None:
-            fd = os.open(path, _OPEN_FLAGS)
-            handle = os.fdopen(fd, "rb")
+            handle = open_regular(path)
             self._handles[path] = handle
         return handle
 
@@ -171,14 +192,12 @@ class GitObjects:
 
     def _loose_header(self, hexsha: str) -> tuple[str, int] | None:
         try:
-            fd = os.open(self._loose_path(hexsha), _OPEN_FLAGS)
+            opened = open_regular(self._loose_path(hexsha))
         except FileNotFoundError:
             return None
         except OSError as exc:
             raise GitObjectError(f"loose object not readable: {exc.strerror}") from None
-        with os.fdopen(fd, "rb") as handle:
-            if not stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
-                raise GitObjectError("loose object is not a regular file")
+        with opened as handle:
             try:
                 head = zlib.decompressobj().decompress(handle.read(512), 64)
             except zlib.error:
@@ -295,8 +314,7 @@ class GitObjects:
             handle.seek(data_offset)
             return _inflate_prefix(handle, limit)
         hexsha = sha.decode("ascii")
-        fd = os.open(self._loose_path(hexsha), _OPEN_FLAGS)
-        with os.fdopen(fd, "rb") as handle:
+        with open_regular(self._loose_path(hexsha)) as handle:
             data = _inflate_prefix(handle, limit + 64)
         _, nul, body = data.partition(b"\0")
         if not nul:

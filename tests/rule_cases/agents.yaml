@@ -372,6 +372,9 @@ RC-AGENT-006:
     - name: emoji with a single presentation selector
       files:
         README.md: "Status: \U00002705\U0000FE0F done, \U00002764\U0000FE0F thanks\n"
+    - name: emoji selector repeated by copy and paste
+      files:
+        lib/xslt.rb: "# \U0001F6E1\U0000FE0F\U0000FE0F\U0000FE0F Do not use this for untrusted input.\n"
 
 RC-AGENT-011:
   positive:

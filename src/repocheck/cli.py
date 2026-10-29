@@ -170,7 +170,7 @@ def build_parser() -> argparse.ArgumentParser:
     listing.add_argument(
         "--markdown",
         action="store_true",
-        help="Markdown tables grouped by area (used for the rule table in README.md)",
+        help="Markdown tables grouped by area (used for RULES.md)",
     )
     return parser
 
@@ -384,13 +384,28 @@ def _output_path(value: str | None, root: Path | None) -> Path | None:
     if value is None:
         return None
     path = Path(value).resolve()
-    if root is not None and path.is_relative_to(root.resolve()):
+    if root is not None and _inside(path, root.resolve()):
         raise UsageError(f"output file must be outside the checked folder: {value}")
     if path.is_dir():
         raise UsageError(f"output path is a folder: {value}")
     if not path.parent.is_dir():
         raise UsageError(f"output folder not found: {path.parent}")
     return path
+
+
+def _inside(path: Path, root: Path) -> bool:
+    """True if ``path`` lies in ``root``. Besides comparing the names, every existing
+    parent is compared by file identity: on case-insensitive file systems (macOS) the
+    same folder can be named in another case, and POSIX paths compare case-sensitively."""
+    if path.is_relative_to(root):
+        return True
+    for parent in path.parents:
+        try:
+            if parent.samefile(root):
+                return True
+        except OSError:
+            continue
+    return False
 
 
 def _write_report(path: Path, report: str) -> None:

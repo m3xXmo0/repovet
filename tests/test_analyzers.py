@@ -42,7 +42,7 @@ def test_run_all_reports_findings_and_missing_areas(tmp_path: Path) -> None:
     results = run_all(ctx)
     assert {r.area for r in results} == set(ANALYZERS)
     ids = sorted(f.rule_id for r in results for f in r.findings)
-    assert ids == ["RC-AGENT-001", "RC-AGENT-002", "RC-AUTO-001"]
+    assert ids == ["RC-AGENT-001", "RC-AGENT-002", "RC-AUTO-001", "RC-AUTO-082"]
     items = ctx.coverage.items()
     missing = {c.scope for c in items if c.status == CoverageStatus.NOT_IMPLEMENTED}
     assert missing == {f"area:{name}" for name in AREAS if name not in ANALYZERS} == set()

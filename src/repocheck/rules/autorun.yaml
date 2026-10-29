@@ -704,6 +704,118 @@
     - https://attack.mitre.org/techniques/T1204/002/
   tags: [windows]
 
+# --- Linux and macOS -------------------------------------------------------------------
+
+- id: RC-AUTO-052
+  title: Linux desktop entry downloads or decodes code
+  area: autorun
+  severity: high
+  confidence: high
+  files: ["**/*.desktop"]
+  exclude: [{set: vendored}]
+  check:
+    type: regex
+    pattern: '\A[ \t]*(?:Exec|TryExec)[ \t]*=[^\n]*?(?:{{fetch_or_run}})'
+  message: "Desktop entry runs a command that fetches or decodes code: {match}"
+  rationale: >
+    Linux file managers start the Exec command of a desktop entry when it is
+    double-clicked, and show its Name and Icon instead of the file name, so it can look
+    like a document. This command loads code from the network or decodes a payload.
+  recommendation: >
+    Do not open or launch the file. Read its Exec line in a text editor.
+  references:
+    - https://specifications.freedesktop.org/desktop-entry-spec/latest/exec-variables.html
+    - https://attack.mitre.org/techniques/T1204/002/
+  platforms: [linux]
+  tags: [linux, download]
+
+- id: RC-AUTO-053
+  title: macOS Terminal script (.command)
+  area: autorun
+  severity: medium
+  confidence: high
+  files: ["**/*.command"]
+  exclude: [{set: vendored}]
+  check:
+    type: filename
+  message: "{path} runs in Terminal when double-clicked in Finder"
+  rationale: >
+    Finder opens .command files in Terminal and runs them as shell scripts. Files from a
+    Git clone carry no quarantine flag, so Gatekeeper does not ask before they run.
+  recommendation: >
+    Do not double-click it. Read it in a text editor first.
+  references:
+    - https://attack.mitre.org/techniques/T1204/002/
+  platforms: [macos]
+  tags: [macos]
+
+- id: RC-AUTO-054
+  title: macOS Terminal settings file runs a command
+  area: autorun
+  severity: high
+  confidence: high
+  files: ["**/*.terminal"]
+  exclude: [{set: vendored}]
+  check:
+    type: regex
+    pattern: '(?i:<key>[ \t]*CommandString[ \t]*</key>[ \t\r\n]{0,200}<string>[^<]{0,200})'
+    scope: text
+  message: "Terminal settings file starts a command when opened: {match}"
+  rationale: >
+    Opening a .terminal file in Finder opens a Terminal window with these settings, and
+    CommandString is run in it right away.
+  recommendation: >
+    Do not open the file. Read the string after CommandString in a text editor.
+  references:
+    - https://attack.mitre.org/techniques/T1204/002/
+  platforms: [macos]
+  tags: [macos]
+
+- id: RC-AUTO-055
+  title: macOS location file opens something other than a web page
+  area: autorun
+  severity: medium
+  confidence: high
+  files: ["**/*.webloc", "**/*.inetloc", "**/*.fileloc"]
+  exclude: [{set: vendored}]
+  check:
+    type: regex
+    pattern: '(?i:<string>[ \t]*(?!(?:https?|mailto):)[a-z][a-z0-9+.-]{0,30}:[^<\n]{0,200})'
+    file_requires: ['(?i:<key>[ \t]*URL[ \t]*</key>)']
+  message: "Location file opens a non-web target when double-clicked: {match}"
+  rationale: >
+    Finder opens the URL of a .webloc, .inetloc or .fileloc file on double-click.
+    file:, smb: and similar URLs open local programs or connect to a remote share
+    instead of showing a web page.
+  recommendation: >
+    Do not open the file. Read the URL in a text editor.
+  references:
+    - https://attack.mitre.org/techniques/T1204/001/
+  platforms: [macos]
+  tags: [macos]
+
+- id: RC-AUTO-056
+  title: macOS application bundle in the repository
+  area: autorun
+  severity: medium
+  confidence: high
+  files: ["**/*.app/Contents/Info.plist"]
+  exclude: [{set: vendored}]
+  check:
+    type: filename
+  message: "{path} belongs to an application that starts when double-clicked"
+  rationale: >
+    An .app folder is a program for Finder. It can contain compiled code or scripts,
+    and files from a Git clone carry no quarantine flag, so Gatekeeper does not check
+    it before it runs. Source repositories rarely need one.
+  recommendation: >
+    Do not open it. Build the application from source or get it from the project's
+    official releases.
+  references:
+    - https://attack.mitre.org/techniques/T1204/002/
+  platforms: [macos]
+  tags: [macos, binary]
+
 - id: RC-AUTO-033
   title: .gitattributes assigns a custom filter, diff or merge driver
   area: autorun
@@ -839,3 +951,226 @@
   references:
     - https://learn.microsoft.com/en-us/visualstudio/msbuild/msbuild-roslyncodetaskfactory
   tags: [msbuild, build]
+
+# --- PHP, Rust, Gradle, Ruby ----------------------------------------------------------
+
+- id: RC-AUTO-080
+  title: Composer install or update script present
+  area: autorun
+  severity: medium
+  confidence: high
+  files: ["**/composer.json"]
+  exclude: [{set: vendored}, {set: test_data}, "**/vendor/**"]
+  check:
+    type: keypath
+    format: json
+    paths:
+      - scripts.pre-install-cmd
+      - scripts.post-install-cmd
+      - scripts.pre-update-cmd
+      - scripts.post-update-cmd
+      - scripts.pre-autoload-dump
+      - scripts.post-autoload-dump
+      - scripts.post-root-package-install
+      - scripts.post-create-project-cmd
+  message: "composer.json defines a '{key}' script: {value}"
+  rationale: >
+    Composer runs these scripts of the root package automatically during `composer
+    install`, `composer update` or `composer create-project` in this folder, with your
+    user rights.
+  recommendation: >
+    Read the script and every file or class it calls before installing. To install
+    without running scripts, use `composer install --no-scripts`.
+  references:
+    - https://getcomposer.org/doc/articles/scripts.md
+  tags: [php, composer, install]
+
+- id: RC-AUTO-081
+  title: Composer script downloads or executes code
+  area: autorun
+  severity: high
+  confidence: high
+  files: ["**/composer.json"]
+  exclude: [{set: vendored}, {set: test_data}, "**/vendor/**"]
+  check:
+    type: keypath
+    format: json
+    paths: ["scripts.*"]
+    value_regex: "{{fetch_or_run}}"
+  message: "Composer script '{key}' fetches or runs code ({match}): {value}"
+  rationale: >
+    This script contains a download, a pipe into an interpreter or an encoded payload,
+    so what runs may not be in the repository at all. Install and update scripts run
+    without being asked for.
+  recommendation: >
+    Do not install as is. Read the script; if you need the dependencies, use `composer
+    install --no-scripts`.
+  references:
+    - https://getcomposer.org/doc/articles/scripts.md
+  tags: [php, composer, download]
+
+- id: RC-AUTO-082
+  title: Rust build script present
+  area: autorun
+  severity: low
+  confidence: high
+  files: ["**/build.rs"]
+  exclude: [{set: vendored}, {set: test_data}, "**/vendor/**"]
+  check:
+    type: filename
+  message: "{path} is Rust code that runs on every cargo build or check"
+  rationale: >
+    Cargo compiles and runs build.rs before building the package, also for `cargo
+    check` and for IDE code analysis (rust-analyzer), with your user rights.
+  recommendation: >
+    Read build.rs before building or opening the project in an IDE with Rust support.
+  references:
+    - https://doc.rust-lang.org/cargo/reference/build-scripts.html
+  tags: [rust, build]
+
+- id: RC-AUTO-083
+  title: Rust build script downloads code or starts a download tool
+  area: autorun
+  severity: medium
+  confidence: medium
+  files: ["**/build.rs"]
+  exclude: [{set: vendored}, {set: test_data}, "**/vendor/**"]
+  check:
+    type: regex
+    pattern: '{{download_exec}}|\b(?:reqwest|ureq|attohttpc|curl)::|\bstd::net::TcpStream\b|\bCommand::new\([ \t]*"(?:curl|wget|powershell|pwsh|certutil|bitsadmin)(?:\.exe)?"'
+    ignore: "{{comment_line}}"
+  message: "Build script reaches the network: {match}"
+  rationale: >
+    Cargo runs build.rs on every build, check and IDE analysis. This one downloads
+    something or starts a download tool, so what it builds or runs is not fully in the
+    repository. Some crates download prebuilt libraries this way on purpose.
+  recommendation: >
+    Read what is downloaded and what happens with it before building. `cargo build
+    --offline` does not stop a build script from using the network.
+  references:
+    - https://doc.rust-lang.org/cargo/reference/build-scripts.html
+  tags: [rust, build, download]
+
+- id: RC-AUTO-084
+  title: Gradle build starts external commands
+  area: autorun
+  severity: medium
+  confidence: medium
+  files:
+    - "**/build.gradle"
+    - "**/build.gradle.kts"
+    - "**/settings.gradle"
+    - "**/settings.gradle.kts"
+    - "**/init.gradle"
+    - "**/*.init.gradle"
+    - "**/*.init.gradle.kts"
+  exclude: [{set: vendored}, {set: test_data}]
+  check:
+    type: regex
+    pattern: '(?:"|''|\))[ \t]*\.execute\(|\bRuntime\.getRuntime\(\)[ \t]*\.exec\(|\bProcessBuilder[ \t]*\(|\b(?:project\.)?exec[ \t]*(?:\{|\([ \t]*\{)|\bproviders\.exec[ \t]*\{|\bcommandLine[ \t]*(?:\(|[''"])'
+    ignore: "{{comment_line}}"
+  message: "Gradle build file runs a command: {match}"
+  rationale: >
+    Gradle runs build and settings scripts when the project is built, and IDEs such as
+    IntelliJ IDEA and Android Studio run them when the project is opened or synced.
+    This script starts external programs.
+  recommendation: >
+    Read the command before building or importing the project into an IDE.
+  references:
+    - https://docs.gradle.org/current/userguide/build_lifecycle.html
+  tags: [gradle, build]
+
+- id: RC-AUTO-085
+  title: Gradle build downloads and runs code
+  area: autorun
+  severity: high
+  confidence: high
+  files:
+    - "**/build.gradle"
+    - "**/build.gradle.kts"
+    - "**/settings.gradle"
+    - "**/settings.gradle.kts"
+    - "**/init.gradle"
+    - "**/*.init.gradle"
+    - "**/*.init.gradle.kts"
+  exclude: [{set: vendored}, {set: test_data}]
+  check:
+    type: regex
+    pattern: "{{download_exec}}|{{encoded_payload}}"
+    ignore: "{{comment_line}}"
+  message: "Gradle build file fetches or decodes code to run: {match}"
+  rationale: >
+    Gradle runs this script on build, and IDEs run it when the project is opened or
+    synced. It runs code from the network or an encoded payload, which is not part of
+    the repository.
+  recommendation: >
+    Do not build or import the project as is. Download and read the script first.
+  references:
+    - https://docs.gradle.org/current/userguide/build_lifecycle.html
+  tags: [gradle, build, download]
+
+- id: RC-AUTO-086
+  title: Gradle wrapper downloads Gradle from an unofficial location
+  area: autorun
+  severity: medium
+  confidence: medium
+  files: ["**/gradle/wrapper/gradle-wrapper.properties"]
+  exclude: [{set: vendored}, {set: test_data}]
+  check:
+    type: regex
+    pattern: '\A[ \t]*distributionUrl[ \t]*[=:][ \t]*(?!https\\?://services\.gradle\.org/distributions/)\S[^\n]{0,200}'
+  message: "Gradle wrapper fetches its distribution from elsewhere: {match}"
+  rationale: >
+    `./gradlew` and IDEs download and run the Gradle distribution named here. The
+    official one comes from services.gradle.org; another location can serve a modified
+    Gradle. Company mirrors are a legitimate reason.
+  recommendation: >
+    Check that the URL is a mirror you trust, or change it to services.gradle.org and
+    set distributionSha256Sum.
+  references:
+    - https://docs.gradle.org/current/userguide/gradle_wrapper.html
+  tags: [gradle, build, download]
+
+- id: RC-AUTO-087
+  title: Ruby gem builds a native extension on install
+  area: autorun
+  severity: low
+  confidence: high
+  files: ["**/*.gemspec"]
+  exclude: [{set: vendored}, {set: test_data}, "**/vendor/**"]
+  check:
+    type: regex
+    pattern: '\.extensions[ \t]*(?:=|<<|\+=|\.(?:push|concat)\b)'
+    ignore: "{{comment_line}}"
+  message: "Gemspec declares native extensions: {match}"
+  rationale: >
+    `gem install` and `bundle install` of this gem (also from a Git source) run the
+    extension's build script (extconf.rb, Rakefile or CMake) with your user rights.
+  recommendation: >
+    Read the extension build scripts before installing the gem from this repository.
+  references:
+    - https://guides.rubygems.org/gems-with-extensions/
+  tags: [ruby, install]
+
+- id: RC-AUTO-088
+  title: Ruby install or build script downloads and runs code
+  area: autorun
+  severity: high
+  confidence: high
+  files: ["**/*.gemspec", "**/extconf.rb", "**/Rakefile", "**/*.rake", "**/Gemfile"]
+  exclude: [{set: vendored}, {set: test_data}, "**/vendor/**"]
+  check:
+    type: regex
+    pattern: "{{download_exec}}|{{encoded_payload}}"
+    ignore: "{{comment_line}}"
+  message: "Ruby build or install file fetches or decodes code to run: {match}"
+  rationale: >
+    Bundler evaluates Gemfiles and gemspecs as Ruby code, and gem installs run
+    extconf.rb and Rakefiles. This line runs code from the network or an encoded
+    payload.
+  recommendation: >
+    Do not run bundle or gem install here as is. Download and read the script first.
+  references:
+    - https://guides.rubygems.org/gems-with-extensions/
+    - https://bundler.io/guides/gemfile.html
+  tags: [ruby, install, download]

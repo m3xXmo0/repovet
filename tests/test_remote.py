@@ -186,6 +186,21 @@ def test_cleanup_removes_read_only_files(tmp_path: Path) -> None:
     assert not folder.exists()
 
 
+def test_cleanup_removes_read_only_folders(tmp_path: Path) -> None:
+    # On POSIX a folder without write permission blocks deleting its entries.
+    folder = tmp_path / "ws"
+    pack_dir = folder / "objects" / "pack"
+    pack_dir.mkdir(parents=True)
+    (pack_dir / "pack-1.pack").write_bytes(b"PACK")
+    pack_dir.chmod(stat.S_IREAD | stat.S_IEXEC)
+    try:
+        assert remote._remove_workspace(folder) is None
+        assert not folder.exists()
+    finally:
+        if pack_dir.exists():
+            pack_dir.chmod(stat.S_IRWXU)
+
+
 # --- CLI --------------------------------------------------------------------------
 
 

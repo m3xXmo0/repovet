@@ -398,6 +398,8 @@
     type: unicode
     ranges: [variation_selectors]
     min_run: 2
+    # A doubled emoji selector (U+FE0F U+FE0F) is a copy-and-paste slip, not data.
+    allow_repeated_char: true
   message: "{count} variation selectors in a row can encode hidden data"
   rationale: >
     A single variation selector after an emoji or ideograph is normal. Several in a row

@@ -8,6 +8,7 @@ otherwise; they are reported as not checked.
 
 import os
 import stat
+import sys
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -33,6 +34,16 @@ REASON_ENV_DIR = (
     "Environment and tool cache folders (.venv, venv, node_modules, .tox, .nox, "
     ".mypy_cache, .ruff_cache, .pytest_cache) skipped; use --include-env-dirs to check them"
 )
+
+
+# Git opens its folder as ".git". On case-insensitive file systems (default on Windows
+# and macOS) any spelling such as ".GIT" is that folder; on Linux only ".git" is, and a
+# ".GIT" folder is ordinary content that must be checked like any other.
+_GIT_NAME_ANY_CASE = sys.platform in ("win32", "darwin")
+
+
+def is_git_name(name: str) -> bool:
+    return name.casefold() == ".git" if _GIT_NAME_ANY_CASE else name == ".git"
 
 
 class FileChangedError(OSError):
@@ -171,7 +182,7 @@ class LocalTree:
                     continue
                 kind = self._classify(abs_path, rel, st)
                 if kind == "dir":
-                    if name.casefold() == ".git":
+                    if is_git_name(name):
                         self._walk_git_dir(abs_path, rel)
                     elif self._limits.skip_env_dirs and name.casefold() in ENV_DIR_NAMES:
                         self._skip(CoverageStatus.SKIPPED, REASON_ENV_DIR, rel)
@@ -184,7 +195,7 @@ class LocalTree:
                     else:
                         subdirs.append((abs_path, rel, depth + 1))
                 elif kind == "file":
-                    if name.casefold() == ".git":
+                    if is_git_name(name):
                         self._skip(CoverageStatus.SKIPPED, REASON_GITFILE, rel)
                     self._add_file(abs_path, rel, st)
             # Reverse so the stack yields folders in name order (deterministic output).

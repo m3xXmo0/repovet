@@ -19,7 +19,7 @@ UNSUPPORTED_FILE = "_unsupported.yaml"
 
 RULE_ID = re.compile(r"RC-([A-Z]+)-\d{3}")
 PLACEHOLDER = re.compile(r"\{([a-z]+)\}")
-PLACEHOLDERS = frozenset({"path", "line", "match", "key", "value", "decoded", "count"})
+PLACEHOLDERS = frozenset({"path", "line", "match", "key", "value", "decoded", "count", "chars"})
 PLATFORMS = frozenset({"windows", "macos", "linux"})
 DEFAULT_FILESET = "text_files"
 
@@ -418,10 +418,12 @@ def load_rule_dirs(dirs: Sequence[Path]) -> RuleSet:
                 filesets[name] = globs
         if (directory / UNSUPPORTED_FILE).is_file():
             unsupported_files.append(directory / UNSUPPORTED_FILE)
+        # Exact, case-sensitive names in code-point order on every platform (glob and
+        # Path ordering follow the file system's case rules).
         rule_files.extend(
             p
-            for p in sorted(directory.glob("*.yaml"))
-            if p.is_file() and not p.name.startswith("_")
+            for p in sorted(directory.iterdir(), key=lambda p: p.name)
+            if p.name.endswith(".yaml") and not p.name.startswith("_") and p.is_file()
         )
 
     patterns = _resolve_patterns(raw_patterns, "patterns")

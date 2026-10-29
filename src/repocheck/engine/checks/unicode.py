@@ -1,6 +1,9 @@
-"""Check type ``unicode``: runs of invisible, bidi or tag characters."""
+"""Check type ``unicode``: runs of invisible, bidi or tag characters (``mode: runs``),
+or words that mix Latin letters with look-alikes from other scripts
+(``mode: mixed_script``)."""
 
 import re
+import unicodedata
 from collections.abc import Iterator
 
 from repocheck.engine.checks.base import BuildEnv, Check, CheckError, FileView, Match, Params
@@ -83,15 +86,21 @@ class UnicodeCheck(Check):
         ignore_between: Ranges,
         decode: str | None,
         allow_flag_sequences: bool,
+        allow_repeated_char: bool = False,
     ) -> None:
         self.pattern = re.compile(f"[{char_class(ranges)}]{{{min_run},}}")
         self.ignore_between = ignore_between
         self.decode = decode
         self.allow_flag_sequences = allow_flag_sequences
+        self.allow_repeated_char = allow_repeated_char
 
     def _ignored(self, text: str, start: int, end: int) -> bool:
         run = text[start:end]
         if self.allow_flag_sequences and is_flag_sequence(text, start, run):
+            return True
+        # One character repeated (a doubled emoji selector from copy and paste) can
+        # carry no data beyond its length.
+        if self.allow_repeated_char and len(set(run)) == 1:
             return True
         if not self.ignore_between or start == 0 or end >= len(text):
             return False
@@ -117,13 +126,132 @@ class UnicodeCheck(Check):
         return [self.pattern]
 
 
+# Cyrillic, Greek and Armenian letters that look like Latin letters in common fonts.
+LOOKALIKES = frozenset(
+    map(
+        chr,
+        (
+            0x0430,
+            0x0435,
+            0x043E,
+            0x0440,
+            0x0441,
+            0x0443,
+            0x0445,
+            0x0455,
+            0x0456,
+            0x0458,
+            0x04BB,
+            0x04CF,
+            0x0501,
+            0x051B,
+            0x051D,
+            0x0405,
+            0x0406,
+            0x0408,
+            0x0410,
+            0x0412,
+            0x0415,
+            0x041A,
+            0x041C,
+            0x041D,
+            0x041E,
+            0x0420,
+            0x0421,
+            0x0422,
+            0x0425,
+            0x04AE,
+            0x04BA,
+            0x0391,
+            0x0392,
+            0x0395,
+            0x0396,
+            0x0397,
+            0x0399,
+            0x039A,
+            0x039C,
+            0x039D,
+            0x039F,
+            0x03A1,
+            0x03A4,
+            0x03A5,
+            0x03A7,
+            0x03BF,
+            0x03F2,
+            0x03F3,
+            0x0570,
+            0x057D,
+            0x0585,
+        ),
+    )
+)
+_NON_ASCII = re.compile(r"[^\x00-\x7f]+")
+_MAX_WORD = 200
+
+
+def _word_bounds(text: str, start: int, end: int) -> tuple[int, int]:
+    """Extend ``text[start:end]`` to the surrounding word characters (bounded scan)."""
+    lo = start
+    while lo > 0 and start - lo < _MAX_WORD and (text[lo - 1].isalnum() or text[lo - 1] == "_"):
+        lo -= 1
+    hi = end
+    while hi < len(text) and hi - end < _MAX_WORD and (text[hi].isalnum() or text[hi] == "_"):
+        hi += 1
+    return lo, hi
+
+
+def _describe(char: str) -> str:
+    return f"U+{ord(char):04X} {unicodedata.name(char, 'UNKNOWN')}"
+
+
+class MixedScriptCheck(Check):
+    """Words that mix ASCII letters with look-alike letters of another script, such as
+    "paypal" spelled with a Cyrillic letter a (U+0430). Each non-ASCII run is extended to
+    its word by a bounded scan, so the work stays linear in the text length."""
+
+    def matches(self, view: FileView) -> Iterator[Match]:
+        text = view.text()
+        if text is None or text.isascii():
+            return
+        last_end = -1
+        for found in _NON_ASCII.finditer(text):
+            if found.start() < last_end:
+                continue
+            lo, hi = _word_bounds(text, found.start(), found.end())
+            last_end = hi
+            word = text[lo:hi]
+            lookalikes = sorted({c for c in word if c in LOOKALIKES})
+            if not lookalikes or not any(c.isascii() and c.isalpha() for c in word):
+                continue
+            line, column = view.position(lo)
+            values = {
+                "match": word,
+                "count": str(len(lookalikes)),
+                "chars": ", ".join(_describe(c) for c in lookalikes),
+            }
+            yield Match(line, column, view.line_text(line), values)
+
+    def regexes(self) -> list[re.Pattern[str]]:
+        return [_NON_ASCII]
+
+
 def build(params: Params, env: BuildEnv) -> Check:
+    mode = params.get_choice("mode", ("runs", "mixed_script"), default="runs")
+    if mode == "mixed_script":
+        params.done()
+        return MixedScriptCheck()
     ranges = parse_ranges(params.get_str_list("ranges", required=True))
     min_run = params.get_int("min_run", default=1, minimum=1)
     ignore_between = parse_ranges(params.get_str_list("ignore_between"))
     decode = params.get_choice("decode", ("tags", "none"), default="none")
     allow_flags = params.get_bool("allow_flag_sequences")
+    allow_repeated = params.get_bool("allow_repeated_char")
     params.done()
     return UnicodeCheck(
-        ranges, min_run, ignore_between, None if decode == "none" else decode, allow_flags
+        ranges,
+        min_run,
+        ignore_between,
+        None if decode == "none" else decode,
+        allow_flags,
+        allow_repeated,
     )

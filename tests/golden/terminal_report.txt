@@ -30,7 +30,8 @@ PROVENANCE PROFILE                       facts, not findings
 
 NOT CHECKED
   - trust (GitHub API): not implemented yet (milestone 4)
-  - Files larger than 2 MB, content not checked (4): assets/a.mp4, assets/b.mp4, assets/c.mp4, …
+  - Files larger than 2 MB, content not checked (4): assets/a.mp4,
+    assets/b.mp4, assets/c.mp4, …
 
 repocheck reports only what its 3 rules detect in the checked scope.
 A missing finding is not proof that the repository is safe.

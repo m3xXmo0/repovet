@@ -129,6 +129,26 @@ def test_color_codes_only_when_enabled() -> None:
     assert "\x1b[1;91mCRITICAL" in colored
 
 
+def test_not_checked_entries_wrap_to_report_width() -> None:
+    long_path = "src/" + "deeply/nested/" * 8 + "file.bin"
+    result = sample_result([])
+    result.coverage = [
+        CoverageItem(
+            "file",
+            CoverageStatus.SKIPPED,
+            "Files larger than 2 MB, content not checked",
+            2,
+            ("assets/a.mp4", long_path),
+        )
+    ]
+    text = render(result, verbose=True)
+    entry = text[text.index("NOT CHECKED") :].splitlines()[1:]
+    assert entry[0].startswith("  - Files larger than 2 MB")
+    assert all(line.startswith("    ") for line in entry[1:])
+    assert all(len(line) <= 79 for line in entry if long_path not in line)
+    assert any(line.strip() == long_path for line in entry)
+
+
 def test_ascii_mode_replaces_decorations() -> None:
     text = render(sample_result(sample_findings()), unicode=False)
     header = text.splitlines()[0]

@@ -122,7 +122,8 @@ def root_uri(target: str) -> str | None:
         path = PurePosixPath(target)
     else:
         return None
-    return path.as_uri().rstrip("/") + "/"
+    uri = path.as_uri()
+    return uri if uri.endswith("/") else uri + "/"
 
 
 def build(

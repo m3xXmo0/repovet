@@ -221,8 +221,14 @@ def _remove_workspace(path: Path) -> str | None:
     """Delete the clone folder; ``None`` on success, otherwise the reason."""
 
     def make_writable(func: Callable[[str], object], name: str, _exc: BaseException) -> None:
-        # Git pack files are read-only; on Windows that blocks deletion.
-        Path(name).chmod(stat.S_IWRITE | stat.S_IREAD)
+        # Git pack files are read-only, which blocks deletion on Windows. On POSIX a
+        # folder without write or search permission blocks deleting its entries. Only
+        # the entry and its parent are changed, and only inside the clone folder.
+        entry = Path(name)
+        for target in (entry.parent, entry):
+            if not target.is_relative_to(path) or target.is_symlink():
+                continue
+            target.chmod(stat.S_IRWXU if target.is_dir() else stat.S_IREAD | stat.S_IWRITE)
         func(name)
 
     try:

@@ -18,10 +18,9 @@ from pathlib import Path
 
 from repocheck.limits import Limits
 from repocheck.parsers.gitconfig import loads_gitconfig
-from repocheck.sources.gitobjects import GitObjectError, GitObjects, is_hex_id
+from repocheck.sources.gitobjects import GitObjectError, GitObjects, is_hex_id, open_regular
 
 _FILE_ATTRIBUTE_REPARSE_POINT = 0x400
-_OPEN_FLAGS = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
 _REF_NAME = re.compile(r"refs/[A-Za-z0-9._/@+-]{1,250}")
 _SMALL_FILE = 4096
 _PACKED_REFS_LIMIT = 16 * 1024 * 1024
@@ -89,10 +88,10 @@ def _read_small(path: str, limit: int = _SMALL_FILE) -> bytes | None:
     if not _plain(path, folder=False):
         return None
     try:
-        fd = os.open(path, _OPEN_FLAGS)
+        handle = open_regular(path)
     except OSError:
         return None
-    with os.fdopen(fd, "rb") as handle:
+    with handle:
         data = handle.read(limit + 1)
     return None if len(data) > limit else data
 

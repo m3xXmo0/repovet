@@ -47,8 +47,10 @@ def sanitize_path(path: str) -> str:
 def sanitize_uri(path: str) -> str:
     """A relative repository path as a URI reference: every character outside the
     unreserved ASCII set and '/' is percent-encoded (UTF-8), so nothing invisible or
-    controlling survives, and the path still names the real file."""
-    return quote(path, safe="/")
+    controlling survives, and the path still names the real file. Names that are not
+    valid UTF-8 (POSIX file systems, Git trees) arrive with surrogate escapes and are
+    encoded as their original bytes."""
+    return quote(path, safe="/", errors="surrogateescape")
 
 
 def sanitize_data(value: object) -> object:

@@ -94,14 +94,23 @@ def _profile(category: str, lines: list[tuple[str, str]], style: _Style) -> list
     return out
 
 
-def _coverage(item: CoverageItem, verbose: bool) -> str:
-    text = f"  - {sanitize(item.reason, None)}"
+def _coverage(item: CoverageItem, verbose: bool) -> list[str]:
+    text = sanitize(item.reason, None)
     if not item.sample:
-        return f"{text} ({item.count})" if item.count > 1 else text
-    shown = item.sample if verbose else item.sample[:3]
-    sample = ", ".join(sanitize_path(p) for p in shown)
-    more = f", {ELLIPSIS}" if item.count > len(shown) else ""
-    return f"{text} ({item.count}): {sample}{more}"
+        text = f"{text} ({item.count})" if item.count > 1 else text
+    else:
+        shown = item.sample if verbose else item.sample[:3]
+        sample = ", ".join(sanitize_path(p) for p in shown)
+        more = f", {ELLIPSIS}" if item.count > len(shown) else ""
+        text = f"{text} ({item.count}): {sample}{more}"
+    return textwrap.wrap(
+        text,
+        WIDTH,
+        initial_indent="  - ",
+        subsequent_indent="    ",
+        break_on_hyphens=False,
+        break_long_words=False,
+    )
 
 
 def render(
@@ -160,7 +169,8 @@ def render(
 
     lines.append(style(_BOLD, "NOT CHECKED"))
     if result.coverage:
-        lines += [_coverage(item, verbose) for item in result.coverage]
+        for item in result.coverage:
+            lines += _coverage(item, verbose)
     else:
         lines.append("  - nothing recorded")
     lines.append("")
@@ -199,17 +209,19 @@ def enable_color(stream: object = None) -> bool:
 
 
 def _enable_windows_vt() -> bool:
-    if sys.platform != "win32":  # pragma: no cover - ctypes.windll exists only on Windows
-        return False
-    import ctypes  # noqa: PLC0415 - Windows only
-    from ctypes import wintypes  # noqa: PLC0415
+    # if/else instead of an early return: mypy checks reachability per platform.
+    if sys.platform == "win32":
+        import ctypes  # noqa: PLC0415 - Windows only
+        from ctypes import wintypes  # noqa: PLC0415
 
-    kernel32 = ctypes.windll.kernel32
-    handle = kernel32.GetStdHandle(-11)  # STD_OUTPUT_HANDLE
-    mode = wintypes.DWORD()
-    if not kernel32.GetConsoleMode(handle, ctypes.byref(mode)):
+        kernel32 = ctypes.windll.kernel32
+        handle = kernel32.GetStdHandle(-11)  # STD_OUTPUT_HANDLE
+        mode = wintypes.DWORD()
+        if not kernel32.GetConsoleMode(handle, ctypes.byref(mode)):
+            return False
+        enable_vt = 0x0004  # ENABLE_VIRTUAL_TERMINAL_PROCESSING
+        if mode.value & enable_vt:
+            return True
+        return bool(kernel32.SetConsoleMode(handle, mode.value | enable_vt))
+    else:  # pragma: no cover - ctypes.windll exists only on Windows
         return False
-    enable_vt = 0x0004  # ENABLE_VIRTUAL_TERMINAL_PROCESSING
-    if mode.value & enable_vt:
-        return True
-    return bool(kernel32.SetConsoleMode(handle, mode.value | enable_vt))

@@ -57,6 +57,10 @@ RC-BIN-003:
       files:
         docs/README.md     .lnk: "dummy"
       expect: [{path: "docs/README.md     .lnk"}]
+    - name: macOS Terminal script named like a document
+      files:
+        Invoice.pdf.command: "dummy"
+      expect: [{path: Invoice.pdf.command}]
   negative:
     - name: ordinary multi-dot names
       files:

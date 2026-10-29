@@ -227,3 +227,35 @@
   references:
     - https://trojansource.codes/
   tags: [unicode, invisible]
+
+- id: RC-OBF-010
+  title: Name mixes Latin letters with look-alike letters from another script
+  area: obfuscation
+  severity: medium
+  confidence: high
+  files: [{set: code_files}]
+  exclude:
+    - {set: vendored}
+    - {set: test_files}
+    # Translations mix scripts by nature (Qt Linguist .ts files are XML, not TypeScript).
+    - "**/translations/**"
+    - "**/i18n/**"
+    - "**/l10n/**"
+    - "**/locale/**"
+    - "**/locales/**"
+  check:
+    type: unicode
+    mode: mixed_script
+  message: "A word in source code contains look-alike letters: {chars}"
+  rationale: >
+    Cyrillic, Greek and Armenian letters such as U+0430, U+0435 or U+03BF look exactly like
+    Latin letters. Mixed into a name, they create an identifier, URL or string that
+    looks like a familiar one but is a different one (homoglyph attack), for example a
+    second function that shadows the real one.
+  recommendation: >
+    Show the line with code points (for example with a hex view) and replace the
+    look-alike letters, unless the mix is intended text.
+  references:
+    - https://trojansource.codes/
+    - https://www.unicode.org/reports/tr39/
+  tags: [unicode, homoglyph]

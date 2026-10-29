@@ -221,3 +221,24 @@ RC-OBF-009:
     - name: zero-width non-joiner in Persian text
       files:
         fa.py: "WORD = '\U00000645\U000006CC\U0000200C\U00000634\U00000648\U00000645'\n"
+
+RC-OBF-010:
+  positive:
+    - name: function name with a Cyrillic letter
+      files:
+        auth.py: "def is_\U00000430dmin(user):\n    return True\n"
+      expect: [{path: auth.py, line: 1}]
+    - name: look-alike domain in a string
+      files:
+        src/update.js: "const host = 'https://g\U0000043Eogle.example.invalid/x';\n"
+      expect: [{path: src/update.js, line: 1}]
+  negative:
+    - name: translations and math names in one script each
+      files:
+        i18n.py: "HELLO = '\U0000041F\U00000440\U00000438\U00000432\U00000435\U00000442'\nx_\U000003B1 = 0.5\nNAME = 'M\U000000FCller'\n"
+    - name: translation file with a stray Cyrillic letter
+      files:
+        data/translations/app_nl.ts: "<translation>Opslaan als \U00000430fbeelding</translation>\n"
+    - name: look-alike in a test module
+      files:
+        tests/test_names.py: "def test_is_\U00000430dmin():\n    pass\n"

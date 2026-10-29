@@ -6,6 +6,7 @@ import pytest
 from helpers import materialize
 from repocheck.limits import DEFAULT_LIMITS, Limits
 from repocheck.models import CoverageCollector, CoverageItem, CoverageStatus
+from repocheck.sources import local
 from repocheck.sources.local import (
     REASON_ENV_DIR,
     REASON_GITFILE,
@@ -87,19 +88,22 @@ def test_symlinks_are_listed_not_followed(tmp_path: Path) -> None:
     assert item.count == 2
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="junctions exist only on Windows")
 def test_junctions_are_listed_not_followed(tmp_path: Path) -> None:
-    # Platform check as a statement so mypy accepts _winapi on every platform.
-    if sys.platform != "win32":
-        pytest.skip("junctions exist only on Windows")
-    import _winapi
+    # if/else instead of an early skip: mypy checks reachability per platform and would
+    # report the rest as unreachable on Linux and macOS.
+    if sys.platform == "win32":
+        import _winapi
 
-    outside = materialize(tmp_path / "outside", {"secret.txt": "s"})
-    root = materialize(tmp_path / "r", {"a.txt": "a"})
-    _winapi.CreateJunction(str(outside), str(root / "junction"))
-    tree, coverage = walk(root)
-    assert paths(tree) == ["a.txt"]
-    assert [(link.path, link.kind) for link in tree.links()] == [("junction", LinkKind.JUNCTION)]
-    assert any(c.reason == REASON_LINK for c in coverage)
+        outside = materialize(tmp_path / "outside", {"secret.txt": "s"})
+        root = materialize(tmp_path / "r", {"a.txt": "a"})
+        _winapi.CreateJunction(str(outside), str(root / "junction"))
+        tree, coverage = walk(root)
+        assert paths(tree) == ["a.txt"]
+        assert [(link.path, link.kind) for link in tree.links()] == [
+            ("junction", LinkKind.JUNCTION)
+        ]
+        assert any(c.reason == REASON_LINK for c in coverage)
 
 
 def test_max_files_limit(tmp_path: Path) -> None:
@@ -168,3 +172,16 @@ def test_walk_does_not_modify_the_folder(tmp_path: Path) -> None:
     for file in tree.files():
         file.read_bytes(10)
     assert {p: p.stat().st_mtime_ns for p in root.rglob("*")} == before
+
+
+def test_git_folder_name_follows_the_file_system_case_rules(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = materialize(tmp_path / "r", {".GIT/config": "[core]\n", ".GIT/run.sh": "echo\n"})
+    monkeypatch.setattr(local, "_GIT_NAME_ANY_CASE", True)
+    assert paths(walk(root)[0]) == [".GIT/config"]
+    # Linux: ".GIT" is not Git's folder, so everything in it is ordinary content.
+    monkeypatch.setattr(local, "_GIT_NAME_ANY_CASE", False)
+    assert paths(walk(root)[0]) == [".GIT/config", ".GIT/run.sh"]
+    assert local.is_git_name(".git")
+    assert not local.is_git_name(".Git")

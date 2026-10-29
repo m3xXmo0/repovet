@@ -51,18 +51,19 @@
   exclude: [{set: vendored}]
   check:
     type: filename
-    name_regex: '\.(?:pdf|docx?|xlsx?|pptx?|txt|rtf|md|jpe?g|png|gif|bmp|mp[34]|avi|mov|zip|rar|7z)[ \t]*\.(?:exe|scr|com|pif|cpl|msi|bat|cmd|lnk|vbs|vbe|jse|wsf|wsh|hta|ps1|jar|url|appref-ms)\Z'
+    name_regex: '\.(?:pdf|docx?|xlsx?|pptx?|txt|rtf|md|jpe?g|png|gif|bmp|mp[34]|avi|mov|zip|rar|7z)[ \t]*\.(?:exe|scr|com|pif|cpl|msi|bat|cmd|lnk|vbs|vbe|jse|wsf|wsh|hta|ps1|jar|url|appref-ms|command|desktop|terminal)\Z'
   message: "{path} hides its real type behind a second extension"
   rationale: >
     Windows hides known extensions by default, so "report.pdf.exe" is shown as
-    "report.pdf". A program, script or shortcut that pretends to be a document is a
-    classic way to get it started by accident.
+    "report.pdf"; macOS Finder and Linux file managers can hide them too. A program,
+    script or shortcut that pretends to be a document is a classic way to get it
+    started by accident.
   recommendation: >
     Do not open the file. Show file extensions in Explorer and treat the repository as
     malicious.
   references:
     - https://attack.mitre.org/techniques/T1036/007/
-  tags: [masquerading, windows]
+  tags: [masquerading]
 
 - id: RC-BIN-004
   title: Invisible or control characters in a file or folder name

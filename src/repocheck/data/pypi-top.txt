@@ -1,7 +1,9 @@
 # Most downloaded PyPI projects (last 30 days), most popular first, names normalized
 # per PEP 503. Source: https://hugovk.github.io/top-pypi-packages/ (data from the
 # public PyPI download statistics, last update 2026-10-01 12:40:51). Names only.
-# See SOURCES.md.
+# "top-pypi-packages" by Hugo van Kemenade, licensed under CC BY 4.0
+# (https://creativecommons.org/licenses/by/4.0/); changed: names only, first 15,000,
+# normalized. See SOURCES.md.
 boto3
 packaging
 typing-extensions

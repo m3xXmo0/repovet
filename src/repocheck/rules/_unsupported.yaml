@@ -5,12 +5,16 @@
 - scope: ecosystem:rust
   files: ["**/build.rs"]
   exclude: [{set: vendored}]
-  reason: Rust build scripts (build.rs) run during cargo build and are not analyzed
+  reason: >
+    Rust build scripts (build.rs) are only checked for network access; what else they
+    do during cargo build is not analyzed
 
 - scope: ecosystem:php
   files: ["**/composer.json"]
   exclude: [{set: vendored}, "**/vendor/**"]
-  reason: Composer scripts (composer.json) are not analyzed
+  reason: >
+    Composer scripts (composer.json) are only checked for install and update hooks and
+    downloads; the PHP code they call and Composer plugins are not analyzed
 
 - scope: ecosystem:jvm
   files:
@@ -20,12 +24,16 @@
     - "**/settings.gradle.kts"
     - "**/pom.xml"
   exclude: [{set: vendored}]
-  reason: Gradle and Maven build files are not analyzed
+  reason: >
+    Gradle build files are only checked for external commands, downloads and the
+    wrapper URL; Gradle plugins and Maven build files (pom.xml) are not analyzed
 
 - scope: ecosystem:ruby
   files: ["**/*.gemspec", "**/Rakefile", "**/Gemfile"]
   exclude: [{set: vendored}, "**/vendor/**"]
-  reason: Ruby gemspecs, Rakefiles and Gemfiles are not analyzed
+  reason: >
+    Ruby gemspecs, Rakefiles and Gemfiles are only checked for native extensions and
+    downloads; other Ruby code in them is not analyzed
 
 - scope: ecosystem:go
   files: ["**/*.go"]
