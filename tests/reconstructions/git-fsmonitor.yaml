@@ -1,0 +1,35 @@
+id: git-fsmonitor
+title: core.fsmonitor in a shipped Git config and in a buried bare repository
+kind: technique
+year: 2022
+technique: >
+  Git runs the command in core.fsmonitor on almost every operation, including the
+  git status that shell prompts and IDEs call when a folder is opened. A plain clone
+  cannot carry .git/config, but an archive can, and a repository can contain a
+  "buried" bare repository in a subfolder whose config Git honours when someone works
+  inside that folder.
+sources:
+  - https://github.com/justinsteven/advisories/blob/main/2022_git_buried_bare_repos_and_fsmonitor_various_abuses.md
+reconstruction: >
+  A downloaded folder whose .git/config sets core.fsmonitor, and a bare repository
+  layout (HEAD, config, objects, refs) in a subfolder with the same setting. The
+  command only echoes.
+files:
+  .git/config: "[core]\n\trepositoryformatversion = 0\n\tbare = false\n\tfsmonitor = \"echo dummy\"\n"
+  README.md: |
+    # Demo project
+  fixtures/demo.git/HEAD: |
+    ref: refs/heads/main
+  fixtures/demo.git/config: "[core]\n\trepositoryformatversion = 0\n\tbare = true\n\tfsmonitor = \"echo dummy\"\n"
+  fixtures/demo.git/objects/info/packs: "\n"
+  fixtures/demo.git/refs/heads/main: |
+    0000000000000000000000000000000000000000
+must_fire:
+  - {rule: RC-AUTO-032, path: .git/config}
+must_not_fire: [RC-AUTO-030, RC-AUTO-031]
+known_gaps:
+  - rule: RC-AUTO-032
+    path: fixtures/demo.git/config
+    reason: >
+      The Git config rules look at .git/config only; a bare repository buried in a
+      subfolder keeps its config next to HEAD, objects and refs.

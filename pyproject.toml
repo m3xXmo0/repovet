@@ -1,6 +1,6 @@
 [project]
 name = "repovet"
-version = "0.2.0"
+version = "0.3.0"
 description = "Vet a Git repository before you run it."
 readme = "README.md"
 license = "MIT"

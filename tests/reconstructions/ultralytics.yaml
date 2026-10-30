@@ -1,0 +1,48 @@
+id: ultralytics
+title: ultralytics workflow injection
+kind: incident
+year: 2024
+technique: >
+  A pull_request_target workflow used a composite action that put the pull request's
+  branch name (github.head_ref) unquoted into a shell command. A branch name with a
+  command substitution downloaded and ran a script, which led to poisoned build caches
+  and malicious ultralytics releases on PyPI.
+sources:
+  - https://blog.yossarian.net/2024/12/06/zizmor-ultralytics-injection
+  - https://blog.pypi.org/posts/2024-12-11-ultralytics-attack-analysis/
+reconstruction: >
+  An action repository: a workflow on pull_request_target that uses the local
+  composite action, whose run step interpolates github.head_ref into git pull.
+files:
+  .github/workflows/format.yml: |
+    name: Ultralytics Actions
+    on:
+      pull_request_target:
+        branches: [main]
+    jobs:
+      format:
+        runs-on: ubuntu-latest
+        steps:
+          - uses: ./
+  action.yml: |
+    name: Ultralytics Actions
+    runs:
+      using: composite
+      steps:
+        - name: Commit and Push Changes
+          shell: bash
+          run: |
+            git pull origin ${{ github.head_ref || github.ref }}
+            git add .
+            git commit -m "Auto-format by Ultralytics actions"
+            git push origin ${{ github.head_ref || github.ref }}
+must_not_fire: [RC-AUTO-061, RC-DLX-001]
+known_gaps:
+  - rule: RC-AUTO-060
+    reason: >
+      Untrusted branch names reach a shell under pull_request_target; the rule only
+      reports checkouts of the pull request in workflow files, not expression injection
+      and not composite actions.
+not_covered: >
+  Cache poisoning and the later use of a leftover PyPI token happen on GitHub's side
+  and are not visible in the repository.

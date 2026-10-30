@@ -46,6 +46,11 @@ SDIST_REQUIRED = {
     "tests/conftest.py",
     "docs/report.schema.json",
     "docs/agent-skills.md",
+    "docs/fp-benchmark.md",
+    "docs/fp-benchmark.json",
+    "scripts/corpus-baseline.json",
+    "tests/reconstructions/README.md",
+    "tests/self-scan-baseline.json",
 }
 SCRIPT_ENTRY = "repovet = repovet.cli:main"
 LICENSE = "MIT"

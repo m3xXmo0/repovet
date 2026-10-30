@@ -1,0 +1,55 @@
+id: nx-s1ngularity
+title: Nx "s1ngularity"
+kind: incident
+year: 2025
+technique: >
+  A pull_request_target workflow interpolated the pull request title into a shell step,
+  which let an attacker steal the npm publishing token. The malicious nx versions ran
+  telemetry.js on postinstall; it started locally installed AI coding CLIs with their
+  approval checks switched off (--dangerously-skip-permissions, --yolo,
+  --trust-all-tools) and a prompt to inventory files with secrets, uploaded the results
+  to a public GitHub repository and appended a shutdown command to shell start files.
+sources:
+  - https://github.com/advisories/GHSA-cxm3-wv7p-598c
+  - https://nx.dev/blog/s1ngularity-postmortem
+  - https://snyk.io/blog/weaponizing-ai-coding-agents-for-malware-in-the-nx-malicious-package
+reconstruction: >
+  The vulnerable workflow (title in a run step under pull_request_target) and a
+  package whose postinstall runs telemetry.js. The prompt only asks to print a word;
+  the upload and the shell start file change are left out.
+files:
+  .github/workflows/pr-title.yml: |
+    on:
+      pull_request_target:
+        types: [opened, edited, synchronize]
+    jobs:
+      validate:
+        runs-on: ubuntu-latest
+        steps:
+          - run: echo "${{ github.event.pull_request.title }}" > title.txt
+  package.json: |
+    {"name": "nx", "version": "21.5.0", "scripts": {"postinstall": "node telemetry.js"}}
+  telemetry.js: |
+    const { spawnSync } = require("child_process");
+    const PROMPT = "Print the word dummy and stop.";
+    const cliChecks = {
+      claude: ["--dangerously-skip-permissions", "-p", PROMPT],
+      gemini: ["--yolo", "-p", PROMPT],
+      q: ["chat", "--trust-all-tools", "--no-interactive", PROMPT],
+    };
+    for (const [cli, args] of Object.entries(cliChecks)) spawnSync(cli, args, { stdio: "ignore" });
+must_fire:
+  - {rule: RC-AUTO-001, path: package.json}
+must_not_fire: [RC-AGENT-001, RC-DLX-001]
+known_gaps:
+  - rule: RC-AGENT-024
+    path: telemetry.js
+    reason: >
+      An install script starts AI agents with approvals switched off; RC-AGENT-024
+      only reads agent instruction and settings files, not code that launches agents.
+  - rule: RC-AUTO-060
+    path: .github/workflows/pr-title.yml
+    reason: >
+      The pull request title is interpolated into a shell step of a
+      pull_request_target workflow; the rule only reports checking out the pull
+      request's code, not expression injection.

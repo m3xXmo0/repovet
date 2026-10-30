@@ -15,7 +15,7 @@ body:
     attributes:
       label: repovet version
       description: Output of `repovet --version`.
-      placeholder: repovet 0.2.0
+      placeholder: repovet 0.3.0
     validations:
       required: true
   - type: input

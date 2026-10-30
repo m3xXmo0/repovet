@@ -1,0 +1,16 @@
+{
+  "description": "Findings that repovet's scan of its own repository is expected to report: detection patterns and test data. Written by scripts/self_scan.py --update.",
+  "repovet": "0.3.0",
+  "expected": [
+    {
+      "rule": "RC-PROV-011",
+      "path": "tests/corpus/README.md",
+      "count": 1
+    },
+    {
+      "rule": "RC-PROV-011",
+      "path": "tests/rule_cases/provenance.yaml",
+      "count": 3
+    }
+  ]
+}

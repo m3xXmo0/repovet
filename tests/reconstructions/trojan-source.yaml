@@ -1,0 +1,18 @@
+id: trojan-source
+title: Trojan Source (CVE-2021-42574)
+kind: technique
+year: 2021
+technique: >
+  Bidirectional control characters in comments and strings reorder how source code is
+  displayed, so reviewers read different logic than the compiler or interpreter runs.
+sources:
+  - https://trojansource.codes/
+  - https://nvd.nist.gov/vuln/detail/CVE-2021-42574
+reconstruction: >
+  The paper's "stretched string" example in JavaScript: an access check that looks
+  like a comparison followed by a comment but compares against a longer string.
+files:
+  src/access.js: "var accessLevel = \"user\";\nif (accessLevel != \"user\u202E \u2066// Check if admin\u2069 \u2066\") {\n    console.log(\"You are an admin.\");\n}\n"
+must_fire:
+  - {rule: RC-OBF-008, path: src/access.js}
+must_not_fire: [RC-AGENT-004, RC-OBF-009]

@@ -3,6 +3,30 @@
 Thanks for helping. The most useful contributions are reports of false positives and
 missed detections, and new or narrower rules. Please read this page first; it is short.
 
+## Design principles
+
+These hold for every change; a pull request that breaks one will not be merged.
+
+- **Static analysis only.** repovet reads files and Git objects. It never executes,
+  imports, builds or installs anything from a checked repository: no scripts, hooks,
+  package managers, `git` binary, filters or LFS, not even "just to test".
+- **No risk score, no verdict.** There is no overall score and no "safe" or "unsafe".
+  The report lists findings, and "no findings" is never worded as "safe".
+- **Every finding is explained.** Each has a rule ID, a severity, a confidence, the file
+  and line where that applies, why it matters and what to do.
+- **An honest "Not checked" list.** Files that were skipped or could not be parsed,
+  steps that were switched off and ecosystems that are not supported are listed in
+  every report.
+- **Minimal dependencies.** At runtime only PyYAML and dulwich; everything else is the
+  Python standard library.
+- **Network only where documented, and switchable off.** The local analysis is offline.
+  Network access happens only to clone a URL you name and, as a separate step, to ask the
+  GitHub API; `--offline` turns the API off. An optional token is read from the
+  environment and never printed.
+- **Measured, not claimed.** What repovet detects is checked against reconstructions of
+  documented attacks (`tests/reconstructions/`), and false alarms against popular
+  repositories (`docs/fp-benchmark.md`); known gaps stay written down.
+
 ## Ground rules
 
 - **repovet never runs anything from a checked repository.** No `subprocess`, no

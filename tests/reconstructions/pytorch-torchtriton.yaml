@@ -1,0 +1,22 @@
+id: pytorch-torchtriton
+title: PyTorch nightly torchtriton dependency confusion
+kind: incident
+year: 2022
+technique: >
+  PyTorch nightly builds depended on torchtriton from PyTorch's own package index.
+  Someone registered the same name on PyPI; because pip prefers PyPI when an extra
+  index is configured, installs pulled the malicious package, whose binary uploaded
+  system information and files from the home directory.
+sources:
+  - https://pytorch.org/blog/compromised-nightly-dependency/
+reconstruction: >
+  A requirements file that adds an extra package index next to PyPI and installs a
+  package expected from that index. The index host is a placeholder.
+files:
+  requirements.txt: |
+    --extra-index-url https://download.example.invalid/whl/nightly
+    torch
+    torchtriton
+must_fire:
+  - {rule: RC-DEP-011, path: requirements.txt}
+must_not_fire: [RC-DEP-001, RC-DEP-012]

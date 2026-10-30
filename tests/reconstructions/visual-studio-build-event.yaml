@@ -1,0 +1,38 @@
+id: visual-studio-build-event
+title: Visual Studio project with a build event (campaign against security researchers)
+kind: incident
+year: 2021
+technique: >
+  Attackers posing as researchers shared a Visual Studio project for an exploit. A
+  build event in the project ran a precompiled DLL shipped with it, a backdoor that
+  contacted the attackers' servers, as soon as the project was built.
+sources:
+  - https://blog.google/threat-analysis-group/new-campaign-targeting-security-researchers/
+reconstruction: >
+  A .vcxproj whose PreBuildEvent starts a bundled DLL with rundll32, and the DLL as a
+  minimal PE header without code, stored under a non-executable file extension.
+files:
+  Exploit.vcxproj: |
+    <?xml version="1.0" encoding="utf-8"?>
+    <Project DefaultTargets="Build" ToolsVersion="16.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+      <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+        <PreBuildEvent>
+          <Command>rundll32.exe "$(ProjectDir)lib\helper.db",Start</Command>
+        </PreBuildEvent>
+      </ItemDefinitionGroup>
+      <ItemGroup>
+        <ClCompile Include="main.cpp" />
+      </ItemGroup>
+    </Project>
+  main.cpp: |
+    int main() { return 0; }
+  lib/helper.db: {base64: TVoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAFBFAABkhgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=}
+must_fire:
+  - {rule: RC-BIN-001, path: lib/helper.db}
+must_not_fire: [RC-DLX-002]
+known_gaps:
+  - rule: RC-AUTO-070
+    path: Exploit.vcxproj
+    reason: >
+      The rule reports Exec tasks; PreBuildEvent and PostBuildEvent commands in
+      Visual Studio projects run on build as well but are not matched.

