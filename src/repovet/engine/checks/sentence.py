@@ -6,8 +6,9 @@ skipped (it is shown as code, not given as an instruction), while inline code sp
 part of their sentence. ``signals`` are named regexes, matched against one sentence at a
 time (an anchor at the start of the text matches at the start of the sentence);
 ``combinations`` is a list of signal-name lists, each with an optional ``severity`` that
-lowers the rule's. A sentence is reported once, with the first combination whose signals
-all occur in it.
+lowers the rule's and an optional ``unless`` list of signals that cancel it (a negation
+such as "never send ..."). A sentence is reported once, with the first combination whose
+signals all occur in it and none of whose ``unless`` signals do.
 
 ``prefilter`` lists literal strings (case-insensitive); files that contain none of them
 are skipped. ``demote_descriptive: true`` reports a sentence with low severity and low
@@ -38,6 +39,7 @@ _MAX_PARAGRAPH = 20_000
 class Combination:
     signals: tuple[str, ...]
     severity: Severity | None
+    unless: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -132,6 +134,8 @@ class SentenceCheck(Check):
         for combination in self.combinations:
             if not all(name in found for name in combination.signals):
                 continue
+            if any(name in found for name in combination.unless):
+                continue
             first = start + min(found[name].start() for name in combination.signals)
             last = start + max(found[name].end() for name in combination.signals)
             sentence = text.strip()
@@ -169,11 +173,16 @@ def build(params: Params, env: BuildEnv) -> Check:
         raise CheckError("'combinations' must be a non-empty list")
     combinations: list[Combination] = []
     for raw in raw_combinations:
-        if not isinstance(raw, dict) or not set(raw) <= {"signals", "severity"}:
-            raise CheckError("each combination needs 'signals' and may have 'severity'")
+        if not isinstance(raw, dict) or not set(raw) <= {"signals", "severity", "unless"}:
+            raise CheckError(
+                "each combination needs 'signals' and may have 'severity' and 'unless'"
+            )
         names = raw.get("signals")
         if not isinstance(names, list) or not names or not all(n in signals for n in names):
             raise CheckError(f"combination {names!r} must name defined signals")
+        unless = raw.get("unless", [])
+        if not isinstance(unless, list) or not all(n in signals for n in unless):
+            raise CheckError(f"combination 'unless' {unless!r} must name defined signals")
         severity = raw.get("severity")
         if severity is not None and not isinstance(severity, str):
             raise CheckError("combination 'severity' must be a severity name")
@@ -181,7 +190,7 @@ def build(params: Params, env: BuildEnv) -> Check:
             level = None if severity is None else Severity.parse(severity)
         except ValueError as exc:
             raise CheckError(str(exc)) from None
-        combinations.append(Combination(tuple(names), level))
+        combinations.append(Combination(tuple(names), level, tuple(unless)))
     prefilter = params.get_str_list("prefilter")
     descriptive = params.get_bool("demote_descriptive")
     params.done()

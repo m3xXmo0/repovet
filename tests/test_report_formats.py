@@ -26,7 +26,9 @@ JSON_SCHEMA = json.loads((ROOT / "docs" / "report.schema.json").read_text(encodi
 SARIF_SCHEMA = json.loads(
     (Path(__file__).parent / "schemas" / "sarif-schema-2.1.0.json").read_text(encoding="utf-8")
 )
-TASKS = '{"tasks": [{"label": "x", "runOptions": {"runOn": "folderOpen"}}]}'
+TASKS = (
+    '{"tasks": [{"label": "x", "command": "node setup.js", "runOptions": {"runOn": "folderOpen"}}]}'
+)
 
 type Capture = pytest.CaptureFixture[str]
 
@@ -188,7 +190,7 @@ def test_cli_json_to_stdout(repo: Path, capsys: Capture) -> None:
     code = main(["scan", str(repo), "--format", "json"])
     report = json.loads(capsys.readouterr().out)
     assert code == EXIT_FINDINGS
-    assert [f["rule_id"] for f in report["findings"]] == ["RC-AUTO-020"]
+    assert [f["rule_id"] for f in report["findings"]] == ["RC-AUTO-023", "RC-AUTO-020"]
     assert report["findings"][0]["location"] == {
         "path": ".vscode/tasks.json",
         "line": 1,
@@ -208,7 +210,7 @@ def test_cli_sarif_to_file(repo: Path, tmp_path: Path, capsys: Capture) -> None:
     validate_sarif(report)
     run = report["runs"][0]
     assert len(run["tool"]["driver"]["rules"]) == len(builtin_rules().active())
-    assert [r["ruleId"] for r in run["results"]] == ["RC-AUTO-020"]
+    assert [r["ruleId"] for r in run["results"]] == ["RC-AUTO-023", "RC-AUTO-020"]
 
 
 def test_cli_text_to_file_has_no_colors(repo: Path, tmp_path: Path, capsys: Capture) -> None:
@@ -250,7 +252,7 @@ def test_cli_min_severity_applies_to_json(repo: Path, capsys: Capture) -> None:
     report = json.loads(capsys.readouterr().out)
     assert code == EXIT_FINDINGS  # exit code does not depend on what is shown
     assert report["findings"] == []
-    assert report["summary"]["hidden_below_min_severity"] == 1
+    assert report["summary"]["hidden_below_min_severity"] == 2
 
 
 def test_cli_clean_folder_json(tmp_path: Path, capsys: Capture) -> None:

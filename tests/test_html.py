@@ -105,7 +105,10 @@ def test_well_formed_nesting() -> None:
 
 
 def test_cli_html_to_file(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    tasks = '{"tasks": [{"label": "x", "runOptions": {"runOn": "folderOpen"}}]}'
+    tasks = (
+        '{"tasks": [{"label": "x", "command": "node setup.js",'
+        ' "runOptions": {"runOn": "folderOpen"}}]}'
+    )
     repo = materialize(tmp_path / "repo", {".vscode/tasks.json": tasks})
     report = tmp_path / "report.html"
     assert main(["scan", str(repo), "--format", "html", "-o", str(report)]) == EXIT_FINDINGS

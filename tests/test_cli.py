@@ -7,7 +7,9 @@ from repovet import scanning
 from repovet.cli import EXIT_ABORTED, EXIT_FINDINGS, EXIT_OK, EXIT_USAGE, main
 from repovet.report import terminal
 
-TASKS = '{"tasks": [{"label": "x", "runOptions": {"runOn": "folderOpen"}}]}'
+TASKS = (
+    '{"tasks": [{"label": "x", "command": "node setup.js", "runOptions": {"runOn": "folderOpen"}}]}'
+)
 
 type Capture = pytest.CaptureFixture[str]
 
@@ -52,9 +54,18 @@ def test_fail_on_and_min_severity(repo: Path, capsys: Capture) -> None:
 
 
 def test_ignore_rule(repo: Path, capsys: Capture) -> None:
-    code, out, _ = run(capsys, "scan", str(repo), "--ignore-rule", "RC-AUTO-020", "--no-color")
+    code, out, _ = run(
+        capsys,
+        "scan",
+        str(repo),
+        "--ignore-rule",
+        "RC-AUTO-020",
+        "--ignore-rule",
+        "RC-AUTO-023",
+        "--no-color",
+    )
     assert code == EXIT_OK
-    assert f"No findings from {RULE_COUNT - 1} rules" in out
+    assert f"No findings from {RULE_COUNT - 2} rules" in out
     code, _, err = run(capsys, "scan", str(repo), "--ignore-rule", "RC-AUTO-999")
     assert code == EXIT_USAGE
     assert "RC-AUTO-999" in err
@@ -97,7 +108,7 @@ def test_argument_errors_exit_2(
 def test_help_and_version_exit_0(capsys: Capture) -> None:
     code, out, _ = run(capsys, "--version")
     assert code == EXIT_OK
-    assert "repovet 0.4.0" in out
+    assert "repovet 0.4.1" in out
     assert run(capsys, "scan", "--help")[0] == EXIT_OK
 
 

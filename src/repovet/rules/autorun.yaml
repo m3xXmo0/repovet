@@ -237,7 +237,10 @@
 - id: RC-AUTO-020
   title: VS Code task runs when the folder is opened
   area: autorun
-  severity: high
+  # What the task reaches decides the severity: a script of the repository is high
+  # (RC-AUTO-023), a download or decoded payload critical (RC-AUTO-021), a script that
+  # reaches such code through other files a chain (RC-AUTO-090).
+  severity: medium
   confidence: high
   files: ["**/.vscode/tasks.json"]
   exclude: [{set: vendored}]
@@ -249,7 +252,8 @@
   message: "A task in this file has runOn: {value}"
   rationale: >
     VS Code can start a task with `runOptions.runOn: folderOpen` automatically as soon
-    as the folder is opened in a trusted workspace, without any further action.
+    as the folder is opened in a trusted workspace, without any further action. Watch
+    and build tasks use this legitimately; read what the command starts.
   recommendation: >
     Open the folder in Restricted Mode (do not trust it) and read the task first.
     The setting `task.allowAutomaticTasks: off` stops automatic tasks.
@@ -283,6 +287,34 @@
     - https://code.visualstudio.com/docs/editor/tasks#_run-behavior
     - https://code.visualstudio.com/docs/editor/workspace-trust
   tags: [vscode, ide, download]
+
+- id: RC-AUTO-023
+  title: VS Code task that runs on folder open starts a script of the repository
+  area: autorun
+  severity: high
+  confidence: medium
+  files: ["**/.vscode/tasks.json"]
+  exclude: [{set: vendored}]
+  check:
+    type: keypath
+    format: jsonc
+    paths: ["tasks.*"]
+    where:
+      - {path: runOptions.runOn, equals: folderOpen}
+    # A script or program file named in the command or its arguments (by extension).
+    value_regex: '(?i:(?:\A|[\s"''=(])(?:\$\{workspace(?:Folder|Root)\}[\\/]|\.{1,2}[\\/])?(?:[\w.@-]{1,80}[\\/]){0,8}[\w@-][\w.@-]{0,80}\.(?:js|mjs|cjs|ts|mts|cts|py|pyw|sh|bash|zsh|ps1|psm1|bat|cmd|vbs|vbe|jse|wsf|hta|rb|pl|php|lua|exe|dll|jar|scr|com)(?=\Z|[\s"'');&|]))'
+  message: "Task starts on folder open and runs a file of the repository: {match}"
+  rationale: >
+    This task starts as soon as the folder is opened in a trusted workspace and runs a
+    script or program shipped in the repository, which can do anything with your user
+    rights before you have read it.
+  recommendation: >
+    Open the folder in Restricted Mode (do not trust it) and read the script the task
+    starts. The setting `task.allowAutomaticTasks: off` stops automatic tasks.
+  references:
+    - https://code.visualstudio.com/docs/editor/tasks#_run-behavior
+    - https://code.visualstudio.com/docs/editor/workspace-trust
+  tags: [vscode, ide]
 
 - id: RC-AUTO-022
   title: VS Code settings point an interpreter, tool or shell into the repository
@@ -845,20 +877,26 @@
   tags: [git]
 
 - id: RC-AUTO-060
-  title: GitHub workflow runs pull request code with pull_request_target
+  title: Privileged GitHub workflow checks out pull request code
   area: autorun
   severity: medium
   confidence: medium
   files: [".github/workflows/*.yml", ".github/workflows/*.yaml"]
   check:
     type: regex
-    pattern: '\bref:[ \t]*["'']?\$\{\{[ \t]*(?:github\.event\.pull_request\.head\.(?:sha|ref)|github\.head_ref)\b|\bgh[ \t]+pr[ \t]+checkout\b'
-    file_requires: ['\bpull_request_target\b']
+    ignore: '\A[ \t]*#'
+    # actions/checkout of the pull request's head or merge commit (also through
+    # refs/pull/N, format() or an env value), the head repository, git fetch of a pull
+    # ref, git checkout of the head commit, gh pr checkout; in workflows started by
+    # pull_request_target, comments or workflow_run.
+    pattern: '\bref:[ \t]*["'']?[^\n]{0,20}?\$\{\{[^}\n]{0,80}?(?:github\.event\.pull_request\.(?:head\.(?:sha|ref)|merge_commit_sha|number)|github\.event\.(?:number|issue\.number)|github\.head_ref|github\.event\.workflow_run\.head_(?:sha|branch))\b|\bref:[ \t]*["'']?\$\{\{[ \t]*env\.[A-Za-z_]\w*[ \t]*\}\}|\brepository:[ \t]*["'']?\$\{\{[^}\n]{0,40}?\bgithub\.event\.(?:pull_request\.head\.repo\.full_name|workflow_run\.head_repository\.full_name)\b|\bgit[ \t]+fetch\b[^\n]{0,100}?\bpull/[^\n/]{1,80}?/(?:head|merge)\b|\bgit[ \t]+(?:checkout|switch|reset[ \t]+--hard)\b[^\n]{0,40}?\$\{\{[^}\n]{0,40}?\bgithub\.(?:event\.pull_request\.head\.(?:sha|ref)|head_ref|event\.workflow_run\.head_(?:sha|branch))\b|\bgh[ \t]+pr[ \t]+checkout\b'
+    file_requires: ['\b(?:pull_request_target|issue_comment|workflow_run)\b']
   message: "Checks out the pull request in a privileged workflow: {match}"
   rationale: >
     pull_request_target runs with the repository's secrets and write token. Checking
     out and building the pull request's code there lets any outside contributor run
-    code with those rights ("pwn request"). This affects the repository's maintainers
+    code with those rights ("pwn request"). Comment-triggered and workflow_run
+    workflows have the same rights. This affects the repository's maintainers
     and users of its releases, not your machine directly.
   recommendation: >
     Treat releases built by this workflow with care. Maintainers should use
@@ -906,10 +944,10 @@
     # while outsiders control the text (pull_request_target, issue and discussion
     # events, comments, workflow_run), and composite actions, whose callers may be such
     # workflows. A plain pull_request from a fork has neither secrets nor write access.
-    file_requires: ['\b(?:pull_request_target|issue_comment|discussion_comment|workflow_run)\b|(?m:^[ \t]*(?:issues|discussion)[ \t]*:[ \t]*(?:#[^\n]*)?$)|(?m:^["'']?on["'']?:[^\n]*\b(?:issues|discussion)\b)|(?m:^[ \t]*-[ \t]*(?:issues|discussion)[ \t]*$)|\busing:[ \t]*["'']?composite\b']
+    file_requires: ['{{privileged_trigger}}']
     # run steps and github-script code; env values (the safe way) are not reported.
     paths: ["jobs.*.steps.*.run", "jobs.*.steps.*.with.script", "runs.steps.*.run"]
-    value_regex: '\$\{\{[^}]{0,200}?\bgithub\.(?:head_ref|event\.(?:issue\.(?:title|body)|pull_request\.(?:title|body|head\.(?:ref|label|repo\.default_branch))|comment\.body|review(?:_comment)?\.body|discussion\.(?:title|body)|pages\.[\w*\[\]]{1,10}\.page_name|(?:commits\.[\w*\[\]]{1,10}|head_commit)\.(?:message|author\.(?:email|name))|workflow_run\.(?:head_branch|display_title|head_commit\.(?:message|author\.(?:email|name)))))\b'
+    value_regex: '\$\{\{[^}]{0,200}?{{untrusted_event_field}}'
   message: "Untrusted text is inserted into a script: {match}"
   rationale: >
     GitHub replaces ${{ }} expressions before the shell starts, so a pull request title,
@@ -923,6 +961,72 @@
   references:
     - https://securitylab.github.com/resources/github-actions-untrusted-input/
     - https://docs.github.com/en/actions/security-for-github-actions/security-guides/security-hardening-for-github-actions#understanding-the-risk-of-script-injections
+  tags: [ci, github-actions, injection]
+
+- id: RC-AUTO-063
+  title: GitHub workflow passes untrusted event text through env into a command
+  area: autorun
+  severity: medium
+  confidence: medium
+  files: [".github/workflows/*.yml", ".github/workflows/*.yaml", "**/action.yml", "**/action.yaml"]
+  exclude: [{set: vendored}]
+  check:
+    type: regex
+    scope: text
+    ignore: '\A[ \t]*#'
+    prefilter: [github.event, github.head_ref]
+    file_requires: ['{{privileged_trigger}}']
+    # NAME: ${{ <untrusted field> }} in an env block, and within the next 80 lines the
+    # value used as ${{ env.NAME }} (replaced before the shell starts), given to eval,
+    # sh -c, python -c or node -e, or written to $GITHUB_ENV/$GITHUB_OUTPUT/$GITHUB_PATH
+    # (which sets variables for later steps). Quoting "$NAME" in a script is the safe way
+    # and not reported.
+    pattern: '\b([A-Za-z_]\w{0,60})[ \t]*:[ \t]*["'']?\$\{\{[^}\n]{0,200}?{{untrusted_event_field}}[^\n]{0,200}(?:\n[^\n]{0,300}){0,80}?(?:\$\{\{[ \t]*env\.\1[ \t]*\}\}|(?:\beval|\b(?:ba|z|da|k)?sh[ \t]+-[a-z]{0,3}c|\bpython[23]?[ \t]+-c|\bnode[ \t]+-e)[ \t]+["'']?\$\{?\1\b|\$\{?\1\b[^\n]{0,80}?>>[ \t]*["'']?\$\{?GITHUB_(?:ENV|OUTPUT|PATH)\b)'
+  message: "Untrusted text reaches a command through an environment variable: {match}"
+  rationale: >
+    Moving a pull request title, branch name, issue or comment text into an environment
+    variable is only safe if the script reads it as "$NAME". Here the variable is put back
+    into the script with ${{ env.NAME }}, run with eval or sh -c, or written to
+    $GITHUB_ENV, so anyone who can open a pull request or an issue can still run commands
+    or set variables for later steps with the workflow's secrets. This affects the
+    repository's maintainers and users of its releases, not your machine directly.
+  recommendation: >
+    Treat releases built by this workflow with care. Maintainers should read the value as
+    a quoted shell variable and never write it to $GITHUB_ENV.
+  references:
+    - https://securitylab.github.com/resources/github-actions-untrusted-input/
+    - https://docs.github.com/en/actions/security-for-github-actions/security-guides/security-hardening-for-github-actions#understanding-the-risk-of-script-injections
+  tags: [ci, github-actions, injection]
+
+- id: RC-AUTO-064
+  title: GitHub workflow writes untrusted event text to a file and runs it
+  area: autorun
+  severity: medium
+  confidence: medium
+  files: [".github/workflows/*.yml", ".github/workflows/*.yaml", "**/action.yml", "**/action.yaml"]
+  exclude: [{set: vendored}]
+  check:
+    type: regex
+    scope: text
+    ignore: '\A[ \t]*#'
+    prefilter: [body, title, head_ref, message]
+    file_requires: ['{{privileged_trigger}}']
+    # A file written with event text (a ${{ }} expression, the event payload read with
+    # jq, context.payload in github-script, a BODY/TITLE/COMMENT variable) and within the
+    # next 40 lines run by a shell, source, Python, Node or PowerShell, or made executable.
+    pattern: '(?:\bwriteFile(?:Sync)?[ \t]*\([ \t]*[''"`](?P<js>[\w./-]{1,80})[''"`][ \t]*,[^\n]{0,200}?\b(?:context\.payload|github\.event)\.(?:comment|issue|pull_request|review|discussion)\.(?:body|title)\b[^\n]{0,200}(?:\n[^\n]{0,300}){0,40}?(?:\b(?:ba|z|da|k)?sh|\bsource|\bpython[23]?|\bnode|\bpwsh|\bchmod[ \t]+\+x)[ \t]+(?:-[A-Za-z]+[ \t]+){0,3}["'']?(?:\./)?(?P=js)\b|(?:\$\{\{[^}\n]{0,200}?{{untrusted_event_field}}|\.(?:comment|issue|pull_request|review|discussion)\.(?:body|title)\b[^\n]{0,120}?\bGITHUB_EVENT_PATH\b|\bGITHUB_EVENT_PATH\b[^\n]{0,120}?\.(?:comment|issue|pull_request|review|discussion)\.(?:body|title)\b|\$\{?[A-Z_]{0,30}(?:BODY|TITLE|COMMENT)[A-Z_]{0,30}\b)[^\n]{0,200}?(?:>{1,2}|\btee(?:[ \t]+-a)?)[ \t]*["'']?(?P<sh>[\w./-]{1,80})[^\n]{0,200}(?:\n[^\n]{0,300}){0,40}?(?:\b(?:ba|z|da|k)?sh|\bsource|\bpython[23]?|\bnode|\bpwsh|\bchmod[ \t]+\+x|(?<![\w-])\.)[ \t]+(?:-[A-Za-z]+[ \t]+){0,3}["'']?(?:\./)?(?P=sh)\b)'
+  message: "Event text is written to a file that the workflow runs: {match}"
+  rationale: >
+    The workflow saves a pull request, issue or comment text into a file and then runs
+    that file as a script. Whoever writes the text decides what runs, with the workflow's
+    secrets and write token. Writing to a file avoids the ${{ }} expression in the script,
+    but not the injection. This affects the repository's maintainers and users of its
+    releases, not your machine directly.
+  recommendation: >
+    Treat releases built by this workflow with care. Maintainers should never execute
+    text from events.
+  references:
+    - https://securitylab.github.com/resources/github-actions-untrusted-input/
   tags: [ci, github-actions, injection]
 
 - id: RC-AUTO-070
@@ -1240,7 +1344,7 @@
     entries:
       - kind: vscode_folder_open
         label: VS Code task runs on folder open
-        rules: [RC-AUTO-020, RC-AUTO-021]
+        rules: [RC-AUTO-020, RC-AUTO-021, RC-AUTO-023]
         inline: RC-AUTO-021
       - kind: devcontainer_host
         label: Dev container initializeCommand runs on the host

@@ -15,10 +15,11 @@ encoded_payload: '(?i:\bbase64[ \t]+(?:-d|--decode)\b|\bFromBase64String\b|[ \t]
 
 # Download and run in one step: a download piped into an interpreter; a command
 # substitution ($(...) or backticks) of a download given to a shell, eval, python -c,
-# node -e, perl -e or ruby -e; a shell reading a process substitution of a download;
-# PowerShell IEX of a download. The gap between download and pipe is bounded to keep the
-# search linear.
-download_exec: '(?:{{network_fetch}})[^\n]{0,300}?{{shell_pipe_exec}}|(?i:(?:\b(?:ba|z|da|k)?sh(?:[ \t]+-[a-z]{0,3}c)?|\beval|\bpython[23]?[ \t]+-c|\bnode[ \t]+-e|\b(?:perl|ruby)[ \t]+-e)[ \t]+["'']?(?:\$\(|`)[ \t]*(?:curl|wget)\b)|(?i:\b(?:ba|z|da|k)?sh[ \t]+<\([ \t]*(?:curl|wget)\b)|(?i:\b(?:iex|Invoke-Expression)\b[ \t]*\(?[ \t]*\(?[ \t]*(?:iwr|irm|Invoke-WebRequest|Invoke-RestMethod|New-Object[ \t]+(?:System\.)?Net\.WebClient)\b)|(?i:\.DownloadString\()'
+# node -e, perl -e or ruby -e; a shell, source/. or an interpreter reading a process
+# substitution (<(curl ...), < <(curl ...)) or a here-string (<<< "$(curl ...)") of a
+# download; PowerShell IEX of a download. The gap between download and pipe is bounded
+# and starts with a blank or '(' to keep the search linear.
+download_exec: '(?:{{network_fetch}})(?=[ \t(])[^\n]{0,300}?{{shell_pipe_exec}}|(?i:(?:\b(?:ba|z|da|k)?sh(?:[ \t]+-[a-z]{0,3}c)?|\beval|\bpython[23]?[ \t]+-c|\bnode[ \t]+-e|\b(?:perl|ruby)[ \t]+-e)[ \t]+["'']?(?:\$\(|`)[ \t]*(?:curl|wget)\b)|(?i:(?:\b(?:ba|z|da|k)?sh|\bsource|(?<![\w./-])\.|\bpython[23]?|\bnode|\b(?:perl|ruby|pwsh))(?:[ \t]+-[\w-]*){0,4}[ \t]*<[ \t]*<?\([ \t]*(?:sudo[ \t]+)?(?:curl|wget)\b)|(?i:(?:\b(?:ba|z|da|k)?sh|\bpython[23]?|\b(?:source|(?<![\w./-])\.)[ \t]+/dev/stdin)(?:[ \t]+-[\w-]*){0,4}[ \t]*<<<[ \t]*["'']?(?:\$\(|`)[ \t]*(?:curl|wget)\b)|(?i:\b(?:iex|Invoke-Expression)\b[ \t]*\(?[ \t]*\(?[ \t]*(?:iwr|irm|Invoke-WebRequest|Invoke-RestMethod|New-Object[ \t]+(?:System\.)?Net\.WebClient)\b)|(?i:\.DownloadString\()'
 
 # Anything that downloads, runs a download or decodes a payload.
 fetch_or_run: '{{download_exec}}|{{network_fetch}}|{{shell_pipe_exec}}|{{encoded_payload}}'
@@ -62,13 +63,38 @@ temp_path: '(?i:/tmp/|/var/tmp/|/dev/shm/|%te?mp%|\$env:te?mp\b|\$TMPDIR\b|\bGet
 # Lua/SQL --, batch REM and ::). Code in comments does not run.
 comment_line: '\A[ \t]*(?:#|//|/\*|\*|--|::|(?i:rem)\b)'
 
-# Prose in AI agent files (RC-AGENT-028). A verb that moves data off the machine.
-agent_exfil_verb: '\b(?:send|post|upload|paste|exfiltrate|transmit|forward)\b'
+# Prose in AI agent files (RC-AGENT-028), English and German. A verb that moves data
+# off the machine ("lade ... hoch", "leite ... weiter" are separable German verbs).
+agent_exfil_verb: '\b(?:send|post|upload|paste|exfiltrate|transmit|forward)\b|\b(?:sende[nt]?|schick(?:e|en|t)?|übermittl(?:e|en|t)|übertrag(?:e|en)?|überträgt|poste[nt]?|hochlad(?:en|e)|exfiltrier(?:e|en|t))\b|\blade[ \t][^\n]{0,150}?\bhoch\b|\bleite[ \t][^\n]{0,150}?\bweiter\b|\bweiterleiten\b'
+
+# Prose: files that hold keys and credentials (not public keys or example files).
+agent_secret_file: '(?:\A|[\s`"''(/])\.env\b(?![.\w-])|\bid_(?:rsa|ed25519|ecdsa|dsa)\b(?!\.pub)|(?:~|\$HOME|\$\{HOME\}|%USERPROFILE%)[\\/]\.(?:ssh\b(?![\\/][\w.-]*\.pub\b|[\\/](?:known_hosts|config)\b)|(?:aws|gnupg|kube|docker|config[\\/]gh)\b)|\.(?:git-credentials|npmrc|netrc|pypirc)\b|\.aws[\\/]credentials\b|\.docker[\\/]config\.json\b|\.kube[\\/]config\b'
 
 # Prose: secrets, credentials and the environment. A bare "token" is not counted (in AI
 # agent files it usually means model tokens); access, API, auth ... tokens and
 # environment variable names such as GITHUB_TOKEN are.
-agent_secret_ref: '(?:\A|[\s`"''(/])\.env\b|\benv\b|\benvironment[ \t]+variables?\b|\bprintenv\b|\b(?:access|api|auth|bearer|github|gh|gitlab|npm|pypi|deploy|session|refresh|personal)[ \t_-]+tokens?\b|(?-i:\b[A-Z][A-Z0-9_]*_(?:TOKEN|KEY|SECRET)\b)|\bsecrets?\b|\bcredentials?\b|\bapi[ _-]?keys?\b|\bpasswords?\b|\bprivate[ \t]+keys?\b|\bid_(?:rsa|ed25519|ecdsa)\b|(?:~|\$HOME)/\.(?:ssh|aws|npmrc|netrc|config/gh)\b'
+agent_secret_ref: '{{agent_secret_file}}|\benv\b|\benvironment[ \t]+variables?\b|\bprintenv\b|\b(?:access|api|auth|bearer|github|gh|gitlab|npm|pypi|deploy|session|refresh|personal)[ \t_-]+tokens?\b|(?-i:\b[A-Z][A-Z0-9_]*_(?:TOKEN|KEY|SECRET)\b)|\bsecrets?\b|\bcredentials?\b|\bapi[ _-]?keys?\b|\bpasswords?\b|\bprivate[ \t]+keys?\b|\bUmgebungsvariablen?\b|\b(?:Zugangs|Anmelde|Login)daten\b|\b(?:Passw|Kennw)(?:ort|örter)\b|\bGeheimnisse?\b|\b(?:API|Zugriffs|Zugangs|Access|GitHub|npm|PyPI|Deploy)-?(?:Token|Schlüssel)s?\b|\bprivate[nrs]?[ \t]+Schlüssel\b'
 
-# Prose: "to <URL>" for an address that is not the local machine.
-agent_remote_target: '\b(?:to|into|at)[ \t]+(?:the[ \t]+|this[ \t]+)?(?:url[ \t]+|endpoint[ \t]+|server[ \t]+|address[ \t]+)?[<`"''(]?https?://(?!localhost\b|127\.|0\.0\.0\.0\b)[^\s<>`"'')]'
+# Prose: a key or credential file, or the whole environment (not a single variable,
+# which is often only used to log in).
+agent_secret_dump: '{{agent_secret_file}}|\bprintenv\b|\benvironment[ \t]+variables\b|\b(?:alle[nr]?[ \t]+)?Umgebungsvariablen\b|\b(?:process\.env|os\.environ)\b'
+
+# Prose: what is sent, named concretely: a key or credential file, all environment
+# variables, the environment dumped, a secret variable. Used where no verb is required.
+agent_secret_substance: '{{agent_secret_file}}|\bprintenv\b|\benvironment[ \t]+variables\b|\b(?:alle[nr]?[ \t]+)?Umgebungsvariablen\b|\b(?:process\.env|os\.environ)\b|(?-i:\$\{?[A-Z][A-Z0-9_]*_(?:TOKEN|KEY|SECRET|PASSWORD)\b)|(?-i:\b[A-Z][A-Z0-9_]*_(?:TOKEN|SECRET|PASSWORD)\b)'
+
+# Prose: "to <URL>" for an address that is not the local machine (German an/nach/zu/auf).
+agent_remote_target: '\b(?:to|into|at|an|nach|zu|auf)[ \t]+(?:the[ \t]+|this[ \t]+|die[ \t]+|den[ \t]+|der[ \t]+|das[ \t]+|diese[nr]?[ \t]+)?(?:url[ \t]+|endpoint[ \t]+|server[ \t]+|address[ \t]+|adresse[ \t]+|webhook[ \t]+)?[<`"''(]?https?://(?!localhost\b|127\.|0\.0\.0\.0\b)[^\s<>`"'')]'
+
+# Prose: the same as a destination, without "at"/"zu"/"auf" (which also introduce a page
+# to read) - used where no verb is required.
+agent_remote_dest: '\b(?:to|into|onto|an|nach)[ \t]+(?:the[ \t]+|this[ \t]+|die[ \t]+|den[ \t]+|der[ \t]+|das[ \t]+|diese[nr]?[ \t]+)?(?:url[ \t]+|endpoint[ \t]+|server[ \t]+|address[ \t]+|adresse[ \t]+|webhook[ \t]+)?[<`"''(]?https?://(?!localhost\b|127\.|0\.0\.0\.0\b)[^\s<>`"'')]'
+
+# GitHub Actions: event fields that outsiders control (titles, bodies, branch names,
+# commit messages and authors, page names).
+untrusted_event_field: '\bgithub\.(?:head_ref|event\.(?:issue\.(?:title|body)|pull_request\.(?:title|body|head\.(?:ref|label|repo\.default_branch))|comment\.body|review(?:_comment)?\.body|discussion\.(?:title|body)|pages\.[\w*\[\]]{1,10}\.page_name|(?:commits\.[\w*\[\]]{1,10}|head_commit)\.(?:message|author\.(?:email|name))|workflow_run\.(?:head_branch|display_title|head_commit\.(?:message|author\.(?:email|name)))))\b'
+
+# GitHub Actions: triggers that run with the repository's secrets and write token while
+# outsiders control the text (pull_request_target, issue and discussion events, comments,
+# workflow_run), and composite actions, whose callers may be such workflows.
+privileged_trigger: '\b(?:pull_request_target|issue_comment|discussion_comment|workflow_run)\b|(?m:^[ \t]*(?:issues|discussion)[ \t]*:[ \t]*(?:#[^\n]*)?$)|(?m:^["'']?on["'']?:[^\n]*\b(?:issues|discussion)\b)|(?m:^[ \t]*-[ \t]*(?:issues|discussion)[ \t]*$)|\busing:[ \t]*["'']?composite\b'

@@ -1,6 +1,6 @@
 {
   "real": {
-    "repovet": "0.4.0",
+    "repovet": "0.4.1",
     "counts": {
       "flask": {
         "RC-AUTO-026": {
@@ -86,7 +86,7 @@
         },
         "RC-AUTO-060": {
           "high": 0,
-          "medium": 1,
+          "medium": 2,
           "low": 0
         },
         "RC-DEP-010": {
@@ -223,7 +223,7 @@
     }
   },
   "reconstructions": {
-    "repovet": "0.4.0",
+    "repovet": "0.4.1",
     "counts": {
       "copilot-auto-approve": {
         "RC-AGENT-024": {

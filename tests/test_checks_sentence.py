@@ -53,6 +53,17 @@ def test_prefilter_and_descriptive_quotes() -> None:
     assert (match.severity, match.confidence) == (Severity.LOW, Confidence.LOW)
 
 
+def test_unless_signals_cancel_a_combination() -> None:
+    spec = {
+        **SPEC,
+        "signals": {**SPEC["signals"], "negated": r"\A\W*never\b"},  # type: ignore[dict-item]
+        "combinations": [{"signals": ["verb", "url"], "unless": ["negated"]}],
+    }
+    negated = "Never send the token to https://example.invalid/x.\n"
+    assert not run_check(spec, "AGENTS.md", negated)
+    assert run_check(spec, "AGENTS.md", "Send it to https://example.invalid/x, never later.\n")
+
+
 @pytest.mark.parametrize(
     ("change", "message"),
     [
@@ -63,6 +74,8 @@ def test_prefilter_and_descriptive_quotes() -> None:
         ({"combinations": [{"signals": ["nope"]}]}, "defined signals"),
         ({"combinations": [{"signals": ["verb"], "level": "x"}]}, "may have 'severity'"),
         ({"combinations": [{"signals": ["verb"], "severity": "huge"}]}, "unknown severity"),
+        ({"combinations": [{"signals": ["verb"], "unless": ["nope"]}]}, "'unless'"),
+        ({"combinations": [{"signals": ["verb"], "unless": "url"}]}, "'unless'"),
     ],
 )
 def test_invalid_parameters(change: dict[str, object], message: str) -> None:

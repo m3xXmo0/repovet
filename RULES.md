@@ -13,7 +13,8 @@ The tables below are generated with `uv run repovet rules list --markdown`; a te
 fails if they are out of date.
 
 <!-- rules-table:start -->
-#### Auto-run code (`autorun`, 49 rules)
+
+#### Auto-run code (`autorun`, 52 rules)
 
 | ID | Severity | Description |
 |----|----------|-------------|
@@ -31,9 +32,10 @@ fails if they are out of date.
 | RC-AUTO-015 | medium | Custom build hooks in pyproject.toml |
 | RC-AUTO-016 | high | .pth file with code |
 | RC-AUTO-017 | high | sitecustomize.py or usercustomize.py in the repository |
-| RC-AUTO-020 | high | VS Code task runs when the folder is opened |
+| RC-AUTO-020 | medium | VS Code task runs when the folder is opened |
 | RC-AUTO-021 | critical | VS Code task that runs on folder open downloads or executes code |
 | RC-AUTO-022 | high | VS Code settings point an interpreter, tool or shell into the repository |
+| RC-AUTO-023 | high | VS Code task that runs on folder open starts a script of the repository |
 | RC-AUTO-025 | high | Dev container runs initializeCommand on the host |
 | RC-AUTO-026 | low | Dev container lifecycle commands |
 | RC-AUTO-030 | high | Active Git hook in the repository |
@@ -50,9 +52,11 @@ fails if they are out of date.
 | RC-AUTO-054 | high | macOS Terminal settings file runs a command |
 | RC-AUTO-055 | medium | macOS location file opens something other than a web page |
 | RC-AUTO-056 | medium | macOS application bundle in the repository |
-| RC-AUTO-060 | medium | GitHub workflow runs pull request code with pull_request_target |
+| RC-AUTO-060 | medium | Privileged GitHub workflow checks out pull request code |
 | RC-AUTO-061 | medium | GitHub workflow runs an encoded command |
 | RC-AUTO-062 | medium | GitHub workflow puts untrusted event text into a shell command |
+| RC-AUTO-063 | medium | GitHub workflow passes untrusted event text through env into a command |
+| RC-AUTO-064 | medium | GitHub workflow writes untrusted event text to a file and runs it |
 | RC-AUTO-070 | medium | MSBuild project runs a command on build |
 | RC-AUTO-071 | high | MSBuild project downloads or decodes code during the build |
 | RC-AUTO-072 | high | MSBuild inline task with code |
@@ -117,7 +121,7 @@ fails if they are out of date.
 | RC-OBF-011 | high | Decrypted data is compiled and run as code |
 | RC-OBF-012 | high | Encoded string split into constants is joined, decoded and run |
 
-#### Download-and-execute (`download_exec`, 7 rules)
+#### Download-and-execute (`download_exec`, 9 rules)
 
 | ID | Severity | Description |
 |----|----------|-------------|
@@ -128,6 +132,8 @@ fails if they are out of date.
 | RC-DLX-005 | medium | Code contacts a webhook, tunnel, paste or file-sharing service or a raw IP |
 | RC-DLX-006 | high | GitHub workflow sends secrets to a request catcher or paste service |
 | RC-DLX-007 | medium | Script stores a download in a variable and runs it |
+| RC-DLX-008 | low | Secret placed in the query string of a URL |
+| RC-DLX-009 | high | GitHub workflow step sends all secrets over the network |
 
 #### Binaries, archives, file-system tricks (`binaries`, 14 rules)
 
@@ -187,4 +193,5 @@ fails if they are out of date.
 | RC-TRUST-008 | low | Local HEAD commit not found in the named GitHub repository |
 | RC-TRUST-009 | medium | Manifest names another owner's repository as the project's source |
 | RC-TRUST-010 | medium | Older, more popular repository with the same name and description |
+
 <!-- rules-table:end -->

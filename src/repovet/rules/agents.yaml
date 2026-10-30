@@ -304,42 +304,74 @@
     demote_descriptive: true
     prefilter: [send, post, upload, paste, exfiltrat, transmit, forward, ignore, disregard,
       "tell", "show", inform, mention, reveal, notify, hide, conceal, without, auto-approve,
-      autoapprove]
+      autoapprove, "http", sende, schick, übermittl, übertr, hoch, weiter, ignorier,
+      missacht, vergiss, verschweig, verheimlich, ohne, ungefragt, nichts, inhalt, contents, .env, id_, .ssh, .aws, .npmrc, .netrc, .pypirc,
+      credentials]
+    # What is sent decides, not the verb: a key file, the environment or a secret
+    # variable sent "to <URL>" is reported even when the sentence uses a verb that is not
+    # listed. A negation at the start ("never send ...", "niemals ... senden", not after
+    # "if ...,") cancels.
     signals:
       # An instruction to run something: run/execute as an imperative (at the start of the
       # sentence, after punctuation or after then/first/always/must/to ...) and a command
       # token (a code span, ./path or a common tool). "do not run", "never run" and "the
-      # run sends" are not instructions.
-      command: '(?:\A[\s>*_-]*(?:\d{1,3}[.)][ \t]*)?|[,;:][ \t]+|\b(?:then|first|always|now|please|and|also|must|should|to)[ \t]+)(?:run|execute|exec|invoke)\b[^\n]{0,80}?(?:`|\./|\b(?:make|npm|npx|pnpm|yarn|pip3?|pipx|uv|python[23]?|node|curl|wget|bash|sh|zsh|pwsh|powershell|env|printenv|cat)\b)'
+      # run sends" are not instructions. German: führe/starte/rufe ... (aus/auf).
+      command: '(?:\A[\s>*_-]*(?:\d{1,3}[.)][ \t]*)?|[,;:][ \t]+|\b(?:then|first|always|now|please|and|also|must|should|to|dann|zuerst|immer|jetzt|bitte|und|auch|danach|anschließend)[ \t]+)(?:run|execute|exec|invoke|führe|starte|rufe)\b[^\n]{0,80}?(?:`|\./|\b(?:make|npm|npx|pnpm|yarn|pip3?|pipx|uv|python[23]?|node|curl|wget|bash|sh|zsh|pwsh|powershell|env|printenv|cat)\b)'
       # A verb that moves data away from the machine.
       exfil: '{{agent_exfil_verb}}'
       # Such a verb with "to <URL>" (not to the local machine).
-      exfil_url: '{{agent_exfil_verb}}[^\n]{0,150}?{{agent_remote_target}}'
+      exfil_url: '(?:{{agent_exfil_verb}})[^\n]{0,150}?{{agent_remote_target}}'
       # The same with a secret or the environment as what is sent, before the URL.
-      exfil_secret_url: '{{agent_exfil_verb}}[^\n]{0,100}?(?:{{agent_secret_ref}})[^\n]{0,100}?{{agent_remote_target}}'
+      exfil_secret_url: '(?:{{agent_exfil_verb}})[^\n]{0,100}?(?:{{agent_secret_ref}})[^\n]{0,100}?{{agent_remote_target}}'
       # Secrets, credentials and the environment.
       secret: '{{agent_secret_ref}}'
+      # "to <URL>" alone; a German separable verb may follow it ("lade ... auf <URL> hoch").
+      remote: '{{agent_remote_target}}'
+      # A key or credential file or the whole environment.
+      dump: '{{agent_secret_dump}}'
+      # A key file, the environment or a secret variable, then "to/an <URL>" - any verb.
+      substance_url: '(?:{{agent_secret_substance}})[^\n]{0,120}?{{agent_remote_dest}}'
+      # A URL whose query string is filled by a command ($(...) or backticks).
+      url_query_command: 'https?://(?!localhost\b|127\.|0\.0\.0\.0\b)[^\s<>`"''()?]{1,200}\?[^\s<>"'']{0,200}?=["'']?(?:\$\(|`)'
+      # The contents of a key or credential file put where others can read them.
+      file_leak: '(?:\b(?:contents?|Inhalt)[ \t]+(?:of|from|von|aus|der|des|deiner|your)\b[^\n]{0,40}?|\bcat[ \t]+)(?:{{agent_secret_file}})[^\n]{0,150}?\b(?:commits?|commit[ \t]+message|gists?|issues?|pull[ \t]+requests?|PR|comments?|Kommentare?|README|changelog|Antwort|answer|response|reply|public|öffentlich\w*)\b'
       # Overriding earlier instructions or keeping something from the user.
-      override: '\b(?:ignore|disregard|forget|override)\b[^\n]{0,30}?\b(?:previous|prior|above|earlier|preceding|original|system)\b[^\n]{0,20}?\b(?:instructions?|prompts?|rules|guidelines)\b|\b(?:do[ \t]+not|don''t|never)[ \t]+(?:show|tell|inform|mention|reveal|notify|report)\b[^\n]{0,40}?\b(?:user|users|them|anyone|answer|response|reply|summary)\b|\b(?:hide|conceal)[ \t]+(?:this|it|the[ \t]+\w+)[ \t]+from\b'
-      # Acting without the user's approval.
-      no_confirm: '\bwithout[ \t]+(?:asking|confirmation|confirming|approval|permission|telling|prompting|notifying)\b|\bauto-?approve\b'
+      override: '\b(?:ignore|disregard|forget|override)\b[^\n]{0,30}?\b(?:previous|prior|above|earlier|preceding|original|system)\b[^\n]{0,20}?\b(?:instructions?|prompts?|rules|guidelines)\b|\b(?:do[ \t]+not|don''t|never)[ \t]+(?:show|tell|inform|mention|reveal|notify|report)\b[^\n]{0,40}?\b(?:user|users|them|anyone|answer|response|reply|summary)\b|\b(?:hide|conceal)[ \t]+(?:this|it|the[ \t]+\w+)[ \t]+from\b|\b(?:ignoriere|ignorier|missachte|vergiss|übergehe)\b[^\n]{0,40}?\b(?:vorherige|bisherige|obige|frühere|ursprüngliche|alle|System)\w*[^\n]{0,30}?\b(?:Anweisungen|Regeln|Vorgaben|Richtlinien|Prompts?|Instruktionen)\b|\b(?:verschweige|verheimliche|verschweigen|verheimlichen)\b|\b(?:sag|sage|erzähl|erzähle|zeig|zeige|erwähne|melde|verrate)[ \t]+(?:dem|der|den)?[ \t]*(?:Nutzer|Benutzer|Anwender|User)\w*[ \t]+(?:nichts|nicht|niemals|nie)\b|\b(?:nichts|nicht|niemals|nie)\b[^\n]{0,30}?\b(?:dem|den|der)[ \t]+(?:Nutzer|Benutzer|Anwender|User)\w*\b[^\n]{0,30}?\b(?:sagen|erzählen|zeigen|erwähnen|melden|verraten|mitteilen)\b'
+      # Acting without the user's approval or knowledge.
+      no_confirm: '\bwithout[ \t]+(?:asking|confirmation|confirming|approval|permission|telling|prompting|notifying)\b|\bwithout[ \t]+(?:the[ \t]+)?(?:user|users|them|anyone)[ \t]+(?:noticing|knowing|seeing)\b|\bauto-?approve\b|\bohne[ \t]+(?:(?:vorher(?:ige)?|zu|weitere|jede|eine|dass|es|der|den|die)[ \t]+){0,3}(?:fragen|nachfragen|Rückfrage|Nachfrage|Bestätigung|bestätigen|Zustimmung|Erlaubnis|Genehmigung|Freigabe|Bescheid|Nutzer\w*|Benutzer\w*|Anwender\w*)\b|\bungefragt\b'
+      # A negation at the start of the sentence, not after a leading "if/when ...," and
+      # not one that keeps something from the user ("erwähne das nicht", "keine
+      # Rückfrage").
+      negated: '\A[\s>*_-]*(?:\d{1,3}[.)][ \t]*)?(?!(?:if|when|unless|wenn|falls|sobald)\b)(?![^\n,;:]{0,40}?\b(?:tell|show|inform|mention|reveal|notify|report|ask|confirm\w*|asking|sag\w*|erzähl\w*|zeig\w*|erwähn\w*|meld\w*|verrat\w*|teil\w*|benachrichtig\w*|frag\w*|Rückfrage|Nachfrage|Bestätigung)\b)[^\n,;:]{0,30}?\b(?:never|do[ \t]+not|don''t|must[ \t]+not|mustn''t|should[ \t]+not|shouldn''t|avoid|nie|niemals|keinesfalls|nicht|keine[nmrs]?)\b'
+      # Setting a variable to a URL is configuration, not sending.
+      assign: '\b(?:set|setze|export|define|configure|point)\b'
     combinations:
-      - {signals: [exfil_secret_url]}
-      - {signals: [exfil_url, secret], severity: medium}
-      - {signals: [exfil_url, command], severity: medium}
-      - {signals: [exfil_url, override], severity: medium}
-      - {signals: [exfil_url, no_confirm], severity: medium}
-      - {signals: [exfil, secret, command], severity: medium}
-      - {signals: [exfil, secret, override], severity: medium}
-      - {signals: [exfil, secret, no_confirm], severity: medium}
+      - {signals: [exfil_secret_url], unless: [negated]}
+      - {signals: [exfil, dump, remote], unless: [negated]}
+      - {signals: [substance_url, override], unless: [negated]}
+      - {signals: [substance_url, no_confirm], unless: [negated]}
+      - {signals: [substance_url, command], unless: [negated]}
+      - {signals: [url_query_command, substance_url], unless: [negated]}
+      - {signals: [url_query_command, secret], unless: [negated]}
+      - {signals: [substance_url], severity: medium, unless: [negated, assign]}
+      - {signals: [file_leak], severity: medium, unless: [negated]}
+      - {signals: [exfil_url, secret], severity: medium, unless: [negated]}
+      - {signals: [exfil_url, command], severity: medium, unless: [negated]}
+      - {signals: [exfil_url, override], severity: medium, unless: [negated]}
+      - {signals: [exfil_url, no_confirm], severity: medium, unless: [negated]}
+      - {signals: [exfil, secret, command], severity: medium, unless: [negated]}
+      - {signals: [exfil, secret, override], severity: medium, unless: [negated]}
+      - {signals: [exfil, secret, no_confirm], severity: medium, unless: [negated]}
       - {signals: [command, override], severity: medium}
   message: "Text an agent may follow (not enforced code): {match}"
   rationale: >
     An AI coding agent reads this file as instructions. The sentence asks it to run
     commands, send data to an address or secrets out of the project, or keep something
-    from the user, in plain words without any hidden characters. Nothing enforces it, but
-    an agent that follows it acts with your rights. Sending secrets or the environment to
-    a URL is reported as high; the other combinations as medium.
+    from the user, in plain words (English or German) without any hidden characters.
+    Nothing enforces it, but an agent that follows it acts with your rights. Sending a key
+    file, secrets or the environment to a URL is reported as high when the sentence also
+    names a sending verb, a command, hides it or skips confirmation; the other
+    combinations as medium.
   recommendation: >
     Read the sentence. Do not let an agent work in this repository until you know why it
     is there; remove it if it is not from the maintainers.

@@ -53,8 +53,9 @@
 - scope: ci:github-actions
   files: [".github/workflows/*.yml", ".github/workflows/*.yaml"]
   reason: >
-    GitHub Actions workflows are only checked for pull_request_target checkouts and
-    encoded commands; actions they use and other risks are not analyzed
+    GitHub Actions workflows are only checked for checkouts of pull request code,
+    untrusted event text in commands, secrets sent away and encoded commands; actions
+    they use and other risks are not analyzed
 
 - scope: build:msbuild
   files:

@@ -1,6 +1,6 @@
 {
   "description": "Findings that repovet's scan of its own repository is expected to report: detection patterns and test data. Written by scripts/self_scan.py --update.",
-  "repovet": "0.4.0",
+  "repovet": "0.4.1",
   "expected": [
     {
       "rule": "RC-PROV-011",

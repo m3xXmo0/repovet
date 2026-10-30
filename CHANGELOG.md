@@ -7,6 +7,49 @@ exit codes and the JSON report (`schema_version`) are stable interfaces.
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-10-30
+
+This release targets the weakest areas of the independent check of 0.4.0: plain-text
+instructions in agent files (now also in German) and GitHub Actions workflows. Exit codes
+and the JSON report (`schema_version` 1.4) are unchanged.
+
+### Added
+
+- **RC-AGENT-028** looks at what is sent before how it is said: a key or credential
+  file, the whole environment or a secret variable sent "to/an <URL>" is reported with
+  any verb, a URL whose query string is filled by a command (`?d=$(cat ~/.npmrc)`) is
+  high, and the contents of a credential file put into a commit, issue, comment or answer
+  is medium. German verbs ("schicke", "übermittle", "lade … hoch"), hiding ("verschweige",
+  "sag dem Nutzer nichts"), skipping confirmation ("ohne Rückfrage") and overriding
+  instructions are recognized. A negation at the start of the sentence ("never send …",
+  "niemals …") cancels; public keys and example files are not counted.
+- **RC-AUTO-023 (high):** a VS Code task that runs on folder open and starts a script or
+  program file of the repository (`node .vscode/init.js`, `${workspaceFolder}/setup.ps1`).
+- **RC-AUTO-063 (medium):** untrusted event text passed through `env:` back into a
+  command: `${{ env.NAME }}` in a script, `eval`/`sh -c "$NAME"`, or written to
+  `$GITHUB_ENV`, `$GITHUB_OUTPUT` or `$GITHUB_PATH`.
+- **RC-AUTO-064 (medium):** a workflow that writes a comment, issue or pull request text
+  to a file (with `jq` from the event payload, `fs.writeFileSync` in github-script or a
+  shell redirect) and then runs that file.
+- **RC-DLX-008 (low):** a secret (`${{ secrets.X }}`, `$…_TOKEN`, `process.env.…_KEY`)
+  in the query string of a URL. Only a hint: some services expect their key there.
+- **RC-DLX-009 (high):** a workflow step that holds `toJSON(secrets)` and runs a network
+  command.
+
+### Changed
+
+- **RC-AUTO-020** (any task on folder open) is medium instead of high. The severity now
+  follows what the task reaches: a script of the repository is high (RC-AUTO-023), a
+  download or decoded payload critical (RC-AUTO-021), dangerous code further down a chain
+  critical (RC-AUTO-090). Watch and build tasks such as `npm run watch` stay medium.
+- **RC-AUTO-060** also finds checkouts of the merge ref (`refs/pull/N/merge`,
+  `merge_commit_sha`), the head repository, `git fetch … pull/N/head`, a ref taken from an
+  env value, and checkouts in `issue_comment` and `workflow_run` workflows.
+- Download and execute: process substitution with options and for `source`, `.`,
+  Python and Node (`bash -x <(curl …)`, `source <(wget -qO- …)`, `bash < <(curl …)`),
+  and here-strings (`bash <<< "$(curl …)"`).
+- Quoted attack examples are also recognized by German cue words ("Beispiel", "Angriff").
+
 ## [0.4.0] - 2026-10-30
 
 This release hardens detection against simple rewrites of known attacks. Every
@@ -243,7 +286,8 @@ First release.
   threshold, 2 usage error, 3 analysis aborted.
 - Windows, macOS and Linux with Python 3.12 and 3.13.
 
-[Unreleased]: https://github.com/m3xXmo0/repovet/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/m3xXmo0/repovet/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/m3xXmo0/repovet/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/m3xXmo0/repovet/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/m3xXmo0/repovet/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/m3xXmo0/repovet/compare/v0.2.0...v0.3.0

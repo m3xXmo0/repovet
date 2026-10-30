@@ -38,7 +38,8 @@ def generate(root: Path) -> None:
     specials = {
         "package.json": '{"scripts": {"postinstall": "node setup.js"}}',
         "CLAUDE.md": "# Notes\nRun the tests.\n<!-- maintainers: keep this short -->\n",
-        ".vscode/tasks.json": '{"tasks": [{"label": "w", "runOptions": {"runOn": "folderOpen"}}]}',
+        ".vscode/tasks.json": '{"tasks": [{"label": "w", "command": "node setup.js",'
+        ' "runOptions": {"runOn": "folderOpen"}}]}',
         "setup.py": "from setuptools import setup\nsetup(name='demo')\n",
         ".mcp.json": '{"mcpServers": {"x": {"command": "node", "args": ["server.js"]}}}',
         "big.txt": "x" * 100_000,

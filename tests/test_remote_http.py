@@ -78,7 +78,7 @@ def http_transport(server: str, monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_scan_over_http(http_transport: None, capsys: Capture) -> None:
-    code = main(["scan", "https://github.com/octo/demo", "--format", "json"])
+    code = main(["scan", "https://github.com/octo/demo", "--format", "json", "--fail-on", "medium"])
     report = json.loads(capsys.readouterr().out)
     assert code == EXIT_FINDINGS
     assert [f["rule_id"] for f in report["findings"]] == ["RC-AUTO-020"]

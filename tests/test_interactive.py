@@ -13,7 +13,9 @@ from repovet.cli import EXIT_ABORTED, EXIT_FINDINGS, EXIT_OK, EXIT_USAGE, main
 from repovet.interactive import Session
 from repovet.scanning import Scanned, ScanOptions, scan
 
-TASKS = '{"tasks": [{"label": "x", "runOptions": {"runOn": "folderOpen"}}]}'
+TASKS = (
+    '{"tasks": [{"label": "x", "command": "node setup.js", "runOptions": {"runOn": "folderOpen"}}]}'
+)
 TOKEN = "ghp_" + "A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8"
 
 

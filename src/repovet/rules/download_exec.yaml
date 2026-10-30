@@ -188,3 +188,62 @@
   references:
     - https://attack.mitre.org/techniques/T1105/
   tags: [download, exec]
+
+- id: RC-DLX-008
+  title: Secret placed in the query string of a URL
+  area: download_exec
+  # Some services expect their own key in the query string (package registries,
+  # webhooks), so this is only a hint; secrets sent to request catchers are RC-DLX-005/006.
+  severity: low
+  confidence: low
+  files: [{set: script_files}, ".github/workflows/*.yml", ".github/workflows/*.yaml", "**/action.yml", "**/action.yaml"]
+  exclude: [{set: vendored}, {set: test_files}]
+  check:
+    type: regex
+    demote_regex_literals: true
+    ignore: "{{comment_line}}"
+    prefilter: ["?", "&"]
+    # A query parameter of a URL to another machine whose value is a workflow secret,
+    # a variable named like a token, key, secret or password, or such a value read from
+    # process.env or os.environ.
+    pattern: '(?i:https?://(?!localhost\b|127\.|\[::1\])[^\s"''<>`?]{1,200}\?[^\s"''<>`]{0,200}?[\w.-]{1,40}=[ \t]*(?:\$\{\{[ \t]*secrets\.[\w-]{1,80}|\$\{?[A-Za-z_]\w{0,40}?(?:token|secret|passw(?:or)?d|api_?key|access_?key|private_?key)\w{0,20}\b|\$\{[ \t]*(?:process\.env\.|os\.environ\[?[''"]?|os\.getenv\([ \t]*[''"])[A-Za-z_]\w{0,40}?(?:token|secret|passw(?:or)?d|key)\w{0,20}))'
+  message: "A secret is put into a URL: {match}"
+  rationale: >
+    Query strings end up in server and proxy logs, browser history and error reports.
+    A token or password there is readable by whoever runs the receiving server, which
+    is how stolen secrets are often sent away. Some APIs expect keys this way; most
+    accept them in a header.
+  recommendation: >
+    Check the host: if it does not belong to the service the secret is for, treat the
+    code as exfiltration. Otherwise prefer a header.
+  references:
+    - https://cwe.mitre.org/data/definitions/598.html
+    - https://attack.mitre.org/techniques/T1567/
+  tags: [network, exfiltration]
+
+- id: RC-DLX-009
+  title: GitHub workflow step sends all secrets over the network
+  area: download_exec
+  severity: high
+  confidence: medium
+  files: [".github/workflows/*.yml", ".github/workflows/*.yaml"]
+  check:
+    type: keypath
+    format: yaml
+    # One step that holds toJSON(secrets) (in env or the script) and runs a network
+    # command. Normal workflows name each secret they need.
+    paths: ["jobs.*.steps.*"]
+    value_regex: '\btoJSON\([ \t]*secrets[ \t]*\)'
+    where: [{path: run, value_regex: '{{network_fetch}}|\bfetch[ \t]*\(|\b(?:requests|httpx|axios)\.(?:get|post|put|request)\b|\bnc[ \t]'}]
+  message: "Workflow step passes all secrets to a network command: {match}"
+  rationale: >
+    toJSON(secrets) turns every secret of the repository into one text. A step that has
+    it and runs curl, wget or a similar command can send all of them to any server in one
+    request, on every trigger of the workflow. It runs on GitHub, not on your machine.
+  recommendation: >
+    Treat the repository as compromised until you know where the request goes; do not
+    use its releases. If it is your repository, remove the step and rotate all secrets.
+  references:
+    - https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions
+    - https://attack.mitre.org/techniques/T1567/
+  tags: [ci, github-actions, exfiltration]

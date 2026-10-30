@@ -122,7 +122,11 @@ _DESCRIPTIVE_CUE = re.compile(
     r"detect(?:s|ed|ion|ing)?|flag(?:s|ged|ging)?|block(?:s|ed|ing)?|"
     r"reject(?:s|ed|ing)?|refuse[sd]?|report(?:s|ed|ing)?|quot(?:e|es|ed|ing)|"
     r"red[ \t]+flags?|anti-?patterns?|signatures?|indicators?|"
-    r"(?:never|do[ \t]+not|don't)[ \t]+(?:follow|obey|execute|run)|not[ \t]+to[ \t]+obey)\b)"
+    r"(?:never|do[ \t]+not|don't)[ \t]+(?:follow|obey|execute|run)|not[ \t]+to[ \t]+obey|"
+    # The same in German.
+    r"(?:zum[ \t]+)?Beispiel\w*|etwa|Muster\w*|Angriff\w*|Angreifer\w*|bösartig\w*|"
+    r"verdächtig\w*|erkenn(?:t|en|ung)|blockier(?:t|en)|Zitat\w*|zitier\w*)\b|"
+    r"(?<![\w.])z\.[ \t]?B\.)"
 )
 # A verb right before the opening quote makes the quoted text an instruction.
 _IMPERATIVE_BEFORE = re.compile(
