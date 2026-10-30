@@ -240,15 +240,13 @@
   # What the task reaches decides the severity: a script of the repository is high
   # (RC-AUTO-023), a download or decoded payload critical (RC-AUTO-021), a script that
   # reaches such code through other files a chain (RC-AUTO-090).
-  severity: medium
+  severity: low
   confidence: high
   files: ["**/.vscode/tasks.json"]
   exclude: [{set: vendored}]
   check:
-    type: keypath
-    format: jsonc
-    paths: ["tasks.*.runOptions.runOn"]
-    equals: folderOpen
+    type: vscode_task
+    mode: inventory
   message: "A task in this file has runOn: {value}"
   rationale: >
     VS Code can start a task with `runOptions.runOn: folderOpen` automatically as soon
@@ -263,23 +261,20 @@
   tags: [vscode, ide]
 
 - id: RC-AUTO-021
-  title: VS Code task that runs on folder open downloads or executes code
+  title: VS Code task that runs on folder open accesses the network or decodes a payload
   area: autorun
   severity: critical
   confidence: high
   files: ["**/.vscode/tasks.json"]
   exclude: [{set: vendored}]
   check:
-    type: keypath
-    format: jsonc
-    paths: ["tasks.*"]
-    where:
-      - {path: runOptions.runOn, equals: folderOpen}
-    value_regex: "{{fetch_or_run}}"
+    type: vscode_task
+    mode: network
+    pattern: '{{fetch_or_run}}'
   message: "Task starts on folder open and fetches or runs code: {match}"
   rationale: >
     This task starts as soon as the folder is opened in a trusted workspace, and it
-    downloads code, pipes into an interpreter or decodes a payload.
+    accesses the network, pipes into an interpreter or decodes a payload.
   recommendation: >
     Do not trust this folder in VS Code. Open it in Restricted Mode or another editor
     and remove the task before working with it.
@@ -296,13 +291,9 @@
   files: ["**/.vscode/tasks.json"]
   exclude: [{set: vendored}]
   check:
-    type: keypath
-    format: jsonc
-    paths: ["tasks.*"]
-    where:
-      - {path: runOptions.runOn, equals: folderOpen}
-    # A script or program file named in the command or its arguments (by extension).
-    value_regex: '(?i:(?:\A|[\s"''=(])(?:\$\{workspace(?:Folder|Root)\}[\\/]|\.{1,2}[\\/])?(?:[\w.@-]{1,80}[\\/]){0,8}[\w@-][\w.@-]{0,80}\.(?:js|mjs|cjs|ts|mts|cts|py|pyw|sh|bash|zsh|ps1|psm1|bat|cmd|vbs|vbe|jse|wsf|hta|rb|pl|php|lua|exe|dll|jar|scr|com)(?=\Z|[\s"'');&|]))'
+    type: vscode_task
+    mode: code
+    pattern: (?i:\.(?:js|mjs|cjs|ts|mts|cts|py|pyw|sh|bash|zsh|ps1|psm1|bat|cmd|vbs|vbe|jse|wsf|hta|rb|pl|php|lua|exe|dll|jar|scr|com)\Z)
   message: "Task starts on folder open and runs a file of the repository: {match}"
   rationale: >
     This task starts as soon as the folder is opened in a trusted workspace and runs a
@@ -883,14 +874,10 @@
   confidence: medium
   files: [".github/workflows/*.yml", ".github/workflows/*.yaml"]
   check:
-    type: regex
-    ignore: '\A[ \t]*#'
-    # actions/checkout of the pull request's head or merge commit (also through
-    # refs/pull/N, format() or an env value), the head repository, git fetch of a pull
-    # ref, git checkout of the head commit, gh pr checkout; in workflows started by
-    # pull_request_target, comments or workflow_run.
-    pattern: '\bref:[ \t]*["'']?[^\n]{0,20}?\$\{\{[^}\n]{0,80}?(?:github\.event\.pull_request\.(?:head\.(?:sha|ref)|merge_commit_sha|number)|github\.event\.(?:number|issue\.number)|github\.head_ref|github\.event\.workflow_run\.head_(?:sha|branch))\b|\bref:[ \t]*["'']?\$\{\{[ \t]*env\.[A-Za-z_]\w*[ \t]*\}\}|\brepository:[ \t]*["'']?\$\{\{[^}\n]{0,40}?\bgithub\.event\.(?:pull_request\.head\.repo\.full_name|workflow_run\.head_repository\.full_name)\b|\bgit[ \t]+fetch\b[^\n]{0,100}?\bpull/[^\n/]{1,80}?/(?:head|merge)\b|\bgit[ \t]+(?:checkout|switch|reset[ \t]+--hard)\b[^\n]{0,40}?\$\{\{[^}\n]{0,40}?\bgithub\.(?:event\.pull_request\.head\.(?:sha|ref)|head_ref|event\.workflow_run\.head_(?:sha|branch))\b|\bgh[ \t]+pr[ \t]+checkout\b'
-    file_requires: ['\b(?:pull_request_target|issue_comment|workflow_run)\b']
+    type: workflow
+    mode: checkout
+    trigger: \b(?:pull_request_target|issue_comment|workflow_run)\b
+    pattern: \bref:[ \t]*["']?[^\n]{0,20}?\$\{\{[^}\n]{0,80}?(?:github\.event\.pull_request\.(?:head\.(?:sha|ref)|merge_commit_sha|number)|github\.event\.(?:number|issue\.number)|github\.head_ref|github\.event\.workflow_run\.head_(?:sha|branch))\b|\brepository:[ \t]*["']?\$\{\{[^}\n]{0,40}?\bgithub\.event\.(?:pull_request\.head\.repo\.full_name|workflow_run\.head_repository\.full_name)\b|\bgit[ \t]+fetch\b[^\n]{0,100}?\bpull/[^\n/]{1,80}?/(?:head|merge)\b|\bgit[ \t]+(?:checkout|switch|reset[ \t]+--hard)\b[^\n]{0,40}?\$\{\{[^}\n]{0,40}?\bgithub\.(?:event\.pull_request\.head\.(?:sha|ref)|head_ref|event\.workflow_run\.head_(?:sha|branch))\b|\bgh[ \t]+pr[ \t]+checkout\b
   message: "Checks out the pull request in a privileged workflow: {match}"
   rationale: >
     pull_request_target runs with the repository's secrets and write token. Checking
@@ -1006,15 +993,10 @@
   files: [".github/workflows/*.yml", ".github/workflows/*.yaml", "**/action.yml", "**/action.yaml"]
   exclude: [{set: vendored}]
   check:
-    type: regex
-    scope: text
-    ignore: '\A[ \t]*#'
-    prefilter: [body, title, head_ref, message]
-    file_requires: ['{{privileged_trigger}}']
-    # A file written with event text (a ${{ }} expression, the event payload read with
-    # jq, context.payload in github-script, a BODY/TITLE/COMMENT variable) and within the
-    # next 40 lines run by a shell, source, Python, Node or PowerShell, or made executable.
-    pattern: '(?:\bwriteFile(?:Sync)?[ \t]*\([ \t]*[''"`](?P<js>[\w./-]{1,80})[''"`][ \t]*,[^\n]{0,200}?\b(?:context\.payload|github\.event)\.(?:comment|issue|pull_request|review|discussion)\.(?:body|title)\b[^\n]{0,200}(?:\n[^\n]{0,300}){0,40}?(?:\b(?:ba|z|da|k)?sh|\bsource|\bpython[23]?|\bnode|\bpwsh|\bchmod[ \t]+\+x)[ \t]+(?:-[A-Za-z]+[ \t]+){0,3}["'']?(?:\./)?(?P=js)\b|(?:\$\{\{[^}\n]{0,200}?{{untrusted_event_field}}|\.(?:comment|issue|pull_request|review|discussion)\.(?:body|title)\b[^\n]{0,120}?\bGITHUB_EVENT_PATH\b|\bGITHUB_EVENT_PATH\b[^\n]{0,120}?\.(?:comment|issue|pull_request|review|discussion)\.(?:body|title)\b|\$\{?[A-Z_]{0,30}(?:BODY|TITLE|COMMENT)[A-Z_]{0,30}\b)[^\n]{0,200}?(?:>{1,2}|\btee(?:[ \t]+-a)?)[ \t]*["'']?(?P<sh>[\w./-]{1,80})[^\n]{0,200}(?:\n[^\n]{0,300}){0,40}?(?:\b(?:ba|z|da|k)?sh|\bsource|\bpython[23]?|\bnode|\bpwsh|\bchmod[ \t]+\+x|(?<![\w-])\.)[ \t]+(?:-[A-Za-z]+[ \t]+){0,3}["'']?(?:\./)?(?P=sh)\b)'
+    type: workflow
+    mode: file
+    trigger: '\b(?:pull_request_target|issue_comment|discussion_comment|workflow_run|issues|discussion|composite)\b'
+    pattern: (?:\bwriteFile(?:Sync)?[ \t]*\([ \t]*['"`](?P<js>[\w./-]{1,80})['"`][ \t]*,[^\n]{0,200}?\b(?:context\.payload|github\.event)\.(?:comment|issue|pull_request|review|discussion)\.(?:body|title)\b[^\n]{0,200}(?:\n[^\n]{0,300}){0,40}?(?:\b(?:ba|z|da|k)?sh|\bsource|\bpython[23]?|\bnode|\bpwsh|\bchmod[ \t]+\+x)[ \t]+(?:-[A-Za-z]+[ \t]+){0,3}["']?(?:\./)?(?P=js)\b|(?:\$\{\{[^}\n]{0,200}?{{untrusted_event_field}}|\.(?:comment|issue|pull_request|review|discussion)\.(?:body|title)\b[^\n]{0,120}?\bGITHUB_EVENT_PATH\b|\bGITHUB_EVENT_PATH\b[^\n]{0,120}?\.(?:comment|issue|pull_request|review|discussion)\.(?:body|title)\b)[^\n]{0,200}?(?:>{1,2}|\btee(?:[ \t]+-a)?)[ \t]*["']?(?P<sh>[\w./-]{1,80})[^\n]{0,200}(?:\n[^\n]{0,300}){0,40}?(?:\b(?:ba|z|da|k)?sh|\bsource|\bpython[23]?|\bnode|\bpwsh|\bchmod[ \t]+\+x|(?<![\w-])\.)[ \t]+(?:-[A-Za-z]+[ \t]+){0,3}["']?(?:\./)?(?P=sh)\b)
   message: "Event text is written to a file that the workflow runs: {match}"
   rationale: >
     The workflow saves a pull request, issue or comment text into a file and then runs

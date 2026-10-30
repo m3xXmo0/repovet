@@ -5,7 +5,7 @@
 - Date: 2026-10-30
 - repovet version: 0.4.1
 - Selection: the 50 most-starred public repositories on GitHub (search API, 2026-10-30)
-- Scan: `repovet scan URL --offline` at the default branch, all 140 built-in rules; the trust area (GitHub API) is off
+- Scan: `repovet scan URL --offline` at the default branch, all 141 built-in rules; the trust area (GitHub API) is off
 - Clone limit: 500 MB
 - Scanned: 38 · skipped: 12
 
@@ -14,13 +14,13 @@ These are popular, maintained projects. Every finding below is either a false po
 ## Summary
 
 - Repositories with at least one high or critical finding: 3 of 38
-- Findings by severity: 0 critical, 5 high, 63 medium, 58 low, 447 info
+- Findings by severity: 0 critical, 5 high, 62 medium, 58 low, 447 info
 
 ## Findings per area
 
 | Area | critical | high | medium | low | info | Repositories |
 |------|---------:|-----:|-------:|----:|-----:|-------------:|
-| autorun | 0 | 0 | 12 | 17 | 0 | 10 |
+| autorun | 0 | 0 | 11 | 17 | 0 | 10 |
 | agents | 0 | 1 | 9 | 14 | 425 | 13 |
 | obfuscation | 0 | 1 | 9 | 0 | 0 | 4 |
 | download_exec | 0 | 0 | 18 | 1 | 0 | 6 |
@@ -44,7 +44,7 @@ By number of repositories with at least one finding of the rule.
 | RC-DEP-010 | medium | Dependency installed from Git or a URL | 3 of 38 | 6 |
 | RC-AUTO-010 | low | setup.py present | 3 of 38 | 3 |
 | RC-BIN-005 | medium | Compiled code that cannot be reviewed | 2 of 38 | 7 |
-| RC-AUTO-060 | medium | Privileged GitHub workflow checks out pull request code | 2 of 38 | 5 |
+| RC-AUTO-001 | medium | npm install lifecycle script present | 2 of 38 | 3 |
 
 ## Findings per rule
 
@@ -66,7 +66,7 @@ By number of repositories with at least one finding of the rule.
 | RC-AUTO-026 | low | 2 | 2 | 2/0/0 |
 | RC-AUTO-041 | medium | 1 | 1 | 1/0/0 |
 | RC-AUTO-056 | medium | 1 | 1 | 1/0/0 |
-| RC-AUTO-060 | medium | 2 | 5 | 0/5/0 |
+| RC-AUTO-060 | medium | 1 | 4 | 0/4/0 |
 | RC-AUTO-082 | low | 2 | 2 | 2/0/0 |
 | RC-BIN-001 | high | 1 | 3 | 3/0/0 |
 | RC-BIN-005 | medium | 2 | 7 | 7/0/0 |
@@ -87,58 +87,58 @@ By number of repositories with at least one finding of the rule.
 
 | Repository | Stars | Commit | Files | critical | high | medium | low | info | Rules |
 |------------|------:|--------|------:|---------:|-----:|-------:|----:|-----:|-------|
-| codecrafters-io/build-your-own-x | 557496 | `aa17439b62f3` | 4 | 0 | 0 | 0 | 0 | 0 | - |
-| sindresorhus/awesome | 527178 | `bc98e517ddca` | 23 | 0 | 0 | 0 | 1 | 0 | RC-BIN-006 (1) |
-| public-apis/public-apis | 493432 | `d4d63b048263` | 23 | 0 | 0 | 0 | 0 | 1 | RC-PROV-010 (1) |
-| morluto/rea | 410489 | `8f920bb65b8d` | 6833 | 0 | 1 | 1 | 2 | 19 | RC-AGENT-001 (18), RC-AUTO-002 (2), RC-AUTO-060 (1), RC-OBF-003 (1), RC-PROV-010 (1) |
-| EbookFoundation/free-programming-books | 400526 | `3bb4c53f0681` | 235 | 0 | 0 | 0 | 0 | 1 | RC-PROV-010 (1) |
-| donnemartin/system-design-primer | 376192 | `ae9bbd7b02d9` | 139 | 0 | 0 | 0 | 20 | 0 | RC-BIN-006 (20) |
-| nilbuild/developer-roadmap | 370792 | `5a0a5314418a` | 11326 | 0 | 0 | 0 | 0 | 1 | RC-PROV-010 (1) |
-| jwasham/coding-interview-university | 363567 | `717298bf219a` | 46 | 0 | 0 | 0 | 0 | 0 | - |
-| awesome-selfhosted/awesome-selfhosted | 331983 | `f05554a17fb5` | 6 | 0 | 0 | 0 | 0 | 0 | - |
-| vinta/awesome-python | 331314 | `732d4919babf` | 131 | 0 | 0 | 0 | 0 | 10 | RC-AGENT-001 (9), RC-PROV-010 (1) |
-| obra/superpowers | 309121 | `2ce8aa15d05b` | 231 | 0 | 0 | 0 | 0 | 3 | RC-AGENT-001 (2), RC-PROV-010 (1) |
-| mattpocock/skills | 307054 | `a496f5513d4a` | 175 | 0 | 0 | 0 | 0 | 2 | RC-AGENT-001 (1), RC-PROV-010 (1) |
-| affaan-m/ECC | 293072 | `b38be6a7f635` | 4701 | 0 | 1 | 9 | 15 | 285 | RC-AGENT-001 (284), RC-AGENT-012 (1), RC-AGENT-020 (7), RC-AGENT-021 (3), RC-AGENT-022 (4), RC-AGENT-040 (1), RC-AGENT-050 (7), RC-AGENT-060 (1), RC-AUTO-002 (1), RC-PROV-010 (1) |
-| practical-tutorials/project-based-learning | 288441 | `e6db1d1fe526` | 14 | 0 | 0 | 0 | 0 | 1 | RC-PROV-010 (1) |
-| 996icu/996.ICU | 277196 | `f5e35f48d769` | 326 | 0 | 3 | 0 | 2 | 0 | RC-AUTO-010 (1), RC-BIN-001 (3), RC-BIN-006 (1) |
-| deepseek-ai/deepseek-harness | 266481 | `ce7073d51254` | 20219 | 0 | 0 | 12 | 5 | 70 | RC-AGENT-001 (70), RC-AUTO-001 (2), RC-AUTO-002 (5), RC-AUTO-015 (1), RC-AUTO-060 (4), RC-BIN-007 (1), RC-DEP-010 (1), RC-DEP-013 (1), RC-OBF-009 (2) |
-| trimstray/the-book-of-secret-knowledge | 254455 | `7d37069a361d` | 6 | 0 | 0 | 0 | 0 | 0 | - |
-| multica-ai/andrej-karpathy-skills | 226655 | `2c606141936f` | 9 | 0 | 0 | 0 | 0 | 3 | RC-AGENT-001 (2), RC-PROV-010 (1) |
-| TheAlgorithms/Python | 225696 | `6e03a48579ca` | 1737 | 0 | 0 | 0 | 1 | 5 | RC-AGENT-001 (4), RC-AUTO-026 (1), RC-PROV-010 (1) |
-| vuejs/vue | 212489 | `9e8870794008` | 508 | 0 | 0 | 0 | 0 | 0 | - |
-| ossu/computer-science | 210523 | `33d44a44e352` | 38 | 0 | 0 | 0 | 0 | 0 | - |
-| DigitalPlatDev/FreeDomain | 206418 | `9c7c54110705` | 88 | 0 | 0 | 0 | 0 | 0 | - |
-| yt-dlp/yt-dlp | 203864 | `b77c9304e1c4` | 1235 | 0 | 0 | 12 | 0 | 0 | RC-DEP-010 (3), RC-DLX-005 (3), RC-OBF-001 (6) |
-| massgravel/Microsoft-Activation-Scripts | 196939 | `6401d2f36975` | 15 | 0 | 0 | 2 | 0 | 0 | RC-DLX-001 (2) |
-| firecrawl/firecrawl | 196937 | `273412baa50c` | 2175 | 0 | 0 | 7 | 4 | 3 | RC-AGENT-001 (2), RC-AUTO-001 (1), RC-AUTO-002 (1), RC-AUTO-004 (1), RC-AUTO-010 (1), RC-AUTO-082 (1), RC-BIN-005 (1), RC-DEP-010 (2), RC-DLX-005 (2), RC-DLX-008 (1), RC-PROV-010 (1) |
-| trekhleb/javascript-algorithms | 196708 | `85293e3e2b88` | 679 | 0 | 0 | 0 | 1 | 0 | RC-AUTO-002 (1) |
-| ultraworkers/claw-code | 194976 | `f4fff38de1d4` | 428 | 0 | 0 | 2 | 2 | 24 | RC-AGENT-001 (23), RC-AUTO-010 (1), RC-AUTO-041 (1), RC-AUTO-082 (1), RC-DLX-001 (1), RC-PROV-010 (1) |
-| microsoft/markitdown | 192991 | `7482c092d9c0` | 197 | 0 | 0 | 0 | 1 | 1 | RC-BIN-006 (1), RC-PROV-010 (1) |
-| avelino/awesome-go | 191127 | `5ac69e3b1f9c` | 106 | 0 | 0 | 0 | 0 | 2 | RC-AGENT-001 (1), RC-PROV-010 (1) |
-| ohmyzsh/ohmyzsh | 190245 | `17a2b4c3a585` | 1177 | 0 | 0 | 5 | 1 | 1 | RC-AUTO-026 (1), RC-DLX-005 (5), RC-PROV-010 (1) |
-| jackfrued/Python-100-Days | 187585 | `44b2575bf42a` | 713 | 0 | 0 | 6 | 2 | 0 | RC-BIN-005 (6), RC-BIN-006 (2) |
-| CyC2018/CS-Notes | 186385 | `557b486c9a9a` | 3227 | 0 | 0 | 0 | 0 | 1 | RC-PROV-010 (1) |
-| 521xueweihan/HelloGitHub | 185732 | `8172b9f1a21a` | 268 | 0 | 0 | 0 | 0 | 1 | RC-PROV-011 (1) |
-| ollama/ollama | 185336 | `4d22e65d493f` | 1585 | 0 | 0 | 7 | 0 | 3 | RC-AGENT-001 (2), RC-AUTO-056 (1), RC-DLX-001 (5), RC-OBF-009 (1), RC-PROV-010 (1) |
-| anthropics/skills | 184990 | `ca45fc496a34` | 446 | 0 | 0 | 0 | 1 | 1 | RC-BIN-006 (1), RC-PROV-010 (1) |
-| getify/You-Dont-Know-JS | 184835 | `044120ef5556` | 82 | 0 | 0 | 0 | 0 | 0 | - |
-| DietrichGebert/ponytail | 180676 | `96608e078b2d` | 216 | 0 | 0 | 0 | 0 | 8 | RC-AGENT-001 (7), RC-PROV-010 (1) |
-| github/gitignore | 176111 | `09f8241c2d1f` | 316 | 0 | 0 | 0 | 0 | 1 | RC-PROV-010 (1) |
+| codecrafters-io/build-your-own-x | 557576 | `aa17439b62f3` | 4 | 0 | 0 | 0 | 0 | 0 | - |
+| sindresorhus/awesome | 527339 | `bc98e517ddca` | 23 | 0 | 0 | 0 | 1 | 0 | RC-BIN-006 (1) |
+| public-apis/public-apis | 493488 | `2098dd741824` | 23 | 0 | 0 | 0 | 0 | 1 | RC-PROV-010 (1) |
+| morluto/rea | 411375 | `ca7d1c3750b2` | 6851 | 0 | 1 | 0 | 2 | 19 | RC-AGENT-001 (18), RC-AUTO-002 (2), RC-OBF-003 (1), RC-PROV-010 (1) |
+| EbookFoundation/free-programming-books | 400541 | `3bb4c53f0681` | 235 | 0 | 0 | 0 | 0 | 1 | RC-PROV-010 (1) |
+| donnemartin/system-design-primer | 376220 | `ae9bbd7b02d9` | 139 | 0 | 0 | 0 | 20 | 0 | RC-BIN-006 (20) |
+| nilbuild/developer-roadmap | 370809 | `5a0a5314418a` | 11326 | 0 | 0 | 0 | 0 | 1 | RC-PROV-010 (1) |
+| jwasham/coding-interview-university | 363583 | `717298bf219a` | 46 | 0 | 0 | 0 | 0 | 0 | - |
+| awesome-selfhosted/awesome-selfhosted | 332058 | `f05554a17fb5` | 6 | 0 | 0 | 0 | 0 | 0 | - |
+| vinta/awesome-python | 331353 | `732d4919babf` | 131 | 0 | 0 | 0 | 0 | 10 | RC-AGENT-001 (9), RC-PROV-010 (1) |
+| obra/superpowers | 309267 | `2ce8aa15d05b` | 231 | 0 | 0 | 0 | 0 | 3 | RC-AGENT-001 (2), RC-PROV-010 (1) |
+| mattpocock/skills | 307248 | `a496f5513d4a` | 175 | 0 | 0 | 0 | 0 | 2 | RC-AGENT-001 (1), RC-PROV-010 (1) |
+| affaan-m/ECC | 293239 | `b38be6a7f635` | 4701 | 0 | 1 | 9 | 15 | 285 | RC-AGENT-001 (284), RC-AGENT-012 (1), RC-AGENT-020 (7), RC-AGENT-021 (3), RC-AGENT-022 (4), RC-AGENT-040 (1), RC-AGENT-050 (7), RC-AGENT-060 (1), RC-AUTO-002 (1), RC-PROV-010 (1) |
+| practical-tutorials/project-based-learning | 288469 | `e6db1d1fe526` | 14 | 0 | 0 | 0 | 0 | 1 | RC-PROV-010 (1) |
+| 996icu/996.ICU | 277198 | `f5e35f48d769` | 326 | 0 | 3 | 0 | 2 | 0 | RC-AUTO-010 (1), RC-BIN-001 (3), RC-BIN-006 (1) |
+| deepseek-ai/deepseek-harness | 266631 | `ce7073d51254` | 20219 | 0 | 0 | 12 | 5 | 70 | RC-AGENT-001 (70), RC-AUTO-001 (2), RC-AUTO-002 (5), RC-AUTO-015 (1), RC-AUTO-060 (4), RC-BIN-007 (1), RC-DEP-010 (1), RC-DEP-013 (1), RC-OBF-009 (2) |
+| trimstray/the-book-of-secret-knowledge | 254495 | `7d37069a361d` | 6 | 0 | 0 | 0 | 0 | 0 | - |
+| multica-ai/andrej-karpathy-skills | 226708 | `2c606141936f` | 9 | 0 | 0 | 0 | 0 | 3 | RC-AGENT-001 (2), RC-PROV-010 (1) |
+| TheAlgorithms/Python | 225707 | `6e03a48579ca` | 1737 | 0 | 0 | 0 | 1 | 5 | RC-AGENT-001 (4), RC-AUTO-026 (1), RC-PROV-010 (1) |
+| vuejs/vue | 212487 | `9e8870794008` | 508 | 0 | 0 | 0 | 0 | 0 | - |
+| ossu/computer-science | 210537 | `33d44a44e352` | 38 | 0 | 0 | 0 | 0 | 0 | - |
+| DigitalPlatDev/FreeDomain | 206457 | `9c7c54110705` | 88 | 0 | 0 | 0 | 0 | 0 | - |
+| yt-dlp/yt-dlp | 203919 | `b77c9304e1c4` | 1235 | 0 | 0 | 12 | 0 | 0 | RC-DEP-010 (3), RC-DLX-005 (3), RC-OBF-001 (6) |
+| firecrawl/firecrawl | 197025 | `c2b83bdd51cd` | 2174 | 0 | 0 | 7 | 4 | 3 | RC-AGENT-001 (2), RC-AUTO-001 (1), RC-AUTO-002 (1), RC-AUTO-004 (1), RC-AUTO-010 (1), RC-AUTO-082 (1), RC-BIN-005 (1), RC-DEP-010 (2), RC-DLX-005 (2), RC-DLX-008 (1), RC-PROV-010 (1) |
+| massgravel/Microsoft-Activation-Scripts | 196969 | `6401d2f36975` | 15 | 0 | 0 | 2 | 0 | 0 | RC-DLX-001 (2) |
+| trekhleb/javascript-algorithms | 196711 | `85293e3e2b88` | 679 | 0 | 0 | 0 | 1 | 0 | RC-AUTO-002 (1) |
+| ultraworkers/claw-code | 194987 | `f4fff38de1d4` | 428 | 0 | 0 | 2 | 2 | 24 | RC-AGENT-001 (23), RC-AUTO-010 (1), RC-AUTO-041 (1), RC-AUTO-082 (1), RC-DLX-001 (1), RC-PROV-010 (1) |
+| microsoft/markitdown | 193037 | `7482c092d9c0` | 197 | 0 | 0 | 0 | 1 | 1 | RC-BIN-006 (1), RC-PROV-010 (1) |
+| avelino/awesome-go | 191162 | `2d96e5a9df8f` | 106 | 0 | 0 | 0 | 0 | 2 | RC-AGENT-001 (1), RC-PROV-010 (1) |
+| ohmyzsh/ohmyzsh | 190247 | `17a2b4c3a585` | 1177 | 0 | 0 | 5 | 1 | 1 | RC-AUTO-026 (1), RC-DLX-005 (5), RC-PROV-010 (1) |
+| jackfrued/Python-100-Days | 187590 | `44b2575bf42a` | 713 | 0 | 0 | 6 | 2 | 0 | RC-BIN-005 (6), RC-BIN-006 (2) |
+| CyC2018/CS-Notes | 186391 | `493907b4c905` | 3230 | 0 | 0 | 0 | 0 | 1 | RC-PROV-010 (1) |
+| 521xueweihan/HelloGitHub | 185775 | `8172b9f1a21a` | 268 | 0 | 0 | 0 | 0 | 1 | RC-PROV-011 (1) |
+| ollama/ollama | 185355 | `4d22e65d493f` | 1585 | 0 | 0 | 7 | 0 | 3 | RC-AGENT-001 (2), RC-AUTO-056 (1), RC-DLX-001 (5), RC-OBF-009 (1), RC-PROV-010 (1) |
+| anthropics/skills | 185110 | `ca45fc496a34` | 446 | 0 | 0 | 0 | 1 | 1 | RC-BIN-006 (1), RC-PROV-010 (1) |
+| getify/You-Dont-Know-JS | 184834 | `044120ef5556` | 82 | 0 | 0 | 0 | 0 | 0 | - |
+| DietrichGebert/ponytail | 180821 | `96608e078b2d` | 216 | 0 | 0 | 0 | 0 | 8 | RC-AGENT-001 (7), RC-PROV-010 (1) |
+| github/gitignore | 176107 | `47c9b1c96aa0` | 316 | 0 | 0 | 0 | 0 | 1 | RC-PROV-010 (1) |
 
 ## Skipped
 
 | Repository | Stars | Reason |
 |------------|------:|--------|
-| freeCodeCamp/freeCodeCamp | 458221 | larger than the clone limit (570.3 MB > 500 MB) |
-| openclaw/openclaw | 393431 | larger than the clone limit (11.1 GB > 500 MB) |
-| NousResearch/hermes-agent | 258719 | larger than the clone limit (1.3 GB > 500 MB) |
-| torvalds/linux | 253830 | larger than the clone limit (6.1 GB > 500 MB) |
-| react/react | 251760 | larger than the clone limit (1.1 GB > 500 MB) |
-| anomalyco/opencode | 223188 | larger than the clone limit (601.1 MB > 500 MB) |
-| n8n-io/n8n | 209107 | larger than the clone limit (764.9 MB > 500 MB) |
-| tensorflow/tensorflow | 201219 | larger than the clone limit (1.4 GB > 500 MB) |
-| microsoft/vscode | 194371 | larger than the clone limit (1.6 GB > 500 MB) |
-| Significant-Gravitas/AutoGPT | 187826 | larger than the clone limit (597.5 MB > 500 MB) |
-| flutter/flutter | 180682 | larger than the clone limit (500.1 MB > 500 MB) |
-| f/prompts.chat | 175187 | larger than the clone limit (686.2 MB > 500 MB) |
+| freeCodeCamp/freeCodeCamp | 458233 | larger than the clone limit (570.4 MB > 500 MB) |
+| openclaw/openclaw | 393458 | larger than the clone limit (11.2 GB > 500 MB) |
+| NousResearch/hermes-agent | 258805 | larger than the clone limit (1.3 GB > 500 MB) |
+| torvalds/linux | 253852 | larger than the clone limit (6.1 GB > 500 MB) |
+| react/react | 251765 | larger than the clone limit (1.1 GB > 500 MB) |
+| anomalyco/opencode | 223247 | larger than the clone limit (601.4 MB > 500 MB) |
+| n8n-io/n8n | 209128 | larger than the clone limit (765.1 MB > 500 MB) |
+| tensorflow/tensorflow | 201223 | larger than the clone limit (1.4 GB > 500 MB) |
+| microsoft/vscode | 194373 | larger than the clone limit (1.6 GB > 500 MB) |
+| Significant-Gravitas/AutoGPT | 187837 | larger than the clone limit (600.4 MB > 500 MB) |
+| flutter/flutter | 180710 | larger than the clone limit (500.2 MB > 500 MB) |
+| f/prompts.chat | 175243 | larger than the clone limit (684.7 MB > 500 MB) |

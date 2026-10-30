@@ -28,6 +28,7 @@ from dataclasses import dataclass, replace
 from repovet.engine.checks.base import FileView, Match
 from repovet.engine.checks.blob import BlobCheck
 from repovet.engine.checks.chain import ChainCheck, EntryKind
+from repovet.engine.checks.embedded_regex import EmbeddedRegexCheck
 from repovet.engine.checks.regex import RegexCheck, logical_lines
 from repovet.engine.checks.split_payload import SplitPayloadCheck
 from repovet.engine.checks.unicode import UnicodeCheck
@@ -36,7 +37,13 @@ from repovet.engine.loader import Rule
 from repovet.engine.runner import make_finding, rule_findings
 from repovet.models import AREAS, AreaResult, Chain, Finding, Location, Severity
 from repovet.parsers.codelex import family_of, literal_spans
+from repovet.parsers.commands import command_text as _command_text
+from repovet.parsers.commands import npm_names as _npm_names
+from repovet.parsers.commands import references
+from repovet.parsers.commands import task_commands as _task_commands
 from repovet.sources.tree import GlobSet, RepoFile, basename
+
+__all__ = ["apply", "references"]
 
 _TASKS = GlobSet(["**/.vscode/tasks.json"])
 _DEVCONTAINER = GlobSet(
@@ -58,40 +65,6 @@ _CONTAINER_COMMANDS = (
 _MAKEFILES = ("GNUmakefile", "makefile", "Makefile")
 _SCRIPT_EXTENSIONS = {"js", "mjs", "cjs", "ts", "mts", "cts", "py", "pyw"}
 # Commands are split at these separators; a pipe ends a command too.
-_SEPARATORS = re.compile(r"&&|\|\||[;&|\n]")
-_TOKEN = re.compile(r"\"[^\"\n]*\"|'[^'\n]*'|[^\s\"']+")
-_ASSIGNMENT = re.compile(r"[A-Za-z_][A-Za-z0-9_]*=\S*")
-_PREFIXES = {"sudo", "exec", "env", "nohup", "time", "command", "call", "start", "/b", "nice"}
-_INTERPRETERS = {
-    "sh",
-    "bash",
-    "zsh",
-    "dash",
-    "ksh",
-    "fish",
-    "node",
-    "nodejs",
-    "bun",
-    "deno",
-    "tsx",
-    "ts-node",
-    "python",
-    "python2",
-    "python3",
-    "py",
-    "perl",
-    "ruby",
-    "php",
-    "pwsh",
-    "powershell",
-    "cmd",
-    "source",
-    ".",
-    "cscript",
-    "wscript",
-}
-# Options after which the next token is code, not a file.
-_INLINE = {"-c", "-e", "/c", "/k", "-command", "-encodedcommand"}
 _WORKSPACE = re.compile(
     r"\$\{(?:workspaceFolder|workspaceRoot|localWorkspaceFolder|containerWorkspaceFolder)\}"
     r"|\$\{?PWD\}?|%CD%"
@@ -100,7 +73,7 @@ _SCRIPT_DIR = re.compile(r"\$\(dirname[ \t]+\"?\$0\"?\)|\$\{0%/\*\}|%~dp0")
 _UNRESOLVED = re.compile(r"[$%{}*?<>|`]")
 _MAKE_RULE = re.compile(r"([^\s:#=][^:#=]*?)[ \t]*::?(?!=)[ \t]*([^;#]*)(?:;(.*))?")
 _MAX_TRAILS = 64
-_CONTENT_CHECKS = (RegexCheck, BlobCheck, UnicodeCheck, SplitPayloadCheck)
+_CONTENT_CHECKS = (RegexCheck, EmbeddedRegexCheck, BlobCheck, UnicodeCheck, SplitPayloadCheck)
 _MAX_DEPTH = 3
 
 
@@ -130,43 +103,6 @@ class _Trail:
 
 
 # --- entry points -------------------------------------------------------------------
-
-
-def _command_text(value: object) -> list[str]:
-    """Command strings of a JSON value: a string, an argument list, or (dev containers)
-    an object of named commands."""
-    if isinstance(value, str):
-        return [value]
-    if isinstance(value, list) and all(isinstance(v, str) for v in value):
-        return [" ".join(_quote(v) for v in value)]
-    if isinstance(value, dict):
-        return [text for v in value.values() for text in _command_text(v)]
-    return []
-
-
-def _quote(word: str) -> str:
-    return f'"{word}"' if " " in word and '"' not in word else word
-
-
-def _task_commands(task: Mapping[str, object]) -> list[str]:
-    commands: list[str] = []
-    for scope in (task, task.get("windows"), task.get("linux"), task.get("osx")):
-        if not isinstance(scope, dict):
-            continue
-        command = scope.get("command")
-        if isinstance(command, dict):
-            command = command.get("value")
-        if not isinstance(command, str):
-            continue
-        words = [command]
-        args = scope.get("args")
-        if isinstance(args, list):
-            for arg in args:
-                value = arg.get("value") if isinstance(arg, dict) else arg
-                if isinstance(value, str):
-                    words.append(_quote(value))
-        commands.append(" ".join(words))
-    return commands
 
 
 def _vscode_entries(data: object, path: str, kind: EntryKind) -> Iterator[_Entry]:
@@ -243,19 +179,6 @@ def _expand_scripts(scripts: Mapping[str, str], names: Sequence[str]) -> list[st
     return commands
 
 
-def _npm_names(command: str) -> list[str]:
-    names: list[str] = []
-    for segment in _SEPARATORS.split(command):
-        tokens = _tokens(segment)
-        if len(tokens) >= 2 and basename(tokens[0]).lower() in ("npm", "pnpm", "yarn"):
-            rest = tokens[1:]
-            if rest[0] in ("run", "run-script") and len(rest) > 1:
-                names.append(rest[1])
-            elif rest[0] in ("start", "test"):
-                names.append(rest[0])
-    return names
-
-
 def entry_points(ctx: ScanContext, check: ChainCheck, vendored: GlobSet) -> list[_Entry]:
     kinds = {k.kind: k for k in check.entries}
     entries: list[_Entry] = []
@@ -281,72 +204,6 @@ def entry_points(ctx: ScanContext, check: ChainCheck, vendored: GlobSet) -> list
 
 
 # --- commands and references ---------------------------------------------------------
-
-
-def _tokens(segment: str) -> list[str]:
-    tokens = [t.strip("\"'") for t in _TOKEN.findall(segment)]
-    while tokens and (tokens[0].lower() in _PREFIXES or _ASSIGNMENT.fullmatch(tokens[0])):
-        tokens.pop(0)
-        # Options of the prefix (sudo -E, env -i).
-        while tokens and tokens[0].startswith("-"):
-            tokens.pop(0)
-    return tokens
-
-
-def references(command: str, depth: int = 0) -> Iterator[tuple[str, str, tuple[str, ...]]]:
-    """What a command runs: ``("file", path, ())``, ``("make", folder, targets)`` or
-    ``("npm", "", (script,))``. Paths are as written (not yet resolved)."""
-    for segment in _SEPARATORS.split(command):
-        tokens = _tokens(segment)
-        if not tokens:
-            continue
-        name = basename(tokens[0].replace("\\", "/")).lower().removesuffix(".exe")
-        rest = tokens[1:]
-        if name in ("make", "gmake"):
-            yield _make_reference(rest)
-        elif name in ("npm", "pnpm", "yarn"):
-            for script in _npm_names(segment):
-                yield "npm", "", (script,)
-        elif name in _INTERPRETERS:
-            yield from _interpreter_reference(name, rest, depth)
-        else:
-            yield "file", tokens[0], ()
-
-
-def _make_reference(args: Sequence[str]) -> tuple[str, str, tuple[str, ...]]:
-    folder, targets = "", []
-    index = 0
-    while index < len(args):
-        arg = args[index]
-        if arg == "-C" and index + 1 < len(args):
-            folder = args[index + 1]
-            index += 2
-            continue
-        if not arg.startswith("-") and "=" not in arg:
-            targets.append(arg)
-        index += 1
-    return "make", folder, tuple(targets)
-
-
-def _interpreter_reference(
-    name: str, args: Sequence[str], depth: int
-) -> Iterator[tuple[str, str, tuple[str, ...]]]:
-    index = 0
-    while index < len(args):
-        arg = args[index]
-        lower = arg.lower()
-        if lower in _INLINE:
-            if depth < _MAX_DEPTH and index + 1 < len(args):
-                yield from references(args[index + 1], depth + 1)
-            return
-        if lower == "-file" or (name in ("deno", "bun") and lower == "run"):
-            index += 1
-            continue
-        if arg.startswith("-") or (name == "cmd" and arg.startswith("/")):
-            index += 1
-            continue
-        yield "file", arg, ()
-        return
 
 
 def _file_commands(path: str, text: str) -> tuple[str, ...]:
@@ -581,7 +438,12 @@ class _Chains:
         for rule in self.extra_rules:
             if rule.applies_to(path) or (rule.check.needs_text and view.text() is None):
                 continue
-            found = rule_findings(rule, view, self.ctx)
+            content_rule = (
+                replace(rule, check=rule.check.inner)
+                if isinstance(rule.check, EmbeddedRegexCheck)
+                else rule
+            )
+            found = rule_findings(content_rule, view, self.ctx)
             if found:
                 self.area(rule.area).findings.extend(found)
 

@@ -6,6 +6,7 @@ from repovet.engine.checks import (
     blob,
     chain,
     dependency,
+    embedded_regex,
     filename,
     import_ref,
     keypath,
@@ -17,6 +18,8 @@ from repovet.engine.checks import (
     split_payload,
     tree,
     unicode,
+    vscode_task,
+    workflow,
 )
 from repovet.engine.checks.base import BuildEnv, Check, Params
 
@@ -25,6 +28,9 @@ type Builder = Callable[[Params, BuildEnv], Check]
 BUILDERS: dict[str, Builder] = {
     "filename": filename.build,
     "regex": regex.build,
+    "embedded_regex": embedded_regex.build,
+    "vscode_task": vscode_task.build,
+    "workflow": workflow.build,
     "sentence": sentence.build,
     "split_payload": split_payload.build,
     "keypath": keypath.build,

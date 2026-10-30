@@ -32,8 +32,8 @@ fails if they are out of date.
 | RC-AUTO-015 | medium | Custom build hooks in pyproject.toml |
 | RC-AUTO-016 | high | .pth file with code |
 | RC-AUTO-017 | high | sitecustomize.py or usercustomize.py in the repository |
-| RC-AUTO-020 | medium | VS Code task runs when the folder is opened |
-| RC-AUTO-021 | critical | VS Code task that runs on folder open downloads or executes code |
+| RC-AUTO-020 | low | VS Code task runs when the folder is opened |
+| RC-AUTO-021 | critical | VS Code task that runs on folder open accesses the network or decodes a payload |
 | RC-AUTO-022 | high | VS Code settings point an interpreter, tool or shell into the repository |
 | RC-AUTO-023 | high | VS Code task that runs on folder open starts a script of the repository |
 | RC-AUTO-025 | high | Dev container runs initializeCommand on the host |
@@ -71,7 +71,7 @@ fails if they are out of date.
 | RC-AUTO-088 | high | Ruby install or build script downloads and runs code |
 | RC-AUTO-090 | critical | Auto-run entry point reaches dangerous code in another file |
 
-#### AI agent instructions and configuration (`agents`, 28 rules)
+#### AI agent instructions and configuration (`agents`, 29 rules)
 
 | ID | Severity | Description |
 |----|----------|-------------|
@@ -93,6 +93,7 @@ fails if they are out of date.
 | RC-AGENT-026 | high | Agent file imports files from outside the repository |
 | RC-AGENT-027 | medium | Code starts an AI coding agent with approvals or sandbox switched off |
 | RC-AGENT-028 | high | Plain-text instruction to run commands, send data away or act behind the user's back |
+| RC-AGENT-029 | high | Agent command uploads a concrete file to a URL |
 | RC-AGENT-030 | high | Claude Code hooks in project settings |
 | RC-AGENT-031 | high | Broad agent permissions in project settings |
 | RC-AGENT-032 | critical | Claude Code API traffic redirected or API key helper set |

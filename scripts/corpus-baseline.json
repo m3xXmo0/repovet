@@ -194,11 +194,6 @@
         }
       },
       "skillspector": {
-        "RC-DLX-001": {
-          "high": 0,
-          "medium": 0,
-          "low": 2
-        },
         "RC-OBF-009": {
           "high": 0,
           "medium": 2,

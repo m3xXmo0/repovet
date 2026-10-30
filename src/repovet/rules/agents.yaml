@@ -175,9 +175,78 @@
   confidence: medium
   files: [{set: agent_files}, {set: skill_files}]
   check:
-    type: regex
-    demote_descriptive: true
-    pattern: "{{download_exec}}"
+    type: embedded_regex
+    source: markdown
+    regex:
+    - type: regex
+      demote_regex_literals: true
+      join_continuations: true
+      ignore: '{{comment_line}}'
+      prefilter:
+      - curl
+      - wget
+      - invoke-webrequest
+      - invoke-restmethod
+      - iwr
+      - irm
+      - bitstransfer
+      - bitsadmin
+      - certutil
+      - webclient
+      - downloadstring
+      pattern: '{{download_exec}}'
+    - type: regex
+      demote_regex_literals: true
+      ignore: '{{comment_line}}'
+      prefilter:
+      - certutil
+      - bitsadmin
+      - mshta
+      - regsvr32
+      - rundll32
+      pattern: (?i:\bcertutil(?:\.exe)?\b[^\n]{0,80}[-/]urlcache\b|\bbitsadmin(?:\.exe)?\b[^\n]{0,80}[-/]transfer\b|\bmshta(?:\.exe)?[
+        \t]+["']?(?:https?:|javascript:|vbscript:)|\bregsvr32(?:\.exe)?\b[^\n]{0,80}[-/]i:["']?https?:|\brundll32(?:\.exe)?\b[^\n]{0,120}(?:https?:|javascript:))
+    - type: regex
+      demote_regex_literals: true
+      ignore: '{{comment_line}}'
+      prefilter:
+      - urlopen
+      - urlretrieve
+      - requests.
+      - httpx.
+      - urllib3
+      - aiohttp
+      - fetch
+      - axios
+      - xmlhttprequest
+      - http.get
+      - https.get
+      - invoke-webrequest
+      - invoke-restmethod
+      - downloadstring
+      - downloaddata
+      pattern: (?:\b(?:exec|eval)[ \t]*\(|\bnew[ \t]+Function[ \t]*\(|\b(?:pickle|marshal|dill|cloudpickle)\.loads?[ \t]*\()[^\n]{0,200}?\b(?:urlopen|urlretrieve|requests\.(?:get|post|request)|httpx\.(?:get|post|request)|urllib3|aiohttp|fetch|axios|XMLHttpRequest|https?\.get|Invoke-WebRequest|Invoke-RestMethod|DownloadString|DownloadData)\b
+    - type: regex
+      demote_regex_literals: true
+      ignore: '{{comment_line}}'
+      prefilter:
+      - chmod
+      - start
+      pattern: (?i:\bchmod[ \t]+(?:-[a-z]+[ \t]+)?(?:[ugoa]*\+x|[0-7]{3,4})\b|\bStart-Process\b|\bstart(?:\.exe)?[ \t]+(?:""[
+        \t]+)?["']?)[^\n]{0,60}?{{temp_path}}
+      file_requires:
+      - '{{network_fetch}}|\burlretrieve\b|\bDownloadFile\b'
+    - type: regex
+      scope: text
+      prefilter:
+      - curl
+      - wget
+      pattern: (?i)\b([A-Za-z_][A-Za-z0-9_]{0,40})=["']?(?:\$\(|`)[ \t]*(?:curl|wget)\b[^\n]{0,300}(?:\n[^\n]{0,300}){0,5}?(?:\b(?:ba|z|da|k)?sh(?:[
+        \t]+-[a-z]{0,3}c)?|\beval|\bpython[23]?[ \t]+-c|\bnode[ \t]+-e|\bperl[ \t]+-e)[ \t]+["']?\$\{?\1\b
+    plain_regex:
+      type: regex
+      demote_descriptive: true
+      pattern: '{{download_exec}}'
   message: "Agent is asked to download and run code: {match}"
   rationale: >
     An agent that follows this runs code from the network with your rights. The code is
@@ -343,17 +412,19 @@
       # not one that keeps something from the user ("erwähne das nicht", "keine
       # Rückfrage").
       negated: '\A[\s>*_-]*(?:\d{1,3}[.)][ \t]*)?(?!(?:if|when|unless|wenn|falls|sobald)\b)(?![^\n,;:]{0,40}?\b(?:tell|show|inform|mention|reveal|notify|report|ask|confirm\w*|asking|sag\w*|erzähl\w*|zeig\w*|erwähn\w*|meld\w*|verrat\w*|teil\w*|benachrichtig\w*|frag\w*|Rückfrage|Nachfrage|Bestätigung)\b)[^\n,;:]{0,30}?\b(?:never|do[ \t]+not|don''t|must[ \t]+not|mustn''t|should[ \t]+not|shouldn''t|avoid|nie|niemals|keinesfalls|nicht|keine[nmrs]?)\b'
+      # Comparing a local file with documentation is not sending it.
+      compare: '\b(?:compare|diff|vergleiche|vergleichen)\b'
       # Setting a variable to a URL is configuration, not sending.
       assign: '\b(?:set|setze|export|define|configure|point)\b'
     combinations:
       - {signals: [exfil_secret_url], unless: [negated]}
       - {signals: [exfil, dump, remote], unless: [negated]}
-      - {signals: [substance_url, override], unless: [negated]}
-      - {signals: [substance_url, no_confirm], unless: [negated]}
-      - {signals: [substance_url, command], unless: [negated]}
+      - {signals: [substance_url, override], severity: medium, unless: [negated, compare]}
+      - {signals: [substance_url, no_confirm], severity: medium, unless: [negated, compare]}
+      - {signals: [substance_url, command], severity: medium, unless: [negated, compare]}
       - {signals: [url_query_command, substance_url], unless: [negated]}
       - {signals: [url_query_command, secret], unless: [negated]}
-      - {signals: [substance_url], severity: medium, unless: [negated, assign]}
+      - {signals: [substance_url], severity: medium, unless: [negated, assign, compare]}
       - {signals: [file_leak], severity: medium, unless: [negated]}
       - {signals: [exfil_url, secret], severity: medium, unless: [negated]}
       - {signals: [exfil_url, command], severity: medium, unless: [negated]}
@@ -369,9 +440,9 @@
     commands, send data to an address or secrets out of the project, or keep something
     from the user, in plain words (English or German) without any hidden characters.
     Nothing enforces it, but an agent that follows it acts with your rights. Sending a key
-    file, secrets or the environment to a URL is reported as high when the sentence also
-    names a sending verb, a command, hides it or skips confirmation; the other
-    combinations as medium.
+    file, secrets or the environment to a URL is reported as high with a sending verb
+    or a query string that contains a secret-reading command. Other combinations are
+    medium; secrecy or skipping confirmation alone does not raise them to high.
   recommendation: >
     Read the sentence. Do not let an agent work in this repository until you know why it
     is there; remove it if it is not from the maintainers.
@@ -731,3 +802,32 @@
     - https://github.com/openai/codex/blob/main/docs/config.md
     - https://aider.chat/docs/config/aider_conf.html
   tags: [codex, aider, permissions]
+
+- id: RC-AGENT-029
+  title: Agent command uploads a concrete file to a URL
+  area: agents
+  severity: high
+  confidence: medium
+  files:
+  - set: agent_files
+  - set: skill_files
+  check:
+    type: regex
+    pattern: >-
+      (?ix:\bcurl\b(?=[^\n`]{0,500}?https?://[^\s`"'<>]+)
+      [^\n`]{0,200}?[ \t]+(?:
+      (?:(?-i:-T)|--upload-file)(?:[ \t]+|=)["']?(?!-(?:[\s"']|\Z)|[<>$])[\w./~\\-]{1,180}
+      |(?:-d|--data(?:-binary|-urlencode)?)(?:[ \t]+|=)["']?@(?!-(?:[\s"']|\Z))[\w./~\\-]{1,180}))
+    prefilter:
+    - curl
+    demote_descriptive: true
+  message: 'Agent command uploads a local file: {match}'
+  rationale: The command names a local file and sends its contents to a remote URL. An agent following
+    it can disclose configuration or credentials. Quoted attack examples are reported as low.
+  recommendation: Read the destination and the file before allowing the command. Do not send local configuration
+    or credentials to an unrelated service.
+  references:
+  - https://curl.se/docs/manpage.html#-T
+  tags:
+  - prompt-injection
+  - exfiltration

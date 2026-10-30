@@ -9,46 +9,61 @@ exit codes and the JSON report (`schema_version`) are stable interfaces.
 
 ## [0.4.1] - 2026-10-30
 
-This release targets the weakest areas of the independent check of 0.4.0: plain-text
-instructions in agent files (now also in German) and GitHub Actions workflows. Exit codes
-and the JSON report (`schema_version` 1.4) are unchanged.
+This release hardens plain-text instructions in agent files and GitHub Actions checks.
+It ships 141 rules. Exit codes, JSON report schema 1.4 and runtime dependencies are
+unchanged.
+
+All 16 canonical reconstructions are detected. Of 64 hand-written variants, 60 reach
+the original severity; the four earlier gaps remain open. The increase from 48 of 52
+comes from 12 new variants, not from closing those gaps. In the existing unpublished
+set, 13 of 42 variants are rated at the expected severity, 13 are detected at medium or
+above but rated lower or in another area, and 16 are missed; 23 of 24 harmless look-alikes
+stay below medium. The recorded 0.4.0 result was 11 / 13 / 18 and 22 of 24. Since its
+technique classes informed this release, this set is now only partly independent and
+serves as a regression check; workflow cases still rate 0 of 6.
+
+The renewed 50-repository benchmark scanned 38 and skipped 12: 0 critical, 5 high,
+62 medium, 58 low and 447 info findings. The previous 0.4.1 run had 63 medium; the other
+area/severity counts are unchanged. The guarded default-branch checkout is no longer
+reported. Repository snapshots can change between runs; these counts are not a paired
+experiment on identical commits. Details are in `docs/fp-benchmark.md`.
 
 ### Added
 
-- **RC-AGENT-028** looks at what is sent before how it is said: a key or credential
-  file, the whole environment or a secret variable sent "to/an <URL>" is reported with
-  any verb, a URL whose query string is filled by a command (`?d=$(cat ~/.npmrc)`) is
-  high, and the contents of a credential file put into a commit, issue, comment or answer
-  is medium. German verbs ("schicke", "übermittle", "lade … hoch"), hiding ("verschweige",
-  "sag dem Nutzer nichts"), skipping confirmation ("ohne Rückfrage") and overriding
-  instructions are recognized. A negation at the start of the sentence ("never send …",
-  "niemals …") cancels; public keys and example files are not counted.
-- **RC-AUTO-023 (high):** a VS Code task that runs on folder open and starts a script or
-  program file of the repository (`node .vscode/init.js`, `${workspaceFolder}/setup.ps1`).
-- **RC-AUTO-063 (medium):** untrusted event text passed through `env:` back into a
-  command: `${{ env.NAME }}` in a script, `eval`/`sh -c "$NAME"`, or written to
-  `$GITHUB_ENV`, `$GITHUB_OUTPUT` or `$GITHUB_PATH`.
-- **RC-AUTO-064 (medium):** a workflow that writes a comment, issue or pull request text
-  to a file (with `jq` from the event payload, `fs.writeFileSync` in github-script or a
-  shell redirect) and then runs that file.
-- **RC-DLX-008 (low):** a secret (`${{ secrets.X }}`, `$…_TOKEN`, `process.env.…_KEY`)
-  in the query string of a URL. Only a hint: some services expect their key there.
-- **RC-DLX-009 (high):** a workflow step that holds `toJSON(secrets)` and runs a network
-  command.
+- **RC-AUTO-023 (high):** folder-open tasks that start repository code, including
+  interpreter commands, npm scripts, Make targets, task dependencies and OS overrides.
+- **RC-AUTO-063 (medium):** untrusted event text passed through `env:` into a command,
+  an expression in a script, or a workflow environment file.
+- **RC-AUTO-064 (medium):** event text written to a file and then executed within the
+  same job; constant BODY/TITLE variables are not treated as event data.
+- **RC-DLX-008 (low):** a secret variable in a URL query string. Some services expect
+  their key there, so this remains a hint.
+- **RC-DLX-009 (high):** all secrets used by a network command in the same step,
+  directly or through declared environment values. Independent local writes and
+  requests do not count as a transfer.
+- **RC-AGENT-029 (high):** curl uploads of a concrete file in agent instructions,
+  including `-T`, `--upload-file` and data-file arguments. Downloads, literal request
+  bodies and stdin without a named file do not count as file uploads.
 
 ### Changed
 
-- **RC-AUTO-020** (any task on folder open) is medium instead of high. The severity now
-  follows what the task reaches: a script of the repository is high (RC-AUTO-023), a
-  download or decoded payload critical (RC-AUTO-021), dangerous code further down a chain
-  critical (RC-AUTO-090). Watch and build tasks such as `npm run watch` stay medium.
-- **RC-AUTO-060** also finds checkouts of the merge ref (`refs/pull/N/merge`,
-  `merge_commit_sha`), the head repository, `git fetch … pull/N/head`, a ref taken from an
-  env value, and checkouts in `issue_comment` and `workflow_run` workflows.
-- Download and execute: process substitution with options and for `source`, `.`,
-  Python and Node (`bash -x <(curl …)`, `source <(wget -qO- …)`, `bash < <(curl …)`),
-  and here-strings (`bash <<< "$(curl …)"`).
-- Quoted attack examples are also recognized by German cue words ("Beispiel", "Angriff").
+- **RC-AGENT-028** recognizes concrete secret material, destination URLs and German
+  instructions. Actual sending of secrets to a URL and secret-reading commands in URL
+  queries remain high. Secrecy or skipping confirmation alone does not raise ambiguous
+  prose above medium; comparisons with documentation are excluded.
+- **RC-AUTO-020** is low for the presence of a folder-open task. Repository code is
+  high through RC-AUTO-023; network access or decoded payloads are critical through
+  RC-AUTO-021. Labels and echo arguments are not executed files.
+- **RC-AUTO-060** recognizes more pull-request checkout forms, including literal env
+  indirection. Constant refs and workflow-run jobs restricted to their own repository,
+  default branch and trusted event types are excluded; every OR branch must retain
+  the restrictions.
+- Script download checks also inspect workflow and composite-action `run` values.
+  Agent code spans use the same checks for process substitution, command substitution,
+  here-strings, system downloaders, executed HTTP responses and downloaded variables.
+- Quoted attack examples, fenced code and warnings are reported as low. Context cue
+  words also cover German. Invalid Unicode in command scalars and oversized environment
+  expansions are listed under "Not checked" instead of aborting analysis.
 
 ## [0.4.0] - 2026-10-30
 

@@ -22,7 +22,7 @@ def test_builtin_rules_load() -> None:
     rule = rules.get("RC-AUTO-020")
     assert rule is not None
     assert rule.category == "danger"
-    assert rule.severity is Severity.MEDIUM
+    assert rule.severity is Severity.LOW
     assert rule.applies_to(".vscode/tasks.json")
     assert not rule.applies_to("node_modules/x/.vscode/tasks.json")
     assert {"network_fetch", "shell_pipe_exec", "encoded_payload"} <= set(rules.patterns)

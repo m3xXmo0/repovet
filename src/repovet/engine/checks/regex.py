@@ -52,7 +52,7 @@ def looks_like_regex_literal(line: str, start: int, end: int) -> bool:
     return any(unescaped.count(quote) % 2 == 1 for quote in _QUOTES)
 
 
-_FENCE = re.compile(r"[ \t]*(`{3,}|~{3,})")
+_FENCE = re.compile(r"\A[ \t]*(`{3,}|~{3,})")
 _CONTINUATION = re.compile(r"\\\r?\n")
 
 
@@ -121,7 +121,7 @@ _DESCRIPTIVE_CUE = re.compile(
     r"attacks?|attackers?|malicious|untrusted|suspicious|adversarial|jailbreaks?|"
     r"detect(?:s|ed|ion|ing)?|flag(?:s|ged|ging)?|block(?:s|ed|ing)?|"
     r"reject(?:s|ed|ing)?|refuse[sd]?|report(?:s|ed|ing)?|quot(?:e|es|ed|ing)|"
-    r"red[ \t]+flags?|anti-?patterns?|signatures?|indicators?|"
+    r"red[ \t]+flags?|anti-?patterns?|signatures?|indicators?|avoid|vermeide[n]?|"
     r"(?:never|do[ \t]+not|don't)[ \t]+(?:follow|obey|execute|run)|not[ \t]+to[ \t]+obey|"
     # The same in German.
     r"(?:zum[ \t]+)?Beispiel\w*|etwa|Muster\w*|Angriff\w*|Angreifer\w*|bösartig\w*|"
@@ -158,8 +158,10 @@ def looks_descriptive(line: str, start: int, end: int) -> bool:
     if quote is None or _CLOSING_QUOTES[quote] not in line[end:]:
         return False
     opening = line.rfind(quote, 0, start)
-    if _IMPERATIVE_BEFORE.search(line, max(0, opening - 40), max(0, opening)):
-        return False
+    imperative = _IMPERATIVE_BEFORE.search(line, max(0, opening - 40), max(0, opening))
+    if imperative:
+        prefix = line[: imperative.start()].lower()
+        return prefix.endswith(("never ", "do not ", "don't ", "niemals ", "nicht "))
     stripped = line.lstrip()
     if stripped.startswith(("|", ">")) or line.count("`") >= 6:
         return True
@@ -207,7 +209,9 @@ class RegexCheck(Check):
         severity: Severity | None = None
         if self.demote_regex_literals and looks_like_regex_literal(line, start, end):
             confidence = Confidence.LOW
-        if self.demote_descriptive and looks_descriptive(line, start, end):
+        if self.demote_descriptive and (
+            number in markdown_code_lines(view) or looks_descriptive(line, start, end)
+        ):
             confidence, severity = Confidence.LOW, Severity.LOW
         return Match(number, column, line, {"match": text}, confidence, severity)
 
@@ -270,7 +274,10 @@ class RegexCheck(Check):
 
     def regexes(self) -> list[re.Pattern[str]]:
         optional = (self.pattern, self.ignore, self.match_requires)
-        return [r for r in optional if r is not None] + self.file_requires
+        patterns = [r for r in optional if r is not None] + self.file_requires
+        if self.demote_descriptive:
+            patterns += [_DESCRIPTIVE_CUE, _IMPERATIVE_BEFORE, _FENCE]
+        return patterns
 
 
 def build(params: Params, env: BuildEnv) -> Check:

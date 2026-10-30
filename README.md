@@ -32,18 +32,18 @@ check.
 
 16 publicly documented supply-chain incidents and repository attack techniques are rebuilt as inert files (placeholder hosts, no working payloads) and scanned on every test run: **16 detected**, **0 partly detected** (some expected rules fire, others are known gaps), **0 not detected**. Each entry links its public sources.
 
-Each reconstruction also has hand-written **variants** that rewrite it with an evasion technique (a variable, a helper script, another downloader, a split string, plain prose). A variant counts as detected when it reaches the severity of the original in the files it rewrites: **48 of 52 variants detected**; the others are listed as known gaps.
+Each reconstruction also has hand-written **variants** that rewrite it with an evasion technique (a variable, a helper script, another downloader, a split string, plain prose). A variant counts as detected when it reaches the severity of the original in the files it rewrites: **60 of 64 variants detected**; the others are listed as known gaps.
 
 | Technique | Year | Result | Variants detected | Rules that fire | Known gaps |
 |-----------|-----:|--------|------------------:|-----------------|------------|
 | [Prompt injection switches on Copilot auto-approve (CVE-2025-53773)](https://github.com/m3xXmo0/repovet/blob/main/tests/reconstructions/copilot-auto-approve.yaml) | 2025 | detected | 3 of 3 | RC-AGENT-024 | - |
 | [GlassWorm invisible code in VS Code extensions](https://github.com/m3xXmo0/repovet/blob/main/tests/reconstructions/glassworm.yaml) | 2025 | detected | 2 of 2 | RC-AGENT-006, RC-OBF-003 | - |
 | [Nx "s1ngularity"](https://github.com/m3xXmo0/repovet/blob/main/tests/reconstructions/nx-s1ngularity.yaml) | 2025 | detected | 2 of 3 | RC-AGENT-027, RC-AUTO-001, RC-AUTO-062 | variant `flag-in-variable` |
-| [Rules File Backdoor (hidden instructions in AI rule files)](https://github.com/m3xXmo0/repovet/blob/main/tests/reconstructions/rules-file-backdoor.yaml) | 2025 | detected | 3 of 3 | RC-AGENT-001, RC-AGENT-004, RC-AGENT-005, RC-AGENT-020 | - |
-| [Shai-Hulud npm worm](https://github.com/m3xXmo0/repovet/blob/main/tests/reconstructions/shai-hulud.yaml) | 2025 | detected | 2 of 3 | RC-AUTO-001, RC-DLX-005, RC-DLX-006 | variant `joined-host` |
+| [Rules File Backdoor (hidden instructions in AI rule files)](https://github.com/m3xXmo0/repovet/blob/main/tests/reconstructions/rules-file-backdoor.yaml) | 2025 | detected | 9 of 9 | RC-AGENT-001, RC-AGENT-004, RC-AGENT-005, RC-AGENT-020 | - |
+| [Shai-Hulud npm worm](https://github.com/m3xXmo0/repovet/blob/main/tests/reconstructions/shai-hulud.yaml) | 2025 | detected | 3 of 4 | RC-AUTO-001, RC-DLX-005, RC-DLX-006 | variant `joined-host` |
 | [tj-actions/changed-files (CVE-2025-30066)](https://github.com/m3xXmo0/repovet/blob/main/tests/reconstructions/tj-actions-changed-files.yaml) | 2025 | detected | 4 of 4 | RC-OBF-002, RC-OBF-003 | - |
 | [VS Code task that runs on folder open (fake job interviews)](https://github.com/m3xXmo0/repovet/blob/main/tests/reconstructions/vscode-folder-open-task.yaml) | 2025 | detected | 5 of 5 | RC-AUTO-020, RC-AUTO-021 | - |
-| [ultralytics workflow injection](https://github.com/m3xXmo0/repovet/blob/main/tests/reconstructions/ultralytics.yaml) | 2024 | detected | 2 of 2 | RC-AUTO-062 | - |
+| [ultralytics workflow injection](https://github.com/m3xXmo0/repovet/blob/main/tests/reconstructions/ultralytics.yaml) | 2024 | detected | 7 of 7 | RC-AUTO-062 | - |
 | [xz-utils backdoor (CVE-2024-3094)](https://github.com/m3xXmo0/repovet/blob/main/tests/reconstructions/xz-utils.yaml) | 2024 | detected | 2 of 2 | RC-BIN-006, RC-OBF-003 | - |
 | [Dev container initializeCommand runs on the host](https://github.com/m3xXmo0/repovet/blob/main/tests/reconstructions/devcontainer-initialize-command.yaml) | 2022 | detected | 3 of 3 | RC-AUTO-025 | - |
 | [core.fsmonitor in a shipped Git config and in a buried bare repository](https://github.com/m3xXmo0/repovet/blob/main/tests/reconstructions/git-fsmonitor.yaml) | 2022 | detected | 1 of 2 | RC-AUTO-032 | variant `include-file` |
@@ -55,7 +55,7 @@ Each reconstruction also has hand-written **variants** that rewrite it with an e
 
 **False positives: the 50 most-starred GitHub repositories** (repovet 0.4.1, 2026-10-30)
 
-38 scanned offline with all rules, 12 skipped (too large to clone or failed; listed in the report). 3 of 38 had at least one high or critical finding. Findings: 0 critical, 5 high, 63 medium, 58 low, 447 info. These projects are presumed benign, so every finding is a false positive or something the project does on purpose.
+38 scanned offline with all rules, 12 skipped (too large to clone or failed; listed in the report). 3 of 38 had at least one high or critical finding. Findings: 0 critical, 5 high, 62 medium, 58 low, 447 info. These projects are presumed benign, so every finding is a false positive or something the project does on purpose.
 
 Rules that fire most often (repositories with a finding): RC-PROV-010 (info, 21 of 38), RC-AGENT-001 (info, 13 of 38), RC-BIN-006 (low, 6 of 38), RC-AUTO-002 (low, 5 of 38), RC-DLX-005 (medium, 3 of 38).
 
@@ -64,15 +64,17 @@ Per rule and per repository: [docs/fp-benchmark.md](https://github.com/m3xXmo0/r
 **No findings does not mean safe.** repovet reports only what its rules detect in the checked scope; the known gaps above are examples of what it misses.
 <!-- evidence:end -->
 
-**Independent check.** The variants above were written alongside the rules, so they show
-what the rules are built for, not how well they generalize. A separate set of 42 bypass
-variants and 24 harmless look-alikes, written by a third party and never used to build
-the rules, gives a less flattering picture for 0.4.0: 11 variants are rated at the
-expected severity, 13 are detected (medium or above) but rated lower, and 18 are missed;
-22 of the 24 look-alikes stay below medium. The weakest areas are instructions written as
-plain prose in agent files and GitHub Actions workflows. That set is not published.
-Version 0.4.1 targets the technique classes it exposed, so the set no longer counts as
-independent; later versions are measured with a new one.
+**Independent check.** The variants above were developed alongside the rules, so
+they show what the rules are built for, not how well they generalize. A separate,
+unpublished set of 42 bypass variants and 24 harmless look-alikes was written by a third
+party before 0.4.1. The recorded result for 0.4.0 is 11 variants rated at the expected
+severity, 13 detected at medium or above but rated lower or in another area, and 18
+missed; 22 of the 24 look-alikes stay below medium. On the same set, 0.4.1 rates 13 at
+the expected severity, detects 13 lower or in another area, and misses 16; 23 of the 24
+look-alikes stay below medium. Workflow cases remain weak (0 of 6 rated). The earlier
+results informed the technique classes targeted by 0.4.1, so this is now a regression
+check and only partly independent. A fresh set is needed for another independent
+measurement.
 
 ## Get started in three steps
 
