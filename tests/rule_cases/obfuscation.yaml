@@ -97,7 +97,41 @@ RC-OBF-003:
         run.ps1: |
           $c = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b)) | iex
       expect: [{path: run.ps1, line: 1}]
+    - name: child_process runs a decoded command
+      files:
+        dist/index.js: |
+          const child_process = require("child_process");
+          child_process.execSync(Buffer.from(SCRIPT, "base64").toString("utf-8"), { stdio: "inherit" });
+          spawn(atob(encoded), { shell: true });
+      expect: [{path: dist/index.js, line: 2}, {path: dist/index.js, line: 3}]
+    - name: subprocess and os.system run a decoded command
+      files:
+        setup_hook.py: |
+          import base64, os, subprocess
+          subprocess.run(base64.b64decode(CMD), shell=True)
+          os.system(base64.b64decode(CMD).decode())
+      expect: [{path: setup_hook.py, line: 2}, {path: setup_hook.py, line: 3}]
+    - name: configure macro decompresses a test file into a shell
+      files:
+        m4/build-to-host.m4: |
+          AC_DEFUN([gl_INIT],
+          [
+            gl_config='sed "r\n" $gl_file | eval $gl_map | xz -d 2>/dev/null | sh'
+          ])
+        configure: "#!/bin/sh\nzcat tests/files/data.gz | /bin/sh\n"
+      expect: [{path: m4/build-to-host.m4, line: 3}, {path: configure, line: 2}]
   negative:
+    - name: decompression and child processes without decoding into execution
+      files:
+        build.sh: |
+          xz -d release.tar.xz
+          gunzip -c data.gz | tar -x
+          zcat access.log.gz | grep error
+        tools/run.js: |
+          execSync(`git log -1`, { encoding: "utf-8" });
+          const text = Buffer.from(output).toString();
+          spawn(cmd, Buffer.from(input, "base64").length > 0 ? ["-v"] : []);
+        configure.ac: "AC_INIT([demo], [1.0])\nAC_CONFIG_FILES([Makefile])\n"
     - name: decoding without execution
       files:
         z.py: |
@@ -157,11 +191,27 @@ RC-OBF-005:
 
 RC-OBF-006:
   positive:
-    - name: one very long line in a Python module
+    - name: minified code appended to a JavaScript module
+      files:
+        lib/index.js: {prefix: "module.exports = 1;\nvar a=function(b){return b+1};", repeat: "a=function(c){if(c){x(c);}return a(c)};", count: 150, suffix: "\n"}
+      expect: [{path: lib/index.js, line: 2}]
+    - name: long Python one-liner
+      files:
+        pkg/run.py: {prefix: "import os;", repeat: "f=lambda x:(x,os.getcwd());g=f(1);print(g);", count: 130, suffix: "\n"}
+      expect: [{path: pkg/run.py, line: 1}]
+  negative:
+    - name: data table in a Python module
       files:
         pkg/data.py: {prefix: "VALUES = [", repeat: "123456789, ", count: 600, suffix: "]\n"}
-      expect: [{path: pkg/data.py, line: 1}]
-  negative:
+    - name: SVG path data in a string
+      files:
+        src/Logo.tsx: {prefix: "export const D = '<path d=\"M10.5 20.8C", repeat: "1042.94 225.295 1009.78 239.748 ", count: 200, suffix: "\"/>';\n"}
+    - name: long prose string
+      files:
+        src/contracts.ts: {prefix: "  const help = 'Use the routes collection to query route patterns", repeat: ", then summarize the matching handlers for the user", count: 120, suffix: "';\n"}
+    - name: keyword list of a syntax highlighter
+      files:
+        src/components/lang-vim.js: {prefix: "\tkeyword: /\\b(?:", repeat: "autocmd|acd|ai|akm|aleph|", count: 300, suffix: ")\\b/,\n"}
     - name: generated file with a header
       files:
         schema/types.ts: {prefix: "// GENERATED CODE! DO NOT MODIFY BY HAND!\nexport type T = ", repeat: "{ a: string } | ", count: 400, suffix: "never;\n"}
@@ -232,7 +282,26 @@ RC-OBF-010:
       files:
         src/update.js: "const host = 'https://g\U0000043Eogle.example.invalid/x';\n"
       expect: [{path: src/update.js, line: 1}]
+    - name: look-alike package name in require and import
+      files:
+        src/a.js: "const _ = require('l\U0000043Edash');\n"
+        pkg/b.py: "from r\U00000435quests import get\n"
+      expect: [{path: src/a.js, line: 1}, {path: pkg/b.py, line: 1}]
+    - name: identifier after a string and a comment on the same line
+      files:
+        main.go: "var s = \"\U0000041F\U00000440\U00000438\" // note\nfunc \U00000430uth() {}\n"
+      expect: [{path: main.go, line: 2}]
   negative:
+    - name: names and test titles in string literals
+      files:
+        yt_dlp/extractor/audius.py: "_TESTS = [{\n    'title': '''T\U00000435\U00000435\U00000435st/ 1.!@#$%^&*()_+=[]{};:<>,.?/''',\n    'channel': 'PRO\U00000441\U00000442\U0000043E\U000004353D',\n    'uploader': \"\U0000041CARINA D\",\n}]\n"
+    - name: translated text with a missing space
+      files:
+        src/client/locales.ts: "export const ru = {\n  installFailed: 'pnpm \U00000431\U0000043B\U0000043E\U0000043A\U00000438\U00000440\U0000043E\U00000432\U00000430\U0000043B \U00000440\U00000430\U00000437\U00000434\U00000435\U0000043B\U00000435allowBuilds \U00000432 pnpm-workspace.yaml',\n  detail: '\U00000417\U00000430\U00000432\U00000435\U00000440\U00000448\U00000435\U0000043D\U0000043E.\\n\\n\U0000041E\U00000431\U0000043D\U0000043E\U00000432\U0000043B\U00000435\U0000043D\U00000438\U00000435 Windows',\n};\n"
+    - name: mixed words in comments and docstrings
+      files:
+        app/util.py: "# \U00000441\U0000043C. config\U00000444\U00000430\U00000439\U0000043B\ndef f():\n    \"\"\"\U0000041F\U00000440\U00000438\U0000043C\U00000435\U00000440 Windows\U00000435 x\"\"\"\n"
+        web/app.ts: "/* \U00000442\U00000435\U00000441\U00000442test */\nconst t = `\U00000437\U00000430\U00000433\U00000440\U00000443\U00000437\U0000043A\U00000430file`;\n"
     - name: translations and math names in one script each
       files:
         i18n.py: "HELLO = '\U0000041F\U00000440\U00000438\U00000432\U00000435\U00000442'\nx_\U000003B1 = 0.5\nNAME = 'M\U000000FCller'\n"
@@ -242,3 +311,37 @@ RC-OBF-010:
     - name: look-alike in a test module
       files:
         tests/test_names.py: "def test_is_\U00000430dmin():\n    pass\n"
+
+RC-OBF-011:
+  positive:
+    - name: decrypted data compiled as a module
+      files:
+        index.min.js: |
+          const crypto = require("crypto");
+          function load(blob, secret) {
+            const d = crypto.createDecipheriv("aes-256-cbc", secret, Buffer.alloc(16));
+            const source = d.update(blob, "hex", "utf8") + d.final("utf8");
+            const mod = new module.constructor();
+            mod._compile(source, "extra.js");
+          }
+      expect: [{path: index.min.js, line: 5}, {path: index.min.js, line: 6}]
+    - name: decrypted data run in a vm context
+      files:
+        lib/plugin.js: |
+          const vm = require("vm");
+          const text = require("crypto").createDecipher("aes256", key).update(data, "hex", "utf8");
+          vm.runInNewContext(text, {});
+      expect: [{path: lib/plugin.js, line: 3}]
+  negative:
+    - name: require hook that compiles without decrypting
+      files:
+        register.js: |
+          const Module = require("module");
+          const m = new Module(filename, parent);
+          m._compile(transpile(source), filename);
+    - name: decryption without compiling
+      files:
+        src/secret.js: |
+          const d = crypto.createDecipheriv("aes-256-gcm", key, iv);
+          const plain = d.update(data, "hex", "utf8") + d.final("utf8");
+          module.exports = JSON.parse(plain);

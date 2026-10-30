@@ -110,16 +110,24 @@ def render(
             "",
             "Rules that fire most often (repositories with a finding): "
             + ", ".join(
-                f"{r['rule']} ({r['severity']}, {r['repos']} of {scanned})" for r in frequent
+                f"{r['rule']} ({fp_benchmark.severity_cell(r)}, {r['repos']} of {scanned})"
+                for r in frequent
             )
             + ".",
         ]
+    misses = (
+        "the known gaps above are examples of what it misses"
+        if any(e.entry.known_gaps for e in evaluations)
+        else "each reconstruction lists under *not covered* the parts of the real attack "
+        "that it does not see (payloads only in published packages or release archives, "
+        "moved tags, behaviour at run time)"
+    )
     lines += [
         "",
         f"Per rule and per repository: [docs/fp-benchmark.md]({REPO_URL}/docs/fp-benchmark.md).",
         "",
         "**No findings does not mean safe.** repovet reports only what its rules detect in "
-        "the checked scope; the known gaps above are examples of what it misses.",
+        f"the checked scope; {misses}.",
     ]
     return "\n".join(lines)
 

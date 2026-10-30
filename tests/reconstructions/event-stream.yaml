@@ -12,25 +12,34 @@ sources:
   - https://blog.npmjs.org/post/180565383195/details-about-the-event-stream-incident
   - https://github.com/dominictarr/event-stream/issues/116
 reconstruction: >
-  The dependency package: a minified entry file with the loader shape (read the
-  "test" data, decrypt with a key from an npm environment variable, compile the result
-  as a module) and a data file with random hex strings instead of ciphertext.
+  The dependency package reduced to the shape the rules look at: an entry file with a
+  function that decrypts a string and hands the result to Node's module compiler, and a
+  data file posing as test data. Names and structure are new, not the original loader;
+  the function is never called, the key is not read from the environment, and the data
+  is a short run of zeros instead of ciphertext.
 files:
   package.json: |
     {"name": "flatmap-stream", "version": "0.1.1", "main": "index.min.js"}
   index.min.js: |
-    var Stream=require("stream").Stream;module.exports=function(e){return new Stream};
-    !function(){try{var d=require("./test/data"),k=process.env.npm_package_description,c=require("crypto").createDecipher("aes256",k),s=c.update(d[0],"hex","utf8");s+=c.final("utf8");var m=new module.constructor;m.paths=module.paths;m._compile(s,"");m.exports(d[1])}catch(e){}}();
+    const { Readable } = require("stream");
+    module.exports = () => new Readable({ read() {} });
+
+    function unpackExtra(hexText, secret) {
+      const cipher = require("crypto").createDecipheriv("aes-256-cbc", secret, Buffer.alloc(16));
+      const source = cipher.update(hexText, "hex", "utf8") + cipher.final("utf8");
+      const extra = new module.constructor();
+      extra._compile(source, "extra.js");
+      return extra.exports;
+    }
+    module.exports.unpackExtra = unpackExtra;
   test/data.js: |
-    module.exports=["6b1f0c9a3e5d27f4a8c1e0b9d3f6a2c7e4b8d1f0a3c6e9b2d5f8a1c4e7b0d3f6a9c2e5b8d1f4a7c0e3b6d9f2a5c8e1b4d7f0a3c6e9b2d5f8a1c4e7b0d3f6a9c2e5b8d1f4a7c0e3b6d9f2a5c8e1b4d7f0","0a3c6e9b2d5f8a1c4e7b0d3f6a9c2e5b8d1f4a7c0e3b6d9f2a5c8e1b4d7f0a3c6e9b"];
-must_not_fire: [RC-AUTO-001, RC-DEP-001]
-known_gaps:
-  - rule: RC-OBF-003
-    reason: >
-      The data is decrypted in one statement and compiled with module._compile in
-      another; the rule matches only eval/exec/new Function around a decoder call in
-      one expression.
+    module.exports = ["00000000000000000000000000000000"];
+must_fire:
+  - {rule: RC-OBF-011, path: index.min.js}
+must_not_fire: [RC-AUTO-001, RC-DEP-001, RC-OBF-003]
 not_covered: >
   The payload sat in the published npm package, which repovet does not download; a
   scan of event-stream's own repository shows only a new dependency. Encrypted data
-  in hex form is not reported (RC-OBF-001 looks at high-entropy Base64 only).
+  in hex form is not reported (RC-OBF-001 looks at high-entropy Base64 only). The
+  decryption and the compile step are separate statements, so the one-expression rule
+  RC-OBF-003 stays silent; RC-OBF-011 reports them as a pair in one file.

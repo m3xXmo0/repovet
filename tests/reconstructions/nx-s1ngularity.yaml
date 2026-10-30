@@ -40,16 +40,6 @@ files:
     for (const [cli, args] of Object.entries(cliChecks)) spawnSync(cli, args, { stdio: "ignore" });
 must_fire:
   - {rule: RC-AUTO-001, path: package.json}
-must_not_fire: [RC-AGENT-001, RC-DLX-001]
-known_gaps:
-  - rule: RC-AGENT-024
-    path: telemetry.js
-    reason: >
-      An install script starts AI agents with approvals switched off; RC-AGENT-024
-      only reads agent instruction and settings files, not code that launches agents.
-  - rule: RC-AUTO-060
-    path: .github/workflows/pr-title.yml
-    reason: >
-      The pull request title is interpolated into a shell step of a
-      pull_request_target workflow; the rule only reports checking out the pull
-      request's code, not expression injection.
+  - {rule: RC-AGENT-027, path: telemetry.js}
+  - {rule: RC-AUTO-062, path: .github/workflows/pr-title.yml}
+must_not_fire: [RC-AGENT-001, RC-AGENT-024, RC-AUTO-060, RC-DLX-001]

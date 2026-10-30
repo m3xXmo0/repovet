@@ -86,15 +86,23 @@ def most_starred(client: GitHubClient, count: int) -> list[dict[str, Any]]:
     return found[:count]
 
 
+def _highest(severities: Mapping[str, int]) -> str:
+    return min(severities, key=SEVERITIES.index)
+
+
 def summarize(report: Mapping[str, Any]) -> dict[str, Any]:
-    """Commit, file count and findings per rule (severity and confidence split)."""
+    """Commit, file count and findings per rule: confidence split, findings per severity
+    (a finding can be reported below its rule's severity) and the highest severity."""
     rules: dict[str, dict[str, Any]] = {}
     for finding in report["findings"]:
         entry = rules.setdefault(
             finding["rule_id"],
-            {"severity": finding["severity"], **dict.fromkeys(CONFIDENCES, 0)},
+            {"severity": finding["severity"], **dict.fromkeys(CONFIDENCES, 0), "severities": {}},
         )
         entry[finding["confidence"]] += 1
+        severities = entry["severities"]
+        severities[finding["severity"]] = severities.get(finding["severity"], 0) + 1
+        entry["severity"] = _highest(severities)
     source = report.get("facts", {}).get("source") or {}
     return {
         "commit": str(source.get("commit") or ""),
@@ -133,19 +141,39 @@ def rule_table(data: Mapping[str, Any]) -> list[dict[str, Any]]:
             row = rows.setdefault(
                 rule_id,
                 {"rule": rule_id, "severity": counts["severity"], "repos": 0, "findings": 0}
-                | dict.fromkeys(CONFIDENCES, 0),
+                | dict.fromkeys(CONFIDENCES, 0)
+                | {"severities": {}},
             )
             row["repos"] += 1
             for confidence in CONFIDENCES:
                 row[confidence] += counts[confidence]
                 row["findings"] += counts[confidence]
+            for severity, number in _by_severity(counts).items():
+                row["severities"][severity] = row["severities"].get(severity, 0) + number
+            row["severity"] = _highest(row["severities"])
     return sorted(rows.values(), key=lambda r: (-r["repos"], -r["findings"], r["rule"]))
+
+
+def _by_severity(per_rule: Mapping[str, Any]) -> dict[str, int]:
+    """Findings of one rule per severity (data without the split: all at its severity)."""
+    if "severities" in per_rule:
+        return {str(s): int(n) for s, n in per_rule["severities"].items()}
+    return {per_rule["severity"]: sum(int(per_rule[c]) for c in CONFIDENCES)}
+
+
+def severity_cell(row: Mapping[str, Any]) -> str:
+    """The severity, or the split when a rule's findings have several ("high 1, low 7")."""
+    severities = _by_severity(row) if "severities" in row else {}
+    if len(severities) <= 1:
+        return next(iter(severities), str(row["severity"]))
+    return ", ".join(f"{s} {severities[s]}" for s in SEVERITIES if s in severities)
 
 
 def severity_counts(findings: Mapping[str, Mapping[str, Any]]) -> dict[str, int]:
     counts = dict.fromkeys(SEVERITIES, 0)
     for per_rule in findings.values():
-        counts[per_rule["severity"]] += sum(int(per_rule[c]) for c in CONFIDENCES)
+        for severity, number in _by_severity(per_rule).items():
+            counts[severity] += number
     return counts
 
 
@@ -213,7 +241,7 @@ def render_markdown(data: Mapping[str, Any]) -> str:
     ]
     for row in rules[:TOP_RULES]:
         lines.append(
-            f"| {row['rule']} | {row['severity']} | {titles.get(row['rule'], '?')} "
+            f"| {row['rule']} | {severity_cell(row)} | {titles.get(row['rule'], '?')} "
             f"| {row['repos']} of {scanned} | {row['findings']} |"
         )
     if not rules:
@@ -228,7 +256,8 @@ def render_markdown(data: Mapping[str, Any]) -> str:
     for row in sorted(rules, key=lambda r: r["rule"]):
         split = "/".join(str(row[c]) for c in CONFIDENCES)
         lines.append(
-            f"| {row['rule']} | {row['severity']} | {row['repos']} | {row['findings']} | {split} |"
+            f"| {row['rule']} | {severity_cell(row)} | {row['repos']} | {row['findings']} "
+            f"| {split} |"
         )
     lines += [
         "",

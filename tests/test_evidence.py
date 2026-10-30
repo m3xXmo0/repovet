@@ -89,6 +89,18 @@ def test_gap_of_a_firing_rule_names_its_file() -> None:
     assert "| RC-DLX-005 | RC-DLX-005 in `wf.yml`, RC-OBF-003 |" in text
 
 
+def test_closing_sentence_names_gaps_or_what_is_not_covered() -> None:
+    with_gap = _entry("one", ["RC-AUTO-001"], [{"rule": "RC-OBF-003", "reason": "r"}])
+    without = _entry("two", ["RC-AUTO-001"], [])
+    texts = [
+        render([reconstructions.evaluate(e, {"findings": []})], BENCHMARK, version="1", date="d")
+        for e in (with_gap, without)
+    ]
+    assert "the known gaps above are examples of what it misses." in texts[0]
+    assert "known gaps above" not in texts[1]
+    assert "lists under *not covered* the parts of the real attack" in texts[1]
+
+
 def test_section_replacement() -> None:
     text = f"intro\n{evidence.START}\nold\n{evidence.END}\noutro\n"
     assert current_section(text) == "old"

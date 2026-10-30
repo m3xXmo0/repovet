@@ -28,15 +28,10 @@ files:
     ])
 must_fire:
   - {rule: RC-BIN-006, path: tests/files/bad-3-corrupt_lzma2.xz}
+  - {rule: RC-OBF-003, path: m4/build-to-host.m4}
 must_not_fire: [RC-BIN-001, RC-OBF-001]
-known_gaps:
-  - rule: RC-OBF-003
-    path: m4/build-to-host.m4
-    reason: >
-      A decompressed file piped into a shell during configure is "decode and execute";
-      m4/autoconf files are not code files for the obfuscation rules, and the rule
-      knows only Base64 decoders in shell pipelines.
 not_covered: >
   The m4 loader existed only in the release tarballs, not in Git, so a scan of the
   repository sees only the test files (archives, reported as low). The .lzma file has
-  no signature repovet knows. autoconf/m4 build logic is not analyzed.
+  no signature repovet knows. Beyond decode-and-run pipelines, autoconf/m4 build logic
+  is not analyzed.

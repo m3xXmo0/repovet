@@ -32,13 +32,8 @@ files:
     updateFeatures().then(() => core.setOutput("any_changed", "true"));
 must_fire:
   - {rule: RC-OBF-002, path: dist/index.js}
+  - {rule: RC-OBF-003, path: dist/index.js}
 must_not_fire: [RC-AUTO-061, RC-BIN-001]
-known_gaps:
-  - rule: RC-OBF-003
-    path: dist/index.js
-    reason: >
-      execSync(Buffer.from(..., "base64")) decodes and runs a command in one step; the
-      rule matches eval and new Function around Buffer.from, not child_process calls.
 not_covered: >
   The attack itself was a moved tag: workflows that use an action by a mutable tag
   instead of a commit id are not reported.

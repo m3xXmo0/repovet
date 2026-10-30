@@ -1,20 +1,20 @@
 {
   "date": "2026-10-30",
-  "repovet": "0.3.0",
+  "repovet": "0.3.1",
   "requested": 50,
-  "rules_loaded": 126,
+  "rules_loaded": 130,
   "max_clone_size": 524288000,
   "repositories": [
     {
       "repo": "codecrafters-io/build-your-own-x",
-      "stars": 557401,
+      "stars": 557428,
       "commit": "aa17439b62f384511a5561ce308e9598b94d8989",
       "files": 4,
       "findings": {}
     },
     {
       "repo": "sindresorhus/awesome",
-      "stars": 526942,
+      "stars": 527014,
       "commit": "bc98e517ddca672f55f9857d714fc3ea3c3540b2",
       "files": 23,
       "findings": {
@@ -22,13 +22,16 @@
           "severity": "low",
           "high": 1,
           "medium": 0,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "low": 1
+          }
         }
       }
     },
     {
       "repo": "public-apis/public-apis",
-      "stars": 493330,
+      "stars": 493369,
       "commit": "d4d63b048263cfb20a6235d34c97a6b0c67342ad",
       "files": 23,
       "findings": {
@@ -36,51 +39,60 @@
           "severity": "info",
           "high": 0,
           "medium": 1,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "info": 1
+          }
         }
       }
     },
     {
       "repo": "morluto/rea",
-      "stars": 408715,
-      "commit": "317bf3fe235e655b2d752d3be261cc0da7d00f2b",
-      "files": 6817,
+      "stars": 409430,
+      "commit": "c5f50e80d8032baba7c3f6af4b84f8ce2d49e65d",
+      "files": 6820,
       "findings": {
         "RC-AGENT-001": {
           "severity": "info",
           "high": 18,
           "medium": 0,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "info": 18
+          }
         },
         "RC-AUTO-002": {
           "severity": "low",
           "high": 2,
           "medium": 0,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "low": 2
+          }
         },
         "RC-OBF-003": {
           "severity": "high",
           "high": 1,
           "medium": 0,
-          "low": 0
-        },
-        "RC-OBF-006": {
-          "severity": "medium",
-          "high": 0,
-          "medium": 0,
-          "low": 1
+          "low": 0,
+          "severities": {
+            "high": 1
+          }
         },
         "RC-PROV-010": {
           "severity": "info",
           "high": 0,
           "medium": 1,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "info": 1
+          }
         }
       }
     },
     {
       "repo": "EbookFoundation/free-programming-books",
-      "stars": 400502,
+      "stars": 400512,
       "commit": "3bb4c53f0681d5a6d6adafdf3f2ee4eca054a23d",
       "files": 235,
       "findings": {
@@ -88,13 +100,16 @@
           "severity": "info",
           "high": 0,
           "medium": 1,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "info": 1
+          }
         }
       }
     },
     {
       "repo": "donnemartin/system-design-primer",
-      "stars": 376155,
+      "stars": 376167,
       "commit": "ae9bbd7b02d90b9866215de185217d33f39ab733",
       "files": 139,
       "findings": {
@@ -102,13 +117,16 @@
           "severity": "low",
           "high": 20,
           "medium": 0,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "low": 20
+          }
         }
       }
     },
     {
       "repo": "nilbuild/developer-roadmap",
-      "stars": 370761,
+      "stars": 370774,
       "commit": "3ecc18178d5e8fd1c07d64737fd3270595c9353d",
       "files": 11210,
       "findings": {
@@ -116,27 +134,30 @@
           "severity": "info",
           "high": 0,
           "medium": 1,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "info": 1
+          }
         }
       }
     },
     {
       "repo": "jwasham/coding-interview-university",
-      "stars": 363542,
+      "stars": 363549,
       "commit": "717298bf219a30d7fb0671285c5f057b1bb74b27",
       "files": 46,
       "findings": {}
     },
     {
       "repo": "awesome-selfhosted/awesome-selfhosted",
-      "stars": 331883,
+      "stars": 331925,
       "commit": "f05554a17fb57b1e85ed637de8a573985b134ec1",
       "files": 6,
       "findings": {}
     },
     {
       "repo": "vinta/awesome-python",
-      "stars": 331242,
+      "stars": 331265,
       "commit": "732d4919babf0036d5bf38b4b4f79db186b7394b",
       "files": 131,
       "findings": {
@@ -144,25 +165,25 @@
           "severity": "info",
           "high": 9,
           "medium": 0,
-          "low": 0
-        },
-        "RC-AGENT-011": {
-          "severity": "medium",
-          "high": 0,
-          "medium": 1,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "info": 9
+          }
         },
         "RC-PROV-010": {
           "severity": "info",
           "high": 0,
           "medium": 1,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "info": 1
+          }
         }
       }
     },
     {
       "repo": "obra/superpowers",
-      "stars": 308753,
+      "stars": 308921,
       "commit": "2ce8aa15d05bd57213e6f746f953aafb7ded7a8b",
       "files": 231,
       "findings": {
@@ -170,25 +191,25 @@
           "severity": "info",
           "high": 2,
           "medium": 0,
-          "low": 0
-        },
-        "RC-AGENT-022": {
-          "severity": "medium",
-          "high": 0,
-          "medium": 1,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "info": 2
+          }
         },
         "RC-PROV-010": {
           "severity": "info",
           "high": 0,
           "medium": 1,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "info": 1
+          }
         }
       }
     },
     {
       "repo": "mattpocock/skills",
-      "stars": 306763,
+      "stars": 306859,
       "commit": "a496f5513d4a4cf889bc48e189e579f4b0bdf6aa",
       "files": 175,
       "findings": {
@@ -196,25 +217,25 @@
           "severity": "info",
           "high": 1,
           "medium": 0,
-          "low": 0
-        },
-        "RC-AGENT-010": {
-          "severity": "medium",
-          "high": 0,
-          "medium": 3,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "info": 1
+          }
         },
         "RC-PROV-010": {
           "severity": "info",
           "high": 0,
           "medium": 1,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "info": 1
+          }
         }
       }
     },
     {
       "repo": "affaan-m/ECC",
-      "stars": 292830,
+      "stars": 292917,
       "commit": "b38be6a7f6350964d59328b52f0624e1d1d552d1",
       "files": 4701,
       "findings": {
@@ -222,85 +243,106 @@
           "severity": "info",
           "high": 284,
           "medium": 0,
-          "low": 0
-        },
-        "RC-AGENT-010": {
-          "severity": "medium",
-          "high": 0,
-          "medium": 45,
-          "low": 0
-        },
-        "RC-AGENT-011": {
-          "severity": "medium",
-          "high": 0,
-          "medium": 16,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "info": 284
+          }
         },
         "RC-AGENT-012": {
           "severity": "medium",
           "high": 0,
           "medium": 0,
-          "low": 1
+          "low": 1,
+          "severities": {
+            "medium": 1
+          }
         },
         "RC-AGENT-020": {
-          "severity": "high",
+          "severity": "low",
           "high": 0,
-          "medium": 7,
-          "low": 0
+          "medium": 0,
+          "low": 7,
+          "severities": {
+            "low": 7
+          }
         },
         "RC-AGENT-021": {
-          "severity": "high",
+          "severity": "low",
           "high": 0,
-          "medium": 3,
-          "low": 0
+          "medium": 0,
+          "low": 3,
+          "severities": {
+            "low": 3
+          }
         },
         "RC-AGENT-022": {
-          "severity": "medium",
+          "severity": "low",
           "high": 0,
-          "medium": 13,
-          "low": 0
+          "medium": 0,
+          "low": 4,
+          "severities": {
+            "low": 4
+          }
         },
         "RC-AGENT-040": {
           "severity": "medium",
           "high": 1,
           "medium": 0,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "medium": 1
+          }
         },
         "RC-AGENT-050": {
           "severity": "medium",
           "high": 0,
-          "medium": 26,
-          "low": 0
+          "medium": 7,
+          "low": 0,
+          "severities": {
+            "medium": 7
+          }
         },
         "RC-AGENT-060": {
           "severity": "high",
           "high": 1,
           "medium": 0,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "high": 1
+          }
         },
         "RC-AUTO-002": {
           "severity": "low",
           "high": 1,
           "medium": 0,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "low": 1
+          }
         },
         "RC-DLX-001": {
           "severity": "medium",
           "high": 0,
           "medium": 1,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "medium": 1
+          }
         },
         "RC-PROV-010": {
           "severity": "info",
           "high": 0,
           "medium": 1,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "info": 1
+          }
         }
       }
     },
     {
       "repo": "practical-tutorials/project-based-learning",
-      "stars": 288419,
+      "stars": 288426,
       "commit": "e6db1d1fe52671ac01495bed26853e06c2538068",
       "files": 14,
       "findings": {
@@ -308,13 +350,16 @@
           "severity": "info",
           "high": 0,
           "medium": 1,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "info": 1
+          }
         }
       }
     },
     {
       "repo": "996icu/996.ICU",
-      "stars": 277196,
+      "stars": 277194,
       "commit": "f5e35f48d769bf92ed885888bfe911d3e5b5a63d",
       "files": 326,
       "findings": {
@@ -322,25 +367,34 @@
           "severity": "low",
           "high": 1,
           "medium": 0,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "low": 1
+          }
         },
         "RC-BIN-001": {
           "severity": "high",
           "high": 3,
           "medium": 0,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "high": 3
+          }
         },
         "RC-BIN-006": {
           "severity": "low",
           "high": 1,
           "medium": 0,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "low": 1
+          }
         }
       }
     },
     {
       "repo": "deepseek-ai/deepseek-harness",
-      "stars": 266064,
+      "stars": 266241,
       "commit": "ce7073d51254c26cd63b22a60835b8f948deb447",
       "files": 20219,
       "findings": {
@@ -348,94 +402,95 @@
           "severity": "info",
           "high": 70,
           "medium": 0,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "info": 70
+          }
         },
         "RC-AUTO-001": {
           "severity": "medium",
           "high": 2,
           "medium": 0,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "medium": 2
+          }
         },
         "RC-AUTO-002": {
           "severity": "low",
           "high": 5,
           "medium": 0,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "low": 5
+          }
         },
         "RC-AUTO-015": {
           "severity": "medium",
           "high": 1,
           "medium": 0,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "medium": 1
+          }
         },
         "RC-AUTO-060": {
           "severity": "medium",
           "high": 0,
           "medium": 4,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "medium": 4
+          }
         },
         "RC-BIN-007": {
           "severity": "medium",
           "high": 1,
           "medium": 0,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "medium": 1
+          }
         },
         "RC-DEP-010": {
           "severity": "medium",
           "high": 0,
           "medium": 1,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "medium": 1
+          }
         },
         "RC-DEP-013": {
           "severity": "medium",
           "high": 0,
           "medium": 0,
-          "low": 1
+          "low": 1,
+          "severities": {
+            "medium": 1
+          }
         },
         "RC-OBF-009": {
           "severity": "medium",
           "high": 0,
           "medium": 2,
-          "low": 0
-        },
-        "RC-OBF-010": {
-          "severity": "medium",
-          "high": 3,
-          "medium": 0,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "medium": 2
+          }
         }
       }
     },
     {
       "repo": "trimstray/the-book-of-secret-knowledge",
-      "stars": 254363,
+      "stars": 254399,
       "commit": "7d37069a361d3fd9f214480755f7969744e866fa",
       "files": 6,
       "findings": {}
     },
     {
-      "repo": "multica-ai/andrej-karpathy-skills",
-      "stars": 226524,
-      "commit": "2c606141936f1eeef17fa3043a72095b4765b9c2",
-      "files": 9,
-      "findings": {
-        "RC-AGENT-001": {
-          "severity": "info",
-          "high": 2,
-          "medium": 0,
-          "low": 0
-        },
-        "RC-PROV-010": {
-          "severity": "info",
-          "high": 0,
-          "medium": 1,
-          "low": 0
-        }
-      }
-    },
-    {
       "repo": "TheAlgorithms/Python",
-      "stars": 225686,
+      "stars": 225687,
       "commit": "6e03a48579ca212a08b36be00378f887dc41a003",
       "files": 1737,
       "findings": {
@@ -443,19 +498,28 @@
           "severity": "info",
           "high": 4,
           "medium": 0,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "info": 4
+          }
         },
         "RC-AUTO-026": {
           "severity": "low",
           "high": 1,
           "medium": 0,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "low": 1
+          }
         },
         "RC-PROV-010": {
           "severity": "info",
           "high": 0,
           "medium": 1,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "info": 1
+          }
         }
       }
     },
@@ -468,21 +532,21 @@
     },
     {
       "repo": "ossu/computer-science",
-      "stars": 210511,
+      "stars": 210517,
       "commit": "33d44a44e3526ede8e862bf1ad50ae5ae7a2f112",
       "files": 38,
       "findings": {}
     },
     {
       "repo": "DigitalPlatDev/FreeDomain",
-      "stars": 206366,
+      "stars": 206383,
       "commit": "9c7c54110705760267b07b6e6a6d406d1172a1bf",
       "files": 88,
       "findings": {}
     },
     {
       "repo": "yt-dlp/yt-dlp",
-      "stars": 203766,
+      "stars": 203792,
       "commit": "b77c9304e1c4220cca450c583491904daf8455af",
       "files": 1235,
       "findings": {
@@ -490,31 +554,34 @@
           "severity": "medium",
           "high": 0,
           "medium": 3,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "medium": 3
+          }
         },
         "RC-DLX-005": {
           "severity": "medium",
           "high": 0,
           "medium": 0,
-          "low": 3
+          "low": 3,
+          "severities": {
+            "medium": 3
+          }
         },
         "RC-OBF-001": {
           "severity": "medium",
           "high": 0,
           "medium": 0,
-          "low": 6
-        },
-        "RC-OBF-010": {
-          "severity": "medium",
-          "high": 5,
-          "medium": 0,
-          "low": 0
+          "low": 6,
+          "severities": {
+            "medium": 6
+          }
         }
       }
     },
     {
       "repo": "massgravel/Microsoft-Activation-Scripts",
-      "stars": 196893,
+      "stars": 196914,
       "commit": "6401d2f36975dc07bcb6d22ea823a8498a75ec01",
       "files": 15,
       "findings": {
@@ -522,81 +589,114 @@
           "severity": "medium",
           "high": 0,
           "medium": 2,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "medium": 2
+          }
         }
       }
     },
     {
       "repo": "firecrawl/firecrawl",
-      "stars": 196812,
-      "commit": "b4f23178e7f3121fa39ce20c11fc30165d0ce631",
+      "stars": 196851,
+      "commit": "f748a79097e27969ed1fc2183b25ac308f8f5dc9",
       "files": 2174,
       "findings": {
         "RC-AGENT-001": {
           "severity": "info",
           "high": 2,
           "medium": 0,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "info": 2
+          }
         },
         "RC-AUTO-001": {
           "severity": "medium",
           "high": 1,
           "medium": 0,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "medium": 1
+          }
         },
         "RC-AUTO-002": {
           "severity": "low",
           "high": 1,
           "medium": 0,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "low": 1
+          }
         },
         "RC-AUTO-004": {
           "severity": "medium",
           "high": 1,
           "medium": 0,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "medium": 1
+          }
         },
         "RC-AUTO-010": {
           "severity": "low",
           "high": 1,
           "medium": 0,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "low": 1
+          }
         },
         "RC-AUTO-082": {
           "severity": "low",
           "high": 1,
           "medium": 0,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "low": 1
+          }
         },
         "RC-BIN-005": {
           "severity": "medium",
           "high": 1,
           "medium": 0,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "medium": 1
+          }
         },
         "RC-DEP-010": {
           "severity": "medium",
           "high": 0,
           "medium": 2,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "medium": 2
+          }
         },
         "RC-DLX-005": {
           "severity": "medium",
           "high": 0,
           "medium": 0,
-          "low": 2
+          "low": 2,
+          "severities": {
+            "medium": 2
+          }
         },
         "RC-PROV-010": {
           "severity": "info",
           "high": 0,
           "medium": 1,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "info": 1
+          }
         }
       }
     },
     {
       "repo": "trekhleb/javascript-algorithms",
-      "stars": 196710,
+      "stars": 196709,
       "commit": "85293e3e2b88f4d2ce330d956b139cf628aa1e82",
       "files": 679,
       "findings": {
@@ -604,13 +704,16 @@
           "severity": "low",
           "high": 1,
           "medium": 0,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "low": 1
+          }
         }
       }
     },
     {
       "repo": "ultraworkers/claw-code",
-      "stars": 194974,
+      "stars": 194975,
       "commit": "f4fff38de1d47a6aeafe5b6b279d3f15d7cdc712",
       "files": 428,
       "findings": {
@@ -618,43 +721,61 @@
           "severity": "info",
           "high": 23,
           "medium": 0,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "info": 23
+          }
         },
         "RC-AUTO-010": {
           "severity": "low",
           "high": 1,
           "medium": 0,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "low": 1
+          }
         },
         "RC-AUTO-041": {
           "severity": "medium",
           "high": 1,
           "medium": 0,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "medium": 1
+          }
         },
         "RC-AUTO-082": {
           "severity": "low",
           "high": 1,
           "medium": 0,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "low": 1
+          }
         },
         "RC-DLX-001": {
           "severity": "medium",
           "high": 0,
           "medium": 1,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "medium": 1
+          }
         },
         "RC-PROV-010": {
           "severity": "info",
           "high": 0,
           "medium": 1,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "info": 1
+          }
         }
       }
     },
     {
       "repo": "microsoft/markitdown",
-      "stars": 192940,
+      "stars": 192953,
       "commit": "7482c092d9c0074a89803c9fdb63a969e7fe17fc",
       "files": 197,
       "findings": {
@@ -662,19 +783,25 @@
           "severity": "low",
           "high": 1,
           "medium": 0,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "low": 1
+          }
         },
         "RC-PROV-010": {
           "severity": "info",
           "high": 0,
           "medium": 1,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "info": 1
+          }
         }
       }
     },
     {
       "repo": "avelino/awesome-go",
-      "stars": 191081,
+      "stars": 191093,
       "commit": "5ac69e3b1f9cf4244a2432e82b372a5201804770",
       "files": 106,
       "findings": {
@@ -682,19 +809,25 @@
           "severity": "info",
           "high": 1,
           "medium": 0,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "info": 1
+          }
         },
         "RC-PROV-010": {
           "severity": "info",
           "high": 0,
           "medium": 1,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "info": 1
+          }
         }
       }
     },
     {
       "repo": "ohmyzsh/ohmyzsh",
-      "stars": 190234,
+      "stars": 190235,
       "commit": "17a2b4c3a5855524ad4772a17ada0dc474e2fdf3",
       "files": 1177,
       "findings": {
@@ -702,31 +835,43 @@
           "severity": "low",
           "high": 1,
           "medium": 0,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "low": 1
+          }
         },
         "RC-DLX-001": {
           "severity": "medium",
           "high": 0,
           "medium": 1,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "medium": 1
+          }
         },
         "RC-DLX-005": {
           "severity": "medium",
           "high": 0,
           "medium": 0,
-          "low": 5
+          "low": 5,
+          "severities": {
+            "medium": 5
+          }
         },
         "RC-PROV-010": {
           "severity": "info",
           "high": 0,
           "medium": 1,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "info": 1
+          }
         }
       }
     },
     {
       "repo": "jackfrued/Python-100-Days",
-      "stars": 187570,
+      "stars": 187576,
       "commit": "44b2575bf42a02d0a38d9dada3f60335c95c5ec2",
       "files": 713,
       "findings": {
@@ -734,19 +879,25 @@
           "severity": "medium",
           "high": 6,
           "medium": 0,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "medium": 6
+          }
         },
         "RC-BIN-006": {
           "severity": "low",
           "high": 2,
           "medium": 0,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "low": 2
+          }
         }
       }
     },
     {
       "repo": "CyC2018/CS-Notes",
-      "stars": 186382,
+      "stars": 186385,
       "commit": "fb246251714b931f62348107fce6eb39f61ddd14",
       "files": 3118,
       "findings": {
@@ -754,25 +905,25 @@
           "severity": "medium",
           "high": 0,
           "medium": 1,
-          "low": 0
-        },
-        "RC-OBF-006": {
-          "severity": "medium",
-          "high": 0,
-          "medium": 0,
-          "low": 8
+          "low": 0,
+          "severities": {
+            "medium": 1
+          }
         },
         "RC-PROV-010": {
           "severity": "info",
           "high": 0,
           "medium": 1,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "info": 1
+          }
         }
       }
     },
     {
       "repo": "521xueweihan/HelloGitHub",
-      "stars": 185625,
+      "stars": 185671,
       "commit": "8172b9f1a21aeb131245c485fb88fb155783a654",
       "files": 268,
       "findings": {
@@ -780,13 +931,16 @@
           "severity": "info",
           "high": 0,
           "medium": 1,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "info": 1
+          }
         }
       }
     },
     {
       "repo": "ollama/ollama",
-      "stars": 185282,
+      "stars": 185297,
       "commit": "4d22e65d493f281adce5e4de7f2cd1efa847cd13",
       "files": 1585,
       "findings": {
@@ -794,76 +948,85 @@
           "severity": "info",
           "high": 2,
           "medium": 0,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "info": 2
+          }
         },
         "RC-AUTO-056": {
           "severity": "medium",
           "high": 1,
           "medium": 0,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "medium": 1
+          }
         },
         "RC-DLX-001": {
           "severity": "medium",
           "high": 0,
           "medium": 5,
-          "low": 0
-        },
-        "RC-OBF-006": {
-          "severity": "medium",
-          "high": 0,
-          "medium": 0,
-          "low": 1
+          "low": 0,
+          "severities": {
+            "medium": 5
+          }
         },
         "RC-OBF-009": {
           "severity": "medium",
           "high": 0,
           "medium": 1,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "medium": 1
+          }
         },
         "RC-PROV-010": {
           "severity": "info",
           "high": 0,
           "medium": 1,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "info": 1
+          }
         }
       }
     },
     {
       "repo": "anthropics/skills",
-      "stars": 184846,
+      "stars": 184880,
       "commit": "ca45fc496a3436251f191354091d557da31c15b5",
       "files": 446,
       "findings": {
-        "RC-AGENT-010": {
-          "severity": "medium",
-          "high": 0,
-          "medium": 1,
-          "low": 0
-        },
         "RC-BIN-006": {
           "severity": "low",
           "high": 1,
           "medium": 0,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "low": 1
+          }
         },
         "RC-PROV-010": {
           "severity": "info",
           "high": 0,
           "medium": 1,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "info": 1
+          }
         }
       }
     },
     {
       "repo": "getify/You-Dont-Know-JS",
-      "stars": 184836,
+      "stars": 184837,
       "commit": "044120ef55564939cd35f5ddaf3f6c0a45d7b02c",
       "files": 82,
       "findings": {}
     },
     {
       "repo": "DietrichGebert/ponytail",
-      "stars": 180347,
+      "stars": 180460,
       "commit": "96608e078b2d5ea607c5c3b8b5a54d1c1fba6846",
       "files": 216,
       "findings": {
@@ -871,33 +1034,36 @@
           "severity": "info",
           "high": 7,
           "medium": 0,
-          "low": 0
-        },
-        "RC-OBF-006": {
-          "severity": "medium",
-          "high": 0,
-          "medium": 0,
-          "low": 1
+          "low": 0,
+          "severities": {
+            "info": 7
+          }
         },
         "RC-PROV-010": {
           "severity": "info",
           "high": 0,
           "medium": 1,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "info": 1
+          }
         }
       }
     },
     {
       "repo": "github/gitignore",
-      "stars": 176110,
-      "commit": "9630d0771522b209b81e0faad310b676531378df",
+      "stars": 176111,
+      "commit": "09f8241c2d1f2b5a4f39fcf1126cd6550d901b0d",
       "files": 316,
       "findings": {
         "RC-PROV-010": {
           "severity": "info",
           "high": 0,
           "medium": 1,
-          "low": 0
+          "low": 0,
+          "severities": {
+            "info": 1
+          }
         }
       }
     }
@@ -905,62 +1071,67 @@
   "skipped": [
     {
       "repo": "freeCodeCamp/freeCodeCamp",
-      "stars": 458203,
-      "reason": "larger than the clone limit (570.3 MB > 500 MB)"
+      "stars": 458208,
+      "reason": "larger than the clone limit (570.8 MB > 500 MB)"
     },
     {
       "repo": "openclaw/openclaw",
-      "stars": 393397,
+      "stars": 393414,
       "reason": "larger than the clone limit (11.1 GB > 500 MB)"
     },
     {
       "repo": "NousResearch/hermes-agent",
-      "stars": 258578,
+      "stars": 258630,
       "reason": "larger than the clone limit (1.3 GB > 500 MB)"
     },
     {
       "repo": "torvalds/linux",
-      "stars": 253806,
+      "stars": 253810,
       "reason": "larger than the clone limit (6.1 GB > 500 MB)"
     },
     {
       "repo": "react/react",
-      "stars": 251751,
+      "stars": 251754,
       "reason": "larger than the clone limit (1.1 GB > 500 MB)"
     },
     {
+      "repo": "multica-ai/andrej-karpathy-skills",
+      "stars": 226578,
+      "reason": "scan failed (exit code 3): repovet: error: analysis aborted: fetching https://github.com/multica-ai/andrej-karpathy-skills failed: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))"
+    },
+    {
       "repo": "anomalyco/opencode",
-      "stars": 223123,
-      "reason": "larger than the clone limit (600.2 MB > 500 MB)"
+      "stars": 223149,
+      "reason": "larger than the clone limit (601.0 MB > 500 MB)"
     },
     {
       "repo": "n8n-io/n8n",
-      "stars": 209069,
-      "reason": "larger than the clone limit (757.6 MB > 500 MB)"
+      "stars": 209079,
+      "reason": "larger than the clone limit (757.9 MB > 500 MB)"
     },
     {
       "repo": "tensorflow/tensorflow",
-      "stars": 201212,
+      "stars": 201214,
       "reason": "larger than the clone limit (1.4 GB > 500 MB)"
     },
     {
       "repo": "microsoft/vscode",
-      "stars": 194362,
+      "stars": 194364,
       "reason": "larger than the clone limit (1.6 GB > 500 MB)"
     },
     {
       "repo": "Significant-Gravitas/AutoGPT",
-      "stars": 187826,
-      "reason": "larger than the clone limit (593.5 MB > 500 MB)"
+      "stars": 187825,
+      "reason": "larger than the clone limit (596.7 MB > 500 MB)"
     },
     {
       "repo": "flutter/flutter",
-      "stars": 180637,
+      "stars": 180654,
       "reason": "larger than the clone limit (500.1 MB > 500 MB)"
     },
     {
       "repo": "f/prompts.chat",
-      "stars": 175124,
+      "stars": 175147,
       "reason": "larger than the clone limit (686.0 MB > 500 MB)"
     }
   ]

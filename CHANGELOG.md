@@ -7,6 +7,52 @@ exit codes and the JSON report (`schema_version`) are stable interfaces.
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-30
+
+This release removes the noisiest false alarms found by scanning the 50 most-starred
+GitHub repositories and closes the known gaps listed in the reconstructions of
+documented attacks. Exit codes, report formats and the JSON schema are unchanged.
+
+### Added
+
+- **RC-AUTO-062:** GitHub workflows that put untrusted event text (pull request and
+  issue titles and bodies, comments, branch names, commit messages) into a `run:` step
+  or github-script code under `pull_request_target`, issue, comment, discussion or
+  `workflow_run` triggers, and composite actions that do the same (expression injection).
+- **RC-DLX-006:** a workflow job that uses secrets and sends data to a request catcher,
+  paste or file host (the Shai-Hulud persistence workflow).
+- **RC-OBF-011:** Node code that decrypts data and compiles it as a module or runs it in
+  `vm` (the event-stream loader).
+- **RC-AGENT-027:** JavaScript, TypeScript or Python code that starts an AI coding agent
+  CLI with approvals or sandbox switched off (the Nx "s1ngularity" install script).
+
+### Changed
+
+- **RC-OBF-003** also reports `child_process`, `subprocess` and `os.system` calls that run
+  decoded data (`execSync(Buffer.from(..., "base64"))`), decompressing straight into a
+  shell (`xz -d | sh`), and checks autotools files (`*.m4`, `configure`, `Makefile.in`).
+- **RC-AUTO-032** also checks the config of bare repositories buried in subfolders.
+- **RC-AUTO-070/071** also report pre- and post-build events in Visual Studio projects.
+- Fewer false alarms:
+  - **RC-AGENT-010** reports an HTML comment only if it addresses an AI tool, asks for an
+    action, or contains a URL, a command, encoded data, secrets or hiding language;
+    comments in code blocks and code spans are shown as text and are not reported.
+  - **RC-AGENT-011** ignores HTML in code blocks and code spans and web assets (HTML, CSS)
+    in skill folders.
+  - **RC-AGENT-020, -021, -022, -023, -025** report a phrase that is quoted to describe
+    an attack (security guidance, tables and lists of patterns) as low severity and low
+    confidence instead of dropping it; an instruction stays high.
+  - **RC-AGENT-022** counts the macOS keychain only as a file or through the command that
+    reads it, not advice to store tokens in the Keychain.
+  - **RC-AGENT-050** no longer mistakes `` `!` `` or `` `assert!` `` in code spans for an
+    embedded shell command.
+  - **RC-OBF-006** reports only long lines shaped like code, not long text strings, SVG
+    paths, keyword lists or data tables.
+  - **RC-OBF-010** checks names in code; text in comments and string literals counts only
+    as part of a URL, host name or module name.
+- The reconstructions of event-stream and Shai-Hulud keep only the shape the rules need;
+  neither contains a working loader or sends anything if run.
+
 ## [0.3.0] - 2026-10-30
 
 This release adds evidence for what repovet detects and how often it raises false
@@ -135,7 +181,8 @@ First release.
   threshold, 2 usage error, 3 analysis aborted.
 - Windows, macOS and Linux with Python 3.12 and 3.13.
 
-[Unreleased]: https://github.com/m3xXmo0/repovet/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/m3xXmo0/repovet/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/m3xXmo0/repovet/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/m3xXmo0/repovet/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/m3xXmo0/repovet/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/m3xXmo0/repovet/releases/tag/v0.1.0

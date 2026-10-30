@@ -7,6 +7,9 @@ Conditions (at most one): ``exists`` (default), ``equals`` (type-exact), ``value
 ``not_in``. A ``paths`` entry may be a mapping ``{path: ..., <condition>}`` with its own
 condition. ``where`` lists conditions on paths relative to the matched node; all must
 hold. Objects and arrays are matched by ``value_regex`` as the text of all their values.
+``file_requires`` lists patterns that must all occur in the raw text; other files are not
+parsed at all (a file named ``config`` is a Git config only if it has a ``[core]``
+section, a workflow matters only with certain triggers).
 """
 
 import re
@@ -135,10 +138,12 @@ class KeypathCheck(Check):
         fmt: str,
         paths: list[tuple[Path, Condition]],
         where: list[tuple[Path, Condition]] | None = None,
+        file_requires: list[re.Pattern[str]] | None = None,
     ) -> None:
         self.fmt = fmt
         self.paths = paths
         self.where = where or []
+        self.file_requires = file_requires or []
         self.ignore_case = fmt in CASE_INSENSITIVE_KEYS
 
     def _where_holds(self, node: object) -> bool:
@@ -148,6 +153,10 @@ class KeypathCheck(Check):
         )
 
     def matches(self, view: FileView) -> Iterator[Match]:
+        if self.file_requires:
+            raw = view.text()
+            if raw is None or not all(r.search(raw) for r in self.file_requires):
+                return
         data = view.structured(self.fmt)
         if data is None:
             return
@@ -168,7 +177,7 @@ class KeypathCheck(Check):
 
     def regexes(self) -> list[re.Pattern[str]]:
         conditions = [c for _, c in self.paths] + [c for _, c in self.where]
-        return [c.regex for c in conditions if c.regex is not None]
+        return [c.regex for c in conditions if c.regex is not None] + self.file_requires
 
 
 def build(params: Params, env: BuildEnv) -> Check:
@@ -198,5 +207,6 @@ def build(params: Params, env: BuildEnv) -> Check:
             condition = parse_condition(sub, env)
             sub.done()
             where.append((path, condition))
+    requires = [env.compile(r) for r in params.get_str_list("file_requires")]
     params.done()
-    return KeypathCheck(fmt, paths, where)
+    return KeypathCheck(fmt, paths, where, requires)

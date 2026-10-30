@@ -93,6 +93,31 @@ def test_summarize_a_report() -> None:
     assert list(summary["findings"]) == sorted(summary["findings"])
 
 
+def test_findings_below_their_rule_severity_are_counted_at_their_own() -> None:
+    finding = {"rule_id": "RC-AGENT-020", "severity": "low", "confidence": "low"}
+    report = {
+        "findings": [finding, {**finding, "severity": "high", "confidence": "medium"}, finding],
+        "scan": {"files_scanned": 3},
+    }
+    entry = summarize(report)["findings"]["RC-AGENT-020"]
+    assert entry["severity"] == "high"
+    assert entry["severities"] == {"low": 2, "high": 1}
+    data = {"repositories": [{"repo": "o/r", "findings": {"RC-AGENT-020": entry}}], "skipped": []}
+    assert (headline(data)["high"], headline(data)["low"], headline(data)["repos_high"]) == (
+        1,
+        2,
+        1,
+    )
+    (row,) = rule_table(data)
+    assert fp_benchmark.severity_cell(row) == "high 1, low 2"
+    assert fp_benchmark.severity_cell({**row, "severities": {"low": 3}}) == "low"
+    all_low = {
+        "repositories": [{"repo": "o/r", "findings": {"X": {**entry, "severities": {"low": 3}}}}],
+        "skipped": [],
+    }
+    assert headline(all_low)["repos_high"] == 0
+
+
 def test_scan_repository_skips_large_and_failed(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

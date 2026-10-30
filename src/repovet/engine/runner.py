@@ -29,7 +29,7 @@ def make_finding(rule: Rule, path: str | None, match: Match, ctx: ScanContext) -
         title=rule.title,
         category=rule.category,
         area=rule.area,
-        severity=rule.severity,
+        severity=rule.severity if match.severity is None else min(rule.severity, match.severity),
         confidence=rule.confidence
         if match.confidence is None
         else min(rule.confidence, match.confidence),

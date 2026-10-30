@@ -6,7 +6,14 @@ import pytest
 from helpers import run_check, view_of
 from repovet.engine.checks import BUILDERS
 from repovet.engine.checks.base import BuildEnv, CheckError, Params
-from repovet.engine.checks.blob import decode_run, decompress, entropy, is_media
+from repovet.engine.checks.blob import (
+    code_density,
+    decode_run,
+    decompress,
+    entropy,
+    is_media,
+    string_share,
+)
 
 CODE = base64.b64encode(b"import os\nos.system('echo harmless')\n").decode()
 RANDOM = base64.b64encode(bytes(range(256)) * 2).decode()
@@ -99,6 +106,30 @@ def test_long_lines() -> None:
     assert [(m.line, m.values["count"]) for m in matches] == [(2, "60")]
 
 
+def test_code_density_and_string_share() -> None:
+    assert code_density("") == string_share("") == 0.0
+    assert code_density("f(a);") == pytest.approx(0.6)
+    assert string_share("x = 'abcd'") == pytest.approx(0.6)
+    assert string_share('a "b\\"c" d') == pytest.approx(6 / 10)
+    assert string_share("x = 'unclosed") == pytest.approx(9 / 13)
+    assert string_share("a 'x\\") == pytest.approx(3 / 5)
+
+
+def test_long_lines_shaped_like_code() -> None:
+    spec = {
+        "type": "blob",
+        "encoding": "none",
+        "min_length": 50,
+        "min_code_density": 0.06,
+        "max_string_share": 0.8,
+    }
+    code = "a=f(b);" * 10
+    prose = "word " * 20
+    text_in_string = "x = '" + "a;b(c)=d " * 10 + "'"
+    matches = run_check(spec, "a.js", f"{code}\n{prose}\n{text_in_string}\n")
+    assert [m.line for m in matches] == [1]
+
+
 def test_long_lines_are_checked_beyond_the_regex_limit() -> None:
     spec = {"type": "blob", "encoding": "base64", "min_length": 32, "decoded_regex": "import"}
     line = "x" * 30_000 + f' "{CODE}"'
@@ -115,6 +146,8 @@ def test_long_lines_are_checked_beyond_the_regex_limit() -> None:
         ({"encoding": "base64", "min_length": 32, "min_entropy": 9}, "<= 8.0"),
         ({"encoding": "none", "min_length": 32, "decoded_regex": "x"}, "needs an encoding"),
         ({"encoding": "base64", "min_length": 32, "extra": 1}, "unknown check parameter"),
+        ({"encoding": "base64", "min_length": 32, "min_code_density": 0.1}, "need encoding"),
+        ({"encoding": "none", "min_length": 32, "max_string_share": 2}, "<= 1.0"),
     ],
 )
 def test_invalid_parameters(spec: dict[str, object], message: str) -> None:

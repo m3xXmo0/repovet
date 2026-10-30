@@ -1,14 +1,17 @@
 """Check type ``unicode``: runs of invisible, bidi or tag characters (``mode: runs``),
 or words that mix Latin letters with look-alikes from other scripts
-(``mode: mixed_script``)."""
+(``mode: mixed_script``, optionally ``code_only``)."""
 
 import re
 import unicodedata
 from collections.abc import Iterator
 
 from repovet.engine.checks.base import BuildEnv, Check, CheckError, FileView, Match, Params
+from repovet.parsers.codelex import Spans, literal_spans
+from repovet.parsers.codelex import patterns as codelex_patterns
 
 type Ranges = tuple[tuple[int, int], ...]
+_SPANS_MEMO = "unicode:literal-spans"
 
 NAMED_RANGES: dict[str, Ranges] = {
     "tags": ((0xE0000, 0xE007F),),
@@ -204,10 +207,53 @@ def _describe(char: str) -> str:
     return f"U+{ord(char):04X} {unicodedata.name(char, 'UNKNOWN')}"
 
 
+_RUN_STOP = frozenset(" \t\r\n\"'`")
+_HOST_DOT = re.compile(r"\w\.[A-Za-z]")
+# The text before a string literal that makes it a module name.
+_MODULE_BEFORE = re.compile(r"(?:\b(?:require|import)[ \t]*\([ \t]*|\b(?:from|import)[ \t]+)\Z")
+
+
+def _in_address(text: str, lo: int, hi: int) -> bool:
+    """True if the word ``text[lo:hi]`` is part of a URL, host name or e-mail address:
+    the surrounding run of non-space, non-quote characters has '://', '@' or a dot
+    between a word character and a Latin letter ("example.com", not "end.\\nNext")."""
+    start = lo
+    while start > 0 and lo - start < _MAX_WORD and text[start - 1] not in _RUN_STOP:
+        start -= 1
+    end = hi
+    while end < len(text) and end - hi < _MAX_WORD and text[end] not in _RUN_STOP:
+        end += 1
+    run = text[start:end]
+    return "://" in run or "@" in run or _HOST_DOT.search(run) is not None
+
+
 class MixedScriptCheck(Check):
     """Words that mix ASCII letters with look-alike letters of another script, such as
     "paypal" spelled with a Cyrillic letter a (U+0430). Each non-ASCII run is extended to
-    its word by a bounded scan, so the work stays linear in the text length."""
+    its word by a bounded scan, so the work stays linear in the text length.
+
+    With ``code_only``, words in comments are skipped, and words in string literals count
+    only as part of a URL, host name or e-mail address or as a module name (``import``,
+    ``require``): translated text and names in data are written in their own script."""
+
+    def __init__(self, code_only: bool = False) -> None:
+        self.code_only = code_only
+
+    def _in_text(self, view: FileView, text: str, lo: int, hi: int) -> bool:
+        """True if the word is in a comment or in ordinary string text."""
+        spans = view.memo.get(_SPANS_MEMO)
+        if not isinstance(spans, Spans):
+            spans = literal_spans(text, view.path) or Spans([], [], [])
+            view.memo[_SPANS_MEMO] = spans
+        found = spans.kind_at(lo)
+        if found is None:
+            return False
+        kind, start = found
+        if kind == "c":
+            return True
+        if _MODULE_BEFORE.search(text, max(0, start - 30), start):
+            return False
+        return not _in_address(text, lo, hi)
 
     def matches(self, view: FileView) -> Iterator[Match]:
         text = view.text()
@@ -223,6 +269,8 @@ class MixedScriptCheck(Check):
             lookalikes = sorted({c for c in word if c in LOOKALIKES})
             if not lookalikes or not any(c.isascii() and c.isalpha() for c in word):
                 continue
+            if self.code_only and self._in_text(view, text, lo, hi):
+                continue
             line, column = view.position(lo)
             values = {
                 "match": word,
@@ -232,14 +280,15 @@ class MixedScriptCheck(Check):
             yield Match(line, column, view.line_text(line), values)
 
     def regexes(self) -> list[re.Pattern[str]]:
-        return [_NON_ASCII]
+        return [_NON_ASCII, _MODULE_BEFORE, _HOST_DOT, *codelex_patterns()]
 
 
 def build(params: Params, env: BuildEnv) -> Check:
     mode = params.get_choice("mode", ("runs", "mixed_script"), default="runs")
     if mode == "mixed_script":
+        code_only = params.get_bool("code_only")
         params.done()
-        return MixedScriptCheck()
+        return MixedScriptCheck(code_only)
     ranges = parse_ranges(params.get_str_list("ranges", required=True))
     min_run = params.get_int("min_run", default=1, minimum=1)
     ignore_between = parse_ranges(params.get_str_list("ignore_between"))

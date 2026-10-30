@@ -119,14 +119,23 @@
   check:
     type: regex
     scope: text
+    # Comments in code blocks and code spans are shown as text, not hidden.
+    skip_markdown_code: true
     # A comment may not contain another '<!--', which keeps the search linear.
     pattern: '<!--(?:[^<-]|<(?!!--)|-(?!->))*+-->'
-    # Short markers (up to three words) and tool directives are ignored.
-    ignore: '\A<!--[ \t\r\n]*(?:-->\Z|\S+(?:[ \t]+\S+){0,2}[ \t\r\n]*-->\Z|(?i:prettier-ignore|markdownlint|cspell|spell-?checker|vale|textlint|eslint|doctoc|toc\b|all-contributors|start doctoc|end doctoc))'
+    # Short markers (up to three short words) and tool directives are ignored.
+    ignore: '\A<!--[ \t\r\n]*(?:-->\Z|\S{1,40}(?:[ \t]+\S{1,40}){0,2}[ \t\r\n]*-->\Z|(?i:prettier-ignore|markdownlint|cspell|spell-?checker|vale|textlint|eslint|doctoc|toc\b|all-contributors|start doctoc|end doctoc))'
+    # Editorial notes are not reported. A comment counts only if it addresses an AI tool
+    # ("assistant:", "you must", "from now on"), asks for an action with side effects, or
+    # contains a URL, a command, encoded data, secrets or hiding and override language.
+    match_requires: >-
+      (?i:\b(?:ai|assistants?|agents?|llms?|claude|copilot|chatgpt|gpt|cursor|gemini|codex)\b[ \t]*[:,]|\byou[ \t]+(?:must|are[ \t]+now|will[ \t]+now)\b|\b(?:from[ \t]+now[ \t]+on|new[ \t]+instructions?|system[ \t]+prompt|act[ \t]+as|pretend)\b|\b(?:run|execute|send|upload|download|fetch|install|delete|exfiltrate|transmit|invoke|launch|spawn|disable|approve|grant)\b|\bhttps?://|\bwww\.[\w-]+\.|\b(?:hidden|hide|hiding|secret(?:ly)?|silently|quietly|covert(?:ly)?|stealth(?:ily)?|invisible|unnoticed|disregard|override)\b|\bwithout[ \t]+(?:asking|telling|informing|notifying|mentioning)\b|\b(?:do[ \t]+not|don't|never)[ \t]+(?:tell|inform|notify|mention|reveal|show|disclose)\b|\bignore[ \t]+(?:all|any|the|previous|prior|above|earlier)\b|\b(?:api[ _-]?keys?|passwords?|passwd|credentials?|private[ _-]keys?|secret[ _-]keys?|access[ _-]tokens?|auth[ _-]tokens?)\b|~/\.ssh\b|\.ssh/|\.aws/|\bid_(?:rsa|ed25519)\b)|(?:{{fetch_or_run}})|!`|\$\(|\b(?:curl|wget|bash|sh|zsh|pwsh|powershell|python3?|node|npx|bunx|uvx|sudo|chmod|rm|nc|ncat|ssh|scp|base64|certutil|iex|eval|exec)(?:\.exe)?[ \t]+(?:-{1,2}[A-Za-z]|[./~$%"']\S|https?:)|[A-Za-z0-9+/]{60,}={0,2}|(?:\\x[0-9A-Fa-f]{2}){8,}|(?:%[0-9A-Fa-f]{2}){8,}
   message: "Text hidden from the rendered view: {match}"
   rationale: >
     HTML comments are invisible on GitHub and in Markdown previews, but agents read
-    them. Instructions placed there are hidden from people who review the file.
+    them. Instructions placed there are hidden from people who review the file. Plain
+    editorial notes are not reported, only comments that address an AI tool, ask for an
+    action, or contain URLs, commands, encoded data, secrets or hiding language.
   recommendation: >
     Read the comment. Remove it if it contains instructions you did not expect.
   references:
@@ -144,6 +153,8 @@
   check:
     type: regex
     flags: [ignorecase]
+    # Security guidance quotes these phrases as examples of attacks.
+    demote_descriptive: true
     pattern: '\b(?:ignore|disregard|forget|override)[ \t]+(?:all[ \t]+|any[ \t]+)?(?:of[ \t]+)?(?:the[ \t]+|your[ \t]+|my[ \t]+)?(?:previous|prior|above|earlier|preceding|original|system)[ \t]+(?:instructions?|prompts?|rules|directions|guidelines|messages|context)\b|\b(?:do[ \t]+not|don''?t|never)[ \t]+(?:tell|inform|notify|alert|mention[ \t]+(?:this|it)[ \t]+to|reveal[ \t]+(?:this|it)[ \t]+to)[ \t]+the[ \t]+user\b|\bwithout[ \t]+(?:asking|telling|informing|notifying|alerting)[ \t]+(?:the[ \t]+)?user\b|\b(?:keep|hide)[ \t]+(?:this|it|these[ \t]+instructions)[ \t]+(?:secret[ \t]+)?from[ \t]+the[ \t]+user\b'
   message: "Agent instruction: {match}"
   rationale: >
@@ -164,6 +175,7 @@
   files: [{set: agent_files}, {set: skill_files}]
   check:
     type: regex
+    demote_descriptive: true
     pattern: "{{download_exec}}"
   message: "Agent is asked to download and run code: {match}"
   rationale: >
@@ -184,6 +196,7 @@
   files: [{set: agent_files}, {set: skill_files}]
   check:
     type: regex
+    demote_descriptive: true
     pattern: "{{exfil_host}}"
   message: "Agent file mentions a service often used to receive stolen data: {match}"
   rationale: >
@@ -238,6 +251,40 @@
   references:
     - https://code.claude.com/docs/en/memory
   tags: [prompt-injection, exfiltration]
+
+- id: RC-AGENT-027
+  title: Code starts an AI coding agent with approvals or sandbox switched off
+  area: agents
+  severity: medium
+  confidence: medium
+  # JavaScript and Python, the languages of npm and PyPI install code, and only files
+  # that start processes. Shell scripts that developers use to drive agents are not
+  # checked.
+  files: ["**/*.js", "**/*.mjs", "**/*.cjs", "**/*.ts", "**/*.mts", "**/*.cts", "**/*.py", "**/*.pyw"]
+  exclude: [{set: vendored}, {set: test_files}]
+  check:
+    type: regex
+    ignore: "{{comment_line}}"
+    file_requires: ['\bchild_process\b|\b(?:spawn|spawnSync|execSync|execFile|execFileSync|execa)\b|\bsubprocess\b|\bos\.(?:system|popen|exec[lv]p?e?)\b|\bBun\.spawn\b|\bDeno\.Command\b']
+    prefilter: [--dangerously-skip-permissions, --dangerously-bypass-approvals-and-sandbox, --yolo,
+      --trust-all-tools, --allow-all-tools, --approval-mode, --sandbox, --ask-for-approval,
+      --permission-mode]
+    # The name of an agent CLI and, on the same line, a flag that turns its approvals or
+    # sandbox off (an argument list or a command line).
+    pattern: '(?i:\b(?:claude|gemini|codex|qwen|amp|aider|opencode|cursor-agent|copilot|q)\b[^\n]{0,80}?(?<![\w-])(?:--dangerously-skip-permissions|--dangerously-bypass-approvals-and-sandbox|--yolo|--trust-all-tools|--allow-all-tools|--approval-mode[= ]["'']?yolo|--sandbox[= ]["'']?danger-full-access|--ask-for-approval[= ]["'']?never|--permission-mode[= ]["'']?bypassPermissions)\b)'
+  message: "Starts an AI agent without approvals: {match}"
+  rationale: >
+    An agent started this way runs commands and edits files without asking. The Nx
+    "s1ngularity" packages did this from an install script to make the agents on the
+    victim's machine search for secrets. Agent runners and CI scripts also do it on
+    purpose.
+  recommendation: >
+    Find out when this code runs (install, build, a script you start) and what the
+    agent is asked to do before running it.
+  references:
+    - https://github.com/advisories/GHSA-cxm3-wv7p-598c
+    - https://code.claude.com/docs/en/permissions
+  tags: [permissions, supply-chain]
 
 # --- Claude Code settings --------------------------------------------------------------
 
@@ -420,9 +467,13 @@
   severity: medium
   confidence: medium
   files: [{set: agent_files}, {set: skill_files}]
-  exclude: [{set: vendored}]
+  # Web assets that skills ship (page templates, styles) hide elements as normal styling;
+  # the rule is about text hidden when Markdown is rendered.
+  exclude: [{set: vendored}, "**/*.html", "**/*.htm", "**/*.css", "**/*.scss", "**/*.svg", "**/*.vue", "**/*.jsx", "**/*.tsx"]
   check:
     type: regex
+    # HTML in code blocks and code spans is shown as text (accessibility examples).
+    skip_markdown_code: true
     pattern: '\A[ \t]*\[[^\]\n]{0,40}\]:[ \t]*(?:#|<>)[ \t]*\(|(?i:<[a-z][^>\n]{0,200}?[ \t](?:hidden(?=[ \t>=/])|aria-hidden[ \t]*=[ \t]*["'']?true)|\b(?:display[ \t]*:[ \t]*none|visibility[ \t]*:[ \t]*hidden|font-size[ \t]*:[ \t]*0(?![.\d]))\b)'
   message: "Content hidden from rendered view: {match}"
   rationale: >
@@ -466,7 +517,10 @@
   exclude: [{set: vendored}]
   check:
     type: regex
-    pattern: '(?i:~/\.ssh\b|\$HOME/\.ssh\b|%USERPROFILE%[\\/]\.ssh\b|\bid_(?:rsa|dsa|ecdsa|ed25519)\b|\.aws/credentials\b|\.git-credentials\b|(?:~|\$HOME)/\.netrc\b|(?:~|\$HOME)/\.(?:npmrc|pypirc)\b|\bwallet\.dat\b|\.kube/config\b|\.docker/config\.json\b|\bLogin Data\b|\bkeychain(?:-db)?\b)'
+    demote_descriptive: true
+    # The keychain counts only as a file or through the command that reads it; advice to
+    # store tokens in the Keychain is common in mobile development guides.
+    pattern: '(?i:~/\.ssh\b|\$HOME/\.ssh\b|%USERPROFILE%[\\/]\.ssh\b|\bid_(?:rsa|dsa|ecdsa|ed25519)\b|\.aws/credentials\b|\.git-credentials\b|(?:~|\$HOME)/\.netrc\b|(?:~|\$HOME)/\.(?:npmrc|pypirc)\b|\bwallet\.dat\b|\.kube/config\b|\.docker/config\.json\b|\bLogin Data\b|\blogin\.keychain\b|\.keychain-db\b|Library/Keychains\b|\bsecurity[ \t]+(?:find-(?:generic|internet)-password|dump-keychain)\b)'
   message: "Refers to credentials: {match}"
   rationale: >
     Agent instructions have no reason to point at SSH keys, cloud credentials, browser
@@ -488,6 +542,7 @@
   exclude: [{set: vendored}]
   check:
     type: regex
+    demote_descriptive: true
     pattern: '(?i:\b(?:fetch|download|curl|wget|load|retrieve|get|read|visit|open)\b[^\n]{0,80}?https?://\S{1,200}?[^\n]{0,80}?\b(?:follow|obey|execute|run|apply)\b[^\n]{0,40}?\b(?:the[ \t]+|its[ \t]+|any[ \t]+|all[ \t]+)?(?:instructions?|steps|commands?|directions)\b)'
   message: "Fetches instructions from the web: {match}"
   rationale: >
@@ -548,7 +603,9 @@
   exclude: [{set: vendored}]
   check:
     type: regex
-    pattern: '!`[^`\n]{1,200}`|\A[ \t]*allowed-tools:[^\n]*?\b(?:Bash|PowerShell)\b(?![ \t]*\()'
+    # A backtick or letter right before the '!' means a code span such as `!` (the bang
+    # operator) or `assert!` (a Rust macro), not a shell command.
+    pattern: '(?<![\w`!])!`[^`\n]{1,200}`|\A[ \t]*allowed-tools:[^\n]*?\b(?:Bash|PowerShell)\b(?![ \t]*\()'
   message: "Runs shell commands when used: {match}"
   rationale: >
     Text in !`...` runs as a shell command when the command or skill is invoked, and

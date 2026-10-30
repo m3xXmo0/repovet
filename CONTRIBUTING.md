@@ -69,7 +69,7 @@ Rules are YAML data in `src/repovet/rules/`, one file per area (`autorun.yaml`,
 `dependencies.yaml`, `provenance.yaml`, `trust.yaml`). A new rule of an existing check
 type needs no code change.
 
-1. **Pick the next free ID** of the area: `RC-<AREA>-<NNN>`, for example `RC-DLX-006`.
+1. **Pick the next free ID** of the area: `RC-<AREA>-<NNN>`, for example `RC-DLX-007`.
    IDs are never renamed or reused; a rule that is no longer wanted gets
    `deprecated: true`.
 2. **Write the rule.** Required fields: `id`, `title`, `area`, `severity`, `confidence`,
@@ -77,7 +77,7 @@ type needs no code change.
    `references`, `tags`, `platforms`, `case_sensitive`, `deprecated`.
 
    ```yaml
-   - id: RC-DLX-006
+   - id: RC-DLX-007
      title: Script downloads code with a made-up tool
      area: download_exec
      severity: medium
@@ -115,7 +115,7 @@ type needs no code change.
    (the rule must not fire), ideally the near miss you worried about:
 
    ```yaml
-   RC-DLX-006:
+   RC-DLX-007:
      positive:
        - name: fetchtool piped into a shell
          files:

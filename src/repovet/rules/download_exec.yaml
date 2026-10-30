@@ -132,3 +132,31 @@
   references:
     - https://attack.mitre.org/techniques/T1567/
   tags: [network, exfiltration]
+
+- id: RC-DLX-006
+  title: GitHub workflow sends secrets to a request catcher or paste service
+  area: download_exec
+  severity: high
+  confidence: high
+  files: [".github/workflows/*.yml", ".github/workflows/*.yaml"]
+  check:
+    type: keypath
+    format: yaml
+    # A job that uses secrets and names a request catcher, out-of-band testing service,
+    # paste or file host. Chat webhooks and deployment servers are not counted.
+    paths: ["jobs.*"]
+    value_regex: "{{request_catcher_host}}"
+    where: [{path: "*", value_regex: '\$\{\{[^}]{0,200}?\bsecrets\b'}]
+  message: "Workflow job uses secrets and sends data to {match}"
+  rationale: >
+    Request catchers and paste services keep whatever is sent to them for someone else
+    to read. A workflow job that has the repository's secrets and contacts one of them
+    is how the Shai-Hulud worm copied the secrets of every repository it reached. It
+    runs on GitHub on every trigger, not on your machine.
+  recommendation: >
+    Treat the repository as compromised: do not use its releases, and tell the
+    maintainers. If it is your repository, remove the workflow and rotate all secrets.
+  references:
+    - https://www.cisa.gov/news-events/alerts/2025/09/23/widespread-supply-chain-compromise-impacting-npm-ecosystem
+    - https://attack.mitre.org/techniques/T1567/
+  tags: [ci, github-actions, exfiltration]

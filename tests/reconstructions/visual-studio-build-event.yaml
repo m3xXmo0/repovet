@@ -29,10 +29,5 @@ files:
   lib/helper.db: {base64: TVoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAFBFAABkhgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=}
 must_fire:
   - {rule: RC-BIN-001, path: lib/helper.db}
+  - {rule: RC-AUTO-070, path: Exploit.vcxproj}
 must_not_fire: [RC-DLX-002]
-known_gaps:
-  - rule: RC-AUTO-070
-    path: Exploit.vcxproj
-    reason: >
-      The rule reports Exec tasks; PreBuildEvent and PostBuildEvent commands in
-      Visual Studio projects run on build as well but are not matched.

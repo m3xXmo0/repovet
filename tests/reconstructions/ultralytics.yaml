@@ -36,13 +36,9 @@ files:
             git add .
             git commit -m "Auto-format by Ultralytics actions"
             git push origin ${{ github.head_ref || github.ref }}
-must_not_fire: [RC-AUTO-061, RC-DLX-001]
-known_gaps:
-  - rule: RC-AUTO-060
-    reason: >
-      Untrusted branch names reach a shell under pull_request_target; the rule only
-      reports checkouts of the pull request in workflow files, not expression injection
-      and not composite actions.
+must_fire:
+  - {rule: RC-AUTO-062, path: action.yml}
+must_not_fire: [RC-AUTO-060, RC-AUTO-061, RC-DLX-001]
 not_covered: >
   Cache poisoning and the later use of a leftover PyPI token happen on GitHub's side
   and are not visible in the repository.

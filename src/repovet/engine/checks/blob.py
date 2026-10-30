@@ -3,6 +3,12 @@
 Encoded runs are decoded in memory only (``base64``, ``bytes.fromhex``, bounded
 ``zlib``); nothing decoded is ever run. Data URIs and runs that decode to images, fonts
 or documents are skipped by default, because embedding media is normal.
+
+Long lines (``encoding: none``) can be limited to lines shaped like code:
+``min_code_density`` is the smallest share of the characters ``;(){}=`` and
+``max_string_share`` the largest share of the line inside one-line string literals.
+Prose, SVG paths, keyword lists and data tables fail one or the other; minified code
+passes both.
 """
 
 import base64
@@ -28,6 +34,13 @@ _MEMO_KEY = "blob:runs"
 _RUNS = re.compile(rf"[A-Za-z0-9+/]{{{MIN_RUN},}}={{0,2}}")
 _HEX_RUN = re.compile(r"[0-9A-Fa-f]+")
 _HEX_ESCAPES = re.compile(r"(?:\\[xX][0-9A-Fa-f]{2}){2,}")
+_CODE_CHARS = frozenset(";(){}=")
+# One-line string literals; an unclosed quote runs to the end of the line.
+_STRINGS = re.compile(
+    r"\"(?:[^\"\\\n]|\\[^\n]?)*+(?:\"|(?![^\n]))"
+    r"|'(?:[^'\\\n]|\\[^\n]?)*+(?:'|(?![^\n]))"
+    r"|`(?:[^`\\\n]|\\[^\n]?)*+(?:`|(?![^\n]))"
+)
 
 # Decoded content that is media, fonts or documents, not code.
 MEDIA_MAGIC = (
@@ -79,6 +92,18 @@ def decompress(data: bytes) -> bytes | None:
         return None
 
 
+def code_density(line: str) -> float:
+    """Share of the characters ``;(){}=`` in ``line``."""
+    return sum(1 for c in line if c in _CODE_CHARS) / len(line) if line else 0.0
+
+
+def string_share(line: str) -> float:
+    """Share of ``line`` inside one-line string literals."""
+    if not line:
+        return 0.0
+    return sum(m.end() - m.start() for m in _STRINGS.finditer(line)) / len(line)
+
+
 def as_text(data: bytes) -> str | None:
     """Decoded bytes as text if they are mostly printable, else ``None``."""
     text = data.decode("utf-8", errors="replace")
@@ -113,6 +138,8 @@ class BlobCheck(Check):
         not_decoded_regex: re.Pattern[str] | None,
         skip_media: bool,
         skip_header: re.Pattern[str] | None = None,
+        min_code_density: float = 0.0,
+        max_string_share: float = 1.0,
     ) -> None:
         self.encodings = encodings
         self.min_length = min_length
@@ -121,6 +148,8 @@ class BlobCheck(Check):
         self.not_decoded_regex = not_decoded_regex
         self.skip_media = skip_media
         self.skip_header = skip_header
+        self.min_code_density = min_code_density
+        self.max_string_share = max_string_share
 
     def matches(self, view: FileView) -> Iterator[Match]:
         text = view.text()
@@ -156,6 +185,10 @@ class BlobCheck(Check):
             if len(line) < self.min_length:
                 continue
             if self.min_entropy and entropy(line) < self.min_entropy:
+                continue
+            if code_density(line) < self.min_code_density:
+                continue
+            if string_share(line) > self.max_string_share:
                 continue
             yield Match(number, 1, line, {"match": line[:60], "count": f"{len(line):,}"})
 
@@ -196,7 +229,7 @@ class BlobCheck(Check):
             for r in (self.decoded_regex, self.not_decoded_regex, self.skip_header)
             if r is not None
         ]
-        return [_RUNS, _HEX_RUN, _HEX_ESCAPES, *extra]
+        return [_RUNS, _HEX_RUN, _HEX_ESCAPES, _STRINGS, *extra]
 
 
 def candidate_runs(view: FileView, text: str) -> list[tuple[int, str]]:
@@ -224,9 +257,13 @@ def build(params: Params, env: BuildEnv) -> Check:
     not_decoded = params.get_str("not_decoded_regex")
     skip_media = params.get_bool("skip_media", default=True)
     skip_header = params.get_str("skip_header_regex")
+    min_code_density = params.get_float("min_code_density", default=0.0, maximum=1.0)
+    max_string_share = params.get_float("max_string_share", default=1.0, maximum=1.0)
     params.done()
     if "none" in encodings and (decoded or not_decoded):
         raise CheckError("'decoded_regex' needs an encoding")
+    if "none" not in encodings and (min_code_density or max_string_share < 1.0):
+        raise CheckError("'min_code_density' and 'max_string_share' need encoding 'none'")
     return BlobCheck(
         encodings,
         min_length,
@@ -235,4 +272,6 @@ def build(params: Params, env: BuildEnv) -> Check:
         env.compile(not_decoded) if not_decoded else None,
         skip_media,
         env.compile(skip_header) if skip_header else None,
+        min_code_density,
+        max_string_share,
     )

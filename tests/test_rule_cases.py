@@ -95,5 +95,9 @@ def test_rule_case(rule_id: str, kind: str, case: dict[str, Any], tmp_path: Path
             and f.location.path == expected["path"]
             and ("line" not in expected or f.location.line == expected["line"])
             and ("confidence" not in expected or f.confidence.label == expected["confidence"])
+            and ("severity" not in expected or f.severity.label == expected["severity"])
             for f in outcome.findings
-        ), (expected, [(f.location, f.confidence.label) for f in outcome.findings])
+        ), (
+            expected,
+            [(f.location, f.severity.label, f.confidence.label) for f in outcome.findings],
+        )

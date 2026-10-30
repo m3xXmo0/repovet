@@ -13,7 +13,7 @@ The tables below are generated with `uv run repovet rules list --markdown`; a te
 fails if they are out of date.
 
 <!-- rules-table:start -->
-#### Auto-run code (`autorun`, 47 rules)
+#### Auto-run code (`autorun`, 48 rules)
 
 | ID | Severity | Description |
 |----|----------|-------------|
@@ -52,6 +52,7 @@ fails if they are out of date.
 | RC-AUTO-056 | medium | macOS application bundle in the repository |
 | RC-AUTO-060 | medium | GitHub workflow runs pull request code with pull_request_target |
 | RC-AUTO-061 | medium | GitHub workflow runs an encoded command |
+| RC-AUTO-062 | medium | GitHub workflow puts untrusted event text into a shell command |
 | RC-AUTO-070 | medium | MSBuild project runs a command on build |
 | RC-AUTO-071 | high | MSBuild project downloads or decodes code during the build |
 | RC-AUTO-072 | high | MSBuild inline task with code |
@@ -65,7 +66,7 @@ fails if they are out of date.
 | RC-AUTO-087 | low | Ruby gem builds a native extension on install |
 | RC-AUTO-088 | high | Ruby install or build script downloads and runs code |
 
-#### AI agent instructions and configuration (`agents`, 26 rules)
+#### AI agent instructions and configuration (`agents`, 27 rules)
 
 | ID | Severity | Description |
 |----|----------|-------------|
@@ -85,6 +86,7 @@ fails if they are out of date.
 | RC-AGENT-024 | high | Agent safety checks switched off |
 | RC-AGENT-025 | high | Agent instruction loads further instructions from the web |
 | RC-AGENT-026 | high | Agent file imports files from outside the repository |
+| RC-AGENT-027 | medium | Code starts an AI coding agent with approvals or sandbox switched off |
 | RC-AGENT-030 | high | Claude Code hooks in project settings |
 | RC-AGENT-031 | high | Broad agent permissions in project settings |
 | RC-AGENT-032 | critical | Claude Code API traffic redirected or API key helper set |
@@ -96,7 +98,7 @@ fails if they are out of date.
 | RC-AGENT-050 | medium | Slash command or skill runs shell commands |
 | RC-AGENT-060 | high | Other AI agents set to run commands without asking |
 
-#### Obfuscated code (`obfuscation`, 10 rules)
+#### Obfuscated code (`obfuscation`, 11 rules)
 
 | ID | Severity | Description |
 |----|----------|-------------|
@@ -110,8 +112,9 @@ fails if they are out of date.
 | RC-OBF-008 | high | Bidirectional control characters in source code (Trojan Source) |
 | RC-OBF-009 | medium | Invisible characters in source code |
 | RC-OBF-010 | medium | Name mixes Latin letters with look-alike letters from another script |
+| RC-OBF-011 | high | Decrypted data is compiled and run as code |
 
-#### Download-and-execute (`download_exec`, 5 rules)
+#### Download-and-execute (`download_exec`, 6 rules)
 
 | ID | Severity | Description |
 |----|----------|-------------|
@@ -120,6 +123,7 @@ fails if they are out of date.
 | RC-DLX-003 | high | Code from a web request is executed |
 | RC-DLX-004 | high | Script downloads a file into a temporary folder and runs it |
 | RC-DLX-005 | medium | Code contacts a webhook, tunnel, paste or file-sharing service or a raw IP |
+| RC-DLX-006 | high | GitHub workflow sends secrets to a request catcher or paste service |
 
 #### Binaries, archives, file-system tricks (`binaries`, 13 rules)
 

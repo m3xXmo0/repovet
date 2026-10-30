@@ -33,11 +33,16 @@ repo_relative_path: '\A(?![^\n]*[\\/](?:\.?venv|env|\.conda|\.pixi)[\\/])(?:\$\{
 # Example/template .env files are not secrets.
 secret_path: '(?i:(?:\A|[\\/])(?:\.ssh|\.aws|\.gnupg|\.docker|\.kube|\.azure|\.config[\\/]gcloud)(?:[\\/]|\Z)|(?:\A|[\\/])(?:id_(?:rsa|dsa|ecdsa|ed25519)|\.netrc|\.npmrc|\.pypirc|\.git-credentials|\.pgpass|credentials(?:\.json)?|wallet\.dat|[\w-]+\.(?:pem|key|p12|pfx|kdbx))\Z|(?:\A|[\\/])\.env(?:\.(?!example\Z|sample\Z|template\Z|dist\Z)[\w-]+)?\Z)'
 
+# Request catchers, out-of-band testing services, paste and file hosts: services that
+# store whatever is sent to them for someone else to read (not chat webhooks, tunnels or
+# raw IP addresses, which CI jobs use for notifications and deployments).
+request_catcher_host: '(?i:\b(?:webhook\.site|requestbin\.(?:com|net)|pipedream\.net|hookbin\.com|beeceptor\.com|requestcatcher\.com|webhook\.cool|interact\.sh|interactsh\.com|oast\.(?:pro|live|site|online|fun|me)|burpcollaborator\.net|oastify\.com|canarytokens\.(?:com|org)|pastebin\.com|paste\.ee|hastebin\.com|termbin\.com|transfer\.sh|file\.io|0x0\.st))'
+
 # Services and addresses typically used to receive stolen data: request catchers,
 # tunnels, paste and file hosts, chat webhooks, raw public IP addresses (not loopback,
 # private, link-local, carrier-grade NAT, benchmark or documentation ranges, and not the
 # public DNS resolvers or example.com addresses used in connectivity checks and tests).
-exfil_host: '(?i:\b(?:webhook\.site|requestbin\.(?:com|net)|pipedream\.net|hookbin\.com|beeceptor\.com|requestcatcher\.com|webhook\.cool|interact\.sh|interactsh\.com|oast\.(?:pro|live|site|online|fun|me)|burpcollaborator\.net|oastify\.com|canarytokens\.(?:com|org)|ngrok(?:-free)?\.(?:io|app|dev)|trycloudflare\.com|loca\.lt|localtunnel\.me|serveo\.net|pastebin\.com|paste\.ee|hastebin\.com|termbin\.com|transfer\.sh|file\.io|0x0\.st|discord(?:app)?\.com/api/webhooks|api\.telegram\.org/bot|hooks\.slack\.com/services))|\bhttps?://(?!(?:127|10|0)\.|192\.168\.|172\.(?:1[6-9]|2\d|3[01])\.|169\.254\.|100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.|192\.0\.2\.|198\.51\.100\.|198\.1[89]\.|203\.0\.113\.|(?:1\.1\.1\.1|1\.0\.0\.1|8\.8\.8\.8|8\.8\.4\.4|9\.9\.9\.9|93\.184\.215\.14|93\.184\.216\.34)(?![\d.]))\d{1,3}(?:\.\d{1,3}){3}\b'
+exfil_host: '{{request_catcher_host}}|(?i:\b(?:ngrok(?:-free)?\.(?:io|app|dev)|trycloudflare\.com|loca\.lt|localtunnel\.me|serveo\.net|discord(?:app)?\.com/api/webhooks|api\.telegram\.org/bot|hooks\.slack\.com/services))|\bhttps?://(?!(?:127|10|0)\.|192\.168\.|172\.(?:1[6-9]|2\d|3[01])\.|169\.254\.|100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.|192\.0\.2\.|198\.51\.100\.|198\.1[89]\.|203\.0\.113\.|(?:1\.1\.1\.1|1\.0\.0\.1|8\.8\.8\.8|8\.8\.4\.4|9\.9\.9\.9|93\.184\.215\.14|93\.184\.216\.34)(?![\d.]))\d{1,3}(?:\.\d{1,3}){3}\b'
 
 # Boolean-looking values (Git config); used to tell commands from switches.
 not_boolean: '\A(?![ \t]*(?i:true|false|yes|no|on|off|1|0)[ \t]*\Z)[ \t]*\S'

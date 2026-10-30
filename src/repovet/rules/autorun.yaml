@@ -414,17 +414,23 @@
   area: autorun
   severity: critical
   confidence: high
-  files: ["**/.git/config"]
+  # A bare repository buried in a subfolder keeps its config next to HEAD, objects and
+  # refs; Git uses it when someone works inside that folder.
+  files: ["**/.git/config", "**/config"]
   check:
     type: keypath
     format: gitconfig
+    # Only files with a [core] section that mention fsmonitor are parsed, so other files
+    # named config are left alone.
+    file_requires: ['(?im:^[ \t]*\[[ \t]*core[ \t]*\])', '(?i:\bfsmonitor\b)']
     paths: [core.fsmonitor]
     value_regex: "{{not_boolean}}"
   message: "core.fsmonitor runs a command on every git status: {value}"
   rationale: >
     Git runs the fsmonitor command on almost every command, including `git status`.
     Editors and IDEs call git status as soon as a folder is opened, so the command runs
-    without any action by you.
+    without any action by you. A bare repository buried in a subfolder works the same
+    for anyone who opens or enters that folder.
   recommendation: >
     Do not open this folder in an editor with Git integration and do not run Git in it.
     Remove the entry or clone the repository again.
@@ -886,6 +892,39 @@
     - https://docs.github.com/en/actions/security-for-github-actions/security-guides/security-hardening-for-github-actions
   tags: [ci, github-actions, obfuscation]
 
+- id: RC-AUTO-062
+  title: GitHub workflow puts untrusted event text into a shell command
+  area: autorun
+  severity: medium
+  confidence: high
+  files: [".github/workflows/*.yml", ".github/workflows/*.yaml", "**/action.yml", "**/action.yaml"]
+  exclude: [{set: vendored}]
+  check:
+    type: keypath
+    format: yaml
+    # Workflows started by events that run with the repository's secrets and write token
+    # while outsiders control the text (pull_request_target, issue and discussion
+    # events, comments, workflow_run), and composite actions, whose callers may be such
+    # workflows. A plain pull_request from a fork has neither secrets nor write access.
+    file_requires: ['\b(?:pull_request_target|issue_comment|discussion_comment|workflow_run)\b|(?m:^[ \t]*(?:issues|discussion)[ \t]*:[ \t]*(?:#[^\n]*)?$)|(?m:^["'']?on["'']?:[^\n]*\b(?:issues|discussion)\b)|(?m:^[ \t]*-[ \t]*(?:issues|discussion)[ \t]*$)|\busing:[ \t]*["'']?composite\b']
+    # run steps and github-script code; env values (the safe way) are not reported.
+    paths: ["jobs.*.steps.*.run", "jobs.*.steps.*.with.script", "runs.steps.*.run"]
+    value_regex: '\$\{\{[^}]{0,200}?\bgithub\.(?:head_ref|event\.(?:issue\.(?:title|body)|pull_request\.(?:title|body|head\.(?:ref|label|repo\.default_branch))|comment\.body|review(?:_comment)?\.body|discussion\.(?:title|body)|pages\.[\w*\[\]]{1,10}\.page_name|(?:commits\.[\w*\[\]]{1,10}|head_commit)\.(?:message|author\.(?:email|name))|workflow_run\.(?:head_branch|display_title|head_commit\.(?:message|author\.(?:email|name)))))\b'
+  message: "Untrusted text is inserted into a script: {match}"
+  rationale: >
+    GitHub replaces ${{ }} expressions before the shell starts, so a pull request title,
+    branch name, issue or comment text becomes part of the command. Anyone who can open
+    a pull request or an issue can then run commands with the workflow's secrets and
+    write token (expression injection). This affects the repository's maintainers and
+    users of its releases, not your machine directly.
+  recommendation: >
+    Treat releases built by this workflow with care. Maintainers should pass the value
+    through an environment variable (env:) and quote it in the script.
+  references:
+    - https://securitylab.github.com/resources/github-actions-untrusted-input/
+    - https://docs.github.com/en/actions/security-for-github-actions/security-guides/security-hardening-for-github-actions#understanding-the-risk-of-script-injections
+  tags: [ci, github-actions, injection]
+
 - id: RC-AUTO-070
   title: MSBuild project runs a command on build
   area: autorun
@@ -896,11 +935,14 @@
   check:
     type: regex
     scope: text
-    pattern: '<Exec\b[^>]{0,500}?\bCommand[ \t]*=[ \t]*"[^"]{1,300}'
+    # Exec tasks, and pre- and post-build events of Visual Studio projects (the command
+    # directly or in a <Command> element); empty events are not reported.
+    pattern: '<Exec\b[^>]{0,500}?\bCommand[ \t]*=[ \t]*"[^"]{1,300}|<(?:Pre|Post)BuildEvent>[ \t\r\n]*(?:<Command>[ \t\r\n]*)?[^<\s][^<]{0,300}'
   message: "Build runs a command: {match}"
   rationale: >
-    MSBuild runs Exec tasks during builds, including builds that Visual Studio and
-    other IDEs start in the background after opening the project.
+    MSBuild runs Exec tasks and pre- and post-build events during builds, including
+    builds that Visual Studio and other IDEs start in the background after opening the
+    project.
   recommendation: >
     Read the command and the target it belongs to before opening the project in an IDE
     or building it.
@@ -918,7 +960,7 @@
   check:
     type: regex
     scope: text
-    pattern: '<Exec\b[^>]{0,500}?\bCommand[ \t]*=[ \t]*"[^"]{0,300}?(?:{{fetch_or_run}})|<DownloadFile\b'
+    pattern: '<Exec\b[^>]{0,500}?\bCommand[ \t]*=[ \t]*"[^"]{0,300}?(?:{{fetch_or_run}})|<(?:Pre|Post)BuildEvent>[ \t\r\n]*(?:<Command>)?[^<]{0,300}?(?:{{fetch_or_run}})|<DownloadFile\b'
   message: "Build fetches or runs remote code: {match}"
   rationale: >
     The build downloads something, pipes into an interpreter or decodes a payload, so

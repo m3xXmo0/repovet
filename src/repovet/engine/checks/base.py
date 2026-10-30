@@ -9,7 +9,7 @@ from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 
 from repovet.limits import Limits, format_size
-from repovet.models import Confidence, CoverageCollector, CoverageStatus
+from repovet.models import Confidence, CoverageCollector, CoverageStatus, Severity
 from repovet.parsers.structured import FORMAT_LABELS, ParseError, parse
 from repovet.sources.tree import FileTree, RepoFile, basename, decode_text
 
@@ -30,6 +30,9 @@ class Match:
     # Lower confidence for this match than the rule's (never higher), e.g. when the
     # match looks like a regular expression in a string rather than code.
     confidence: Confidence | None = None
+    # Lower severity for this match than the rule's (never higher), e.g. when the text
+    # quotes an attack phrase to describe it rather than giving the instruction.
+    severity: Severity | None = None
 
 
 # --- parameters ----------------------------------------------------------------

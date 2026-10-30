@@ -1,6 +1,6 @@
 {
   "real": {
-    "repovet": "0.2.0",
+    "repovet": "0.3.1",
     "counts": {
       "flask": {
         "RC-AUTO-026": {
@@ -84,11 +84,6 @@
           "medium": 1,
           "low": 0
         },
-        "RC-AGENT-010": {
-          "high": 0,
-          "medium": 8,
-          "low": 0
-        },
         "RC-AUTO-060": {
           "high": 0,
           "medium": 1,
@@ -101,8 +96,8 @@
         },
         "RC-AGENT-022": {
           "high": 0,
-          "medium": 4,
-          "low": 0
+          "medium": 3,
+          "low": 1
         },
         "RC-DLX-001": {
           "high": 0,
@@ -182,11 +177,6 @@
         }
       },
       "humanizer": {
-        "RC-OBF-010": {
-          "high": 5,
-          "medium": 0,
-          "low": 0
-        },
         "RC-AUTO-033": {
           "high": 0,
           "medium": 5,
@@ -204,11 +194,6 @@
         }
       },
       "skillspector": {
-        "RC-AGENT-020": {
-          "high": 0,
-          "medium": 1,
-          "low": 0
-        },
         "RC-DLX-001": {
           "high": 0,
           "medium": 0,
@@ -219,6 +204,11 @@
           "medium": 2,
           "low": 0
         },
+        "RC-AGENT-020": {
+          "high": 0,
+          "medium": 0,
+          "low": 1
+        },
         "RC-PROV-010": {
           "high": 0,
           "medium": 1,
@@ -228,7 +218,7 @@
     }
   },
   "reconstructions": {
-    "repovet": "0.3.0",
+    "repovet": "0.3.1",
     "counts": {
       "copilot-auto-approve": {
         "RC-AGENT-024": {
@@ -244,10 +234,16 @@
           "low": 0
         }
       },
-      "event-stream": {},
+      "event-stream": {
+        "RC-OBF-011": {
+          "high": 0,
+          "medium": 2,
+          "low": 0
+        }
+      },
       "git-fsmonitor": {
         "RC-AUTO-032": {
-          "high": 1,
+          "high": 2,
           "medium": 0,
           "low": 0
         }
@@ -265,9 +261,19 @@
         }
       },
       "nx-s1ngularity": {
+        "RC-AUTO-062": {
+          "high": 1,
+          "medium": 0,
+          "low": 0
+        },
         "RC-AUTO-001": {
           "high": 1,
           "medium": 0,
+          "low": 0
+        },
+        "RC-AGENT-027": {
+          "high": 0,
+          "medium": 3,
           "low": 0
         }
       },
@@ -301,6 +307,11 @@
         }
       },
       "shai-hulud": {
+        "RC-DLX-006": {
+          "high": 1,
+          "medium": 0,
+          "low": 0
+        },
         "RC-DLX-005": {
           "high": 0,
           "medium": 0,
@@ -314,6 +325,11 @@
       },
       "tj-actions-changed-files": {
         "RC-OBF-002": {
+          "high": 1,
+          "medium": 0,
+          "low": 0
+        },
+        "RC-OBF-003": {
           "high": 1,
           "medium": 0,
           "low": 0
@@ -343,9 +359,20 @@
           "low": 0
         }
       },
-      "ultralytics": {},
+      "ultralytics": {
+        "RC-AUTO-062": {
+          "high": 1,
+          "medium": 0,
+          "low": 0
+        }
+      },
       "visual-studio-build-event": {
         "RC-BIN-001": {
+          "high": 1,
+          "medium": 0,
+          "low": 0
+        },
+        "RC-AUTO-070": {
           "high": 1,
           "medium": 0,
           "low": 0
@@ -364,6 +391,11 @@
         }
       },
       "xz-utils": {
+        "RC-OBF-003": {
+          "high": 1,
+          "medium": 0,
+          "low": 0
+        },
         "RC-BIN-006": {
           "high": 1,
           "medium": 0,
