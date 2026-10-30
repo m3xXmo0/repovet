@@ -19,7 +19,7 @@ from repovet.engine.context import ScanContext
 from repovet.engine.loader import RuleSet, load_rules
 from repovet.github import target as github_target
 from repovet.limits import DEFAULT_LIMITS, Limits
-from repovet.models import AREAS, CoverageCollector, ScanResult, Severity
+from repovet.models import AREAS, CoverageCollector, ScanResult, Severity, counted
 from repovet.sources import gitmeta, remote
 from repovet.sources.gittree import GitTree
 from repovet.sources.local import LocalTree
@@ -249,8 +249,9 @@ def _analyze(
 
 
 def fails(result: ScanResult, fail_on: Severity) -> bool:
-    """True if a finding is at or above ``fail_on`` (exit code 1)."""
-    return any(f.severity >= fail_on for f in result.findings)
+    """True if a finding is at or above ``fail_on`` (exit code 1). Parts of a chain count
+    through their chain finding, which is at least as severe."""
+    return any(f.severity >= fail_on for f in counted(result.findings))
 
 
 def output_path(value: str, root: Path | None) -> Path:

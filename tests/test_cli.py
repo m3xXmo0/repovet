@@ -97,7 +97,7 @@ def test_argument_errors_exit_2(
 def test_help_and_version_exit_0(capsys: Capture) -> None:
     code, out, _ = run(capsys, "--version")
     assert code == EXIT_OK
-    assert "repovet 0.3.1" in out
+    assert "repovet 0.4.0" in out
     assert run(capsys, "scan", "--help")[0] == EXIT_OK
 
 

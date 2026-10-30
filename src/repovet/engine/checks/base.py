@@ -395,6 +395,16 @@ class FactCheck(Check):
         """Yield one match if the facts meet the rule's conditions."""
 
 
+class ResultCheck(Check):
+    """A check of the findings of other rules; runs once after all areas (see
+    ``engine.chains``), never on files."""
+
+    needs_text = False
+
+    def matches(self, view: FileView) -> Iterator[Match]:
+        return iter(())
+
+
 class Wildcard:
     """``*`` and ``?`` wildcards for key and call names, matched without regex
     backtracking (O(len(pattern) * len(text)) even for hostile names)."""

@@ -4,6 +4,9 @@ Every entry in tests/reconstructions/ is written to tmp_path and scanned offline
 the full pipeline (CLI, all built-in rules, JSON report). The rules in ``must_fire``
 must report it, the rules in ``must_not_fire`` must stay silent, and every known gap
 must still be open: when a gap closes, the test asks to move it to ``must_fire``.
+
+Every variant (a rewrite with an evasion technique) must reach the severity of the
+canonical fixture in the files it rewrites, or be listed as a known gap.
 """
 
 import re
@@ -15,9 +18,18 @@ import yaml
 
 import reconstructions
 from helpers import builtin_rules
-from reconstructions import Entry, evaluate, file_content, load_entries, parse_entry
+from reconstructions import (
+    Entry,
+    Variant,
+    evaluate,
+    evaluate_variant,
+    file_content,
+    load_entries,
+    parse_entry,
+)
 
 ENTRIES = load_entries()
+VARIANTS = [(entry, variant) for entry in ENTRIES for variant in entry.variants]
 # Hosts in fixture contents: placeholders only. The request-catcher service is needed
 # for RC-DLX-005 and appears only with an all-zero placeholder id.
 _URL = re.compile(r"https?://([^/\s\"'`<>)|]+)([^\s\"'`<>)|]*)")
@@ -45,7 +57,7 @@ def test_rules_exist_and_are_active() -> None:
 
 def test_fixture_hosts_are_placeholders() -> None:
     for entry in ENTRIES:
-        for rel, content in entry.files.items():
+        for rel, content in reconstructions.all_files(entry):
             text = file_content(rel, content).decode("utf-8", errors="replace")
             for raw_host, rest in _URL.findall(text):
                 host = raw_host.lower()
@@ -115,6 +127,17 @@ def _valid(**changes: Any) -> dict[str, Any]:
         ({"known_gaps": [{"rule": "RC-AUTO-003"}]}, "needs a reason"),
         ({"known_gaps": ["RC-AUTO-003"]}, "mapping"),
         ({"surprise": 1}, "unknown"),
+        ({"variants": {"a": 1}}, "list"),
+        ({"variants": [{"id": "a", "technique": "t"}]}, "exactly the keys"),
+        ({"variants": [{"id": "A b", "technique": "t", "files": {"x": "y"}}]}, "lowercase"),
+        ({"variants": [{"id": "a", "technique": " ", "files": {"x": "y"}}]}, "technique"),
+        ({"variants": [{"id": "a", "technique": "t", "files": {}}]}, "needs files"),
+        (
+            {"variants": [{"id": "a", "technique": "t", "files": {"x": "y"}}] * 2},
+            "duplicate variant",
+        ),
+        ({"known_gaps": [{"variant": "nope", "reason": "r"}]}, "unknown variants"),
+        ({"known_gaps": [{"variant": "a", "rule": "RC-AUTO-001"}]}, "variant and reason"),
     ],
 )
 def test_entry_validation(changes: dict[str, Any], message: str) -> None:
@@ -189,3 +212,67 @@ def test_status_without_expected_hits() -> None:
 def test_reconstruction(entry: Entry, tmp_path: Path) -> None:
     result = evaluate(entry, reconstructions.scan(entry, tmp_path))
     assert result.ok, "\n".join(reconstructions.describe(result))
+
+
+def _variant_entry(gap: bool = False) -> Entry:
+    variant = {"id": "moved", "technique": "t", "files": {"package.json": "{}", "x.sh": "y"}}
+    gaps = [{"variant": "moved", "reason": "r"}] if gap else []
+    return parse_entry(_valid(variants=[variant], known_gaps=gaps), "c.yaml")
+
+
+def _finding(rule: str, severity: str, path: str) -> dict[str, Any]:
+    return {"rule_id": rule, "severity": severity, "location": {"path": path}}
+
+
+def test_variant_files_replace_remove_and_add() -> None:
+    entry = parse_entry(_valid(files={"a": "1", "b": "2"}), "c.yaml")
+    variant = Variant("v", "t", {"a": "3", "b": None, "c": "4"})
+    assert entry.variant_files(variant) == {"a": "3", "c": "4"}
+
+
+def test_variant_evaluation() -> None:
+    entry = _variant_entry()
+    variant = entry.variants[0]
+    canonical = {"findings": [_finding("RC-AUTO-001", "high", "package.json")]}
+    below = {"findings": [_finding("RC-DLX-001", "medium", "x.sh")]}
+    result = evaluate_variant(entry, variant, canonical, below)
+    assert (result.target, result.reached, result.detected) == ("high", "medium", False)
+    assert result.problems() == [
+        "variant moved reaches medium, below high: fix the rules or list it under known_gaps"
+    ]
+    # A finding in a file the variant does not rewrite does not count.
+    elsewhere = {"findings": [_finding("RC-AUTO-001", "critical", "other.json")]}
+    assert evaluate_variant(entry, variant, canonical, elsewhere).reached is None
+    reached = {"findings": [_finding("RC-AUTO-099", "critical", "x.sh")]}
+    assert evaluate_variant(entry, variant, canonical, reached).ok
+    gap_entry = _variant_entry(gap=True)
+    assert evaluate_variant(gap_entry, gap_entry.variants[0], canonical, below).ok
+    closed = evaluate_variant(gap_entry, gap_entry.variants[0], canonical, reached)
+    assert closed.problems() == ["known gap closed, remove it from known_gaps: variant moved"]
+    unrelated = {"findings": [_finding("RC-DLX-001", "high", "package.json")]}
+    assert "rewrites no file" in evaluate_variant(entry, variant, unrelated, reached).problems()[0]
+
+
+@pytest.fixture(scope="module")
+def canonical_reports(tmp_path_factory: pytest.TempPathFactory) -> dict[str, dict[str, Any]]:
+    workdir = tmp_path_factory.mktemp("canonical")
+    entries = {entry.id: entry for entry, _ in VARIANTS}
+    return {entry_id: reconstructions.scan(entry, workdir) for entry_id, entry in entries.items()}
+
+
+def test_there_are_variants() -> None:
+    assert len(VARIANTS) >= 40
+
+
+@pytest.mark.parametrize(
+    ("entry", "variant"), VARIANTS, ids=[f"{e.id}--{v.id}" for e, v in VARIANTS]
+)
+def test_variant(
+    entry: Entry,
+    variant: Variant,
+    canonical_reports: dict[str, dict[str, Any]],
+    tmp_path: Path,
+) -> None:
+    report = reconstructions.scan_variant(entry, variant, tmp_path)
+    result = evaluate_variant(entry, variant, canonical_reports[entry.id], report)
+    assert result.ok, "\n".join(result.problems())

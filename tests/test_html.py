@@ -68,12 +68,15 @@ def test_repository_strings_are_escaped_and_masked() -> None:
 def test_groups_are_collapsible_and_severe_ones_open() -> None:
     text = html.render(sample_result(sample_findings()))
     details = [attrs for tag, attrs in tags(text) if tag == "details"]
-    # critical, high (2 places), medium, low
-    assert len(details) == 4
+    # critical, high chain, high (2 places), two medium chain parts, low, info (2 places)
+    assert len(details) == 7
     opened = [d["class"] for d in details if "open" in d]
-    assert opened == ["critical", "high"]
+    assert opened == ["critical", "high", "high"]
     assert "2 places" in text
     assert '<span class="label">test</span>' in text
+    assert '<span class="label">part of chain-1</span>' in text
+    assert "<dt>Path</dt><dd>chain-1: <code>package.json:3</code> &rarr; <code>x.js</code>" in text
+    assert '<p class="action">Do not let an AI coding agent work in it' in text
 
 
 def test_profiles_not_checked_notice_and_dark_mode() -> None:
@@ -89,7 +92,7 @@ def test_profiles_not_checked_notice_and_dark_mode() -> None:
 
 def test_min_severity_and_only_info() -> None:
     text = html.render(sample_result(sample_findings()), min_severity=Severity.CRITICAL)
-    assert "4 finding(s) below" in text
+    assert "8 finding(s) below" in text
     info = html.render(sample_result([finding("RC-AGENT-001", Severity.INFO, "CLAUDE.md")]))
     assert "Only info findings" in info
 

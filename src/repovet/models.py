@@ -1,6 +1,7 @@
 """Data model shared by sources, engine, analyzers and report."""
 
 import enum
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Self
@@ -77,6 +78,15 @@ class Location:
 
 
 @dataclass(frozen=True)
+class Chain:
+    """The files an auto-run entry point passes through to reach dangerous code: the
+    entry point first, the file with the dangerous code last."""
+
+    id: str
+    steps: tuple[Location, ...]
+
+
+@dataclass(frozen=True)
 class Finding:
     rule_id: str
     title: str
@@ -93,6 +103,19 @@ class Finding:
     # Where the file sits when that usually means it does not run: vendored, test,
     # example or docs. A label only; the finding is reported all the same.
     context: str | None = None
+    # A chain finding: the steps from the entry point to the dangerous code.
+    chain: Chain | None = None
+    # The id of the chain this finding is part of. It stays in the report but is not
+    # counted again in summaries and --fail-on (the chain finding counts for it).
+    in_chain: str | None = None
+    # The rule's tags (for the report's action line; not part of the JSON report).
+    tags: tuple[str, ...] = ()
+
+
+def counted(findings: Sequence[Finding]) -> list[Finding]:
+    """The findings that count in summaries and --fail-on: all except the parts of a
+    chain, which the chain finding stands for."""
+    return [f for f in findings if f.in_chain is None]
 
 
 @dataclass(frozen=True)

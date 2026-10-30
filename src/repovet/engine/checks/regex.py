@@ -19,6 +19,8 @@ the text quotes it to describe it: the match is in quotes or a code span, and th
 introduces it as an example or pattern, calls it an attack, or is a table row, a quote or
 a list of code spans. Such matches are not dropped, and a phrase right after a verb like
 "run" or "always" stays an instruction.
+``join_continuations: true`` joins a line that ends with a backslash with the next one
+before matching (shell line continuation); the match is reported at the first line.
 """
 
 import re
@@ -51,6 +53,31 @@ def looks_like_regex_literal(line: str, start: int, end: int) -> bool:
 
 
 _FENCE = re.compile(r"[ \t]*(`{3,}|~{3,})")
+_CONTINUATION = re.compile(r"\\\r?\n")
+
+
+def _continues(line: str) -> bool:
+    """True if ``line`` ends with an odd number of backslashes (a line continuation)."""
+    return line.endswith("\\") and (len(line) - len(line.rstrip("\\"))) % 2 == 1
+
+
+def logical_lines(lines: list[str]) -> Iterator[tuple[int, str]]:
+    """(first line number, text) with continuation lines joined by a space."""
+    first = 1
+    parts: list[str] = []
+    for number, line in enumerate(lines, start=1):
+        if not parts:
+            first = number
+        if _continues(line):
+            parts.append(line[:-1])
+            continue
+        parts.append(line)
+        yield first, " ".join(parts)
+        parts = []
+    if parts:
+        yield first, " ".join(parts)
+
+
 _CODE_MEMO = "regex:markdown-code"
 
 
@@ -149,6 +176,7 @@ class RegexCheck(Check):
         match_requires: re.Pattern[str] | None = None,
         skip_markdown_code: bool = False,
         demote_descriptive: bool = False,
+        join_continuations: bool = False,
     ) -> None:
         self.pattern = pattern
         self.scope = scope
@@ -160,6 +188,7 @@ class RegexCheck(Check):
         self.match_requires = match_requires
         self.skip_markdown_code = skip_markdown_code
         self.demote_descriptive = demote_descriptive
+        self.join_continuations = join_continuations
 
     def _make(self, view: FileView, number: int, column: int, line: str, text: str) -> Match | None:
         """The match of ``text`` at ``line[column - 1:]``, or ``None`` if it is skipped."""
@@ -189,6 +218,9 @@ class RegexCheck(Check):
         if self.scope == "text":
             yield from self._text_matches(view, text)
             return
+        if self.join_continuations and _CONTINUATION.search(text):
+            yield from self._joined_matches(view)
+            return
         limit = view.limits.max_line_length
         lines = view.lines()
         numbers: Iterable[int] = range(1, len(lines) + 1)
@@ -197,6 +229,19 @@ class RegexCheck(Check):
             numbers = candidates
         for number in numbers:
             line = lines[number - 1]
+            if len(line) > limit and not self.long_lines:
+                view.note_long_lines()
+                continue
+            found = self.pattern.search(line)
+            if found is None or (self.ignore is not None and self.ignore.search(line)):
+                continue
+            match = self._make(view, number, found.start() + 1, line, found.group(0))
+            if match is not None:
+                yield match
+
+    def _joined_matches(self, view: FileView) -> Iterator[Match]:
+        limit = view.limits.max_line_length
+        for number, line in logical_lines(view.lines()):
             if len(line) > limit and not self.long_lines:
                 view.note_long_lines()
                 continue
@@ -235,6 +280,7 @@ def build(params: Params, env: BuildEnv) -> Check:
     match_requires = params.get_str("match_requires")
     skip_code = params.get_bool("skip_markdown_code")
     descriptive = params.get_bool("demote_descriptive")
+    joined = params.get_bool("join_continuations")
     flags = 0
     for name in params.get_str_list("flags"):
         if name not in _FLAGS:
@@ -252,4 +298,5 @@ def build(params: Params, env: BuildEnv) -> Check:
         env.compile(match_requires, flags) if match_requires else None,
         skip_code,
         descriptive,
+        joined,
     )

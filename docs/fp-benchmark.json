@@ -1,20 +1,20 @@
 {
   "date": "2026-10-30",
-  "repovet": "0.3.1",
+  "repovet": "0.4.0",
   "requested": 50,
-  "rules_loaded": 130,
+  "rules_loaded": 135,
   "max_clone_size": 524288000,
   "repositories": [
     {
       "repo": "codecrafters-io/build-your-own-x",
-      "stars": 557428,
+      "stars": 557458,
       "commit": "aa17439b62f384511a5561ce308e9598b94d8989",
       "files": 4,
       "findings": {}
     },
     {
       "repo": "sindresorhus/awesome",
-      "stars": 527014,
+      "stars": 527092,
       "commit": "bc98e517ddca672f55f9857d714fc3ea3c3540b2",
       "files": 23,
       "findings": {
@@ -31,7 +31,7 @@
     },
     {
       "repo": "public-apis/public-apis",
-      "stars": 493369,
+      "stars": 493398,
       "commit": "d4d63b048263cfb20a6235d34c97a6b0c67342ad",
       "files": 23,
       "findings": {
@@ -48,9 +48,9 @@
     },
     {
       "repo": "morluto/rea",
-      "stars": 409430,
-      "commit": "c5f50e80d8032baba7c3f6af4b84f8ce2d49e65d",
-      "files": 6820,
+      "stars": 409968,
+      "commit": "b1ff7cdacc03110d51bcac33da3cbb7850ac27fc",
+      "files": 6829,
       "findings": {
         "RC-AGENT-001": {
           "severity": "info",
@@ -92,7 +92,7 @@
     },
     {
       "repo": "EbookFoundation/free-programming-books",
-      "stars": 400512,
+      "stars": 400517,
       "commit": "3bb4c53f0681d5a6d6adafdf3f2ee4eca054a23d",
       "files": 235,
       "findings": {
@@ -109,7 +109,7 @@
     },
     {
       "repo": "donnemartin/system-design-primer",
-      "stars": 376167,
+      "stars": 376177,
       "commit": "ae9bbd7b02d90b9866215de185217d33f39ab733",
       "files": 139,
       "findings": {
@@ -126,9 +126,9 @@
     },
     {
       "repo": "nilbuild/developer-roadmap",
-      "stars": 370774,
-      "commit": "3ecc18178d5e8fd1c07d64737fd3270595c9353d",
-      "files": 11210,
+      "stars": 370787,
+      "commit": "3225d4aa474ce54ca69b4cf319d2b973744fbfdb",
+      "files": 11326,
       "findings": {
         "RC-PROV-010": {
           "severity": "info",
@@ -143,21 +143,21 @@
     },
     {
       "repo": "jwasham/coding-interview-university",
-      "stars": 363549,
+      "stars": 363550,
       "commit": "717298bf219a30d7fb0671285c5f057b1bb74b27",
       "files": 46,
       "findings": {}
     },
     {
       "repo": "awesome-selfhosted/awesome-selfhosted",
-      "stars": 331925,
+      "stars": 331955,
       "commit": "f05554a17fb57b1e85ed637de8a573985b134ec1",
       "files": 6,
       "findings": {}
     },
     {
       "repo": "vinta/awesome-python",
-      "stars": 331265,
+      "stars": 331291,
       "commit": "732d4919babf0036d5bf38b4b4f79db186b7394b",
       "files": 131,
       "findings": {
@@ -183,7 +183,7 @@
     },
     {
       "repo": "obra/superpowers",
-      "stars": 308921,
+      "stars": 309046,
       "commit": "2ce8aa15d05bd57213e6f746f953aafb7ded7a8b",
       "files": 231,
       "findings": {
@@ -209,7 +209,7 @@
     },
     {
       "repo": "mattpocock/skills",
-      "stars": 306859,
+      "stars": 306963,
       "commit": "a496f5513d4a4cf889bc48e189e579f4b0bdf6aa",
       "files": 175,
       "findings": {
@@ -235,7 +235,7 @@
     },
     {
       "repo": "affaan-m/ECC",
-      "stars": 292917,
+      "stars": 292997,
       "commit": "b38be6a7f6350964d59328b52f0624e1d1d552d1",
       "files": 4701,
       "findings": {
@@ -359,7 +359,7 @@
     },
     {
       "repo": "996icu/996.ICU",
-      "stars": 277194,
+      "stars": 277196,
       "commit": "f5e35f48d769bf92ed885888bfe911d3e5b5a63d",
       "files": 326,
       "findings": {
@@ -394,7 +394,7 @@
     },
     {
       "repo": "deepseek-ai/deepseek-harness",
-      "stars": 266241,
+      "stars": 266382,
       "commit": "ce7073d51254c26cd63b22a60835b8f948deb447",
       "files": 20219,
       "findings": {
@@ -483,14 +483,40 @@
     },
     {
       "repo": "trimstray/the-book-of-secret-knowledge",
-      "stars": 254399,
+      "stars": 254428,
       "commit": "7d37069a361d3fd9f214480755f7969744e866fa",
       "files": 6,
       "findings": {}
     },
     {
+      "repo": "multica-ai/andrej-karpathy-skills",
+      "stars": 226629,
+      "commit": "2c606141936f1eeef17fa3043a72095b4765b9c2",
+      "files": 9,
+      "findings": {
+        "RC-AGENT-001": {
+          "severity": "info",
+          "high": 2,
+          "medium": 0,
+          "low": 0,
+          "severities": {
+            "info": 2
+          }
+        },
+        "RC-PROV-010": {
+          "severity": "info",
+          "high": 0,
+          "medium": 1,
+          "low": 0,
+          "severities": {
+            "info": 1
+          }
+        }
+      }
+    },
+    {
       "repo": "TheAlgorithms/Python",
-      "stars": 225687,
+      "stars": 225690,
       "commit": "6e03a48579ca212a08b36be00378f887dc41a003",
       "files": 1737,
       "findings": {
@@ -525,28 +551,28 @@
     },
     {
       "repo": "vuejs/vue",
-      "stars": 212491,
+      "stars": 212485,
       "commit": "9e88707940088cb1f4cd7dd210c9168a50dc347c",
       "files": 508,
       "findings": {}
     },
     {
       "repo": "ossu/computer-science",
-      "stars": 210517,
+      "stars": 210522,
       "commit": "33d44a44e3526ede8e862bf1ad50ae5ae7a2f112",
       "files": 38,
       "findings": {}
     },
     {
       "repo": "DigitalPlatDev/FreeDomain",
-      "stars": 206383,
+      "stars": 206401,
       "commit": "9c7c54110705760267b07b6e6a6d406d1172a1bf",
       "files": 88,
       "findings": {}
     },
     {
       "repo": "yt-dlp/yt-dlp",
-      "stars": 203792,
+      "stars": 203828,
       "commit": "b77c9304e1c4220cca450c583491904daf8455af",
       "files": 1235,
       "findings": {
@@ -581,7 +607,7 @@
     },
     {
       "repo": "massgravel/Microsoft-Activation-Scripts",
-      "stars": 196914,
+      "stars": 196924,
       "commit": "6401d2f36975dc07bcb6d22ea823a8498a75ec01",
       "files": 15,
       "findings": {
@@ -598,9 +624,9 @@
     },
     {
       "repo": "firecrawl/firecrawl",
-      "stars": 196851,
-      "commit": "f748a79097e27969ed1fc2183b25ac308f8f5dc9",
-      "files": 2174,
+      "stars": 196896,
+      "commit": "55ffb98760bf7ff85265d82cb65ab1e48caa4133",
+      "files": 2175,
       "findings": {
         "RC-AGENT-001": {
           "severity": "info",
@@ -696,7 +722,7 @@
     },
     {
       "repo": "trekhleb/javascript-algorithms",
-      "stars": 196709,
+      "stars": 196706,
       "commit": "85293e3e2b88f4d2ce330d956b139cf628aa1e82",
       "files": 679,
       "findings": {
@@ -775,7 +801,7 @@
     },
     {
       "repo": "microsoft/markitdown",
-      "stars": 192953,
+      "stars": 192971,
       "commit": "7482c092d9c0074a89803c9fdb63a969e7fe17fc",
       "files": 197,
       "findings": {
@@ -801,7 +827,7 @@
     },
     {
       "repo": "avelino/awesome-go",
-      "stars": 191093,
+      "stars": 191114,
       "commit": "5ac69e3b1f9cf4244a2432e82b372a5201804770",
       "files": 106,
       "findings": {
@@ -827,7 +853,7 @@
     },
     {
       "repo": "ohmyzsh/ohmyzsh",
-      "stars": 190235,
+      "stars": 190238,
       "commit": "17a2b4c3a5855524ad4772a17ada0dc474e2fdf3",
       "files": 1177,
       "findings": {
@@ -838,15 +864,6 @@
           "low": 0,
           "severities": {
             "low": 1
-          }
-        },
-        "RC-DLX-001": {
-          "severity": "medium",
-          "high": 0,
-          "medium": 1,
-          "low": 0,
-          "severities": {
-            "medium": 1
           }
         },
         "RC-DLX-005": {
@@ -871,7 +888,7 @@
     },
     {
       "repo": "jackfrued/Python-100-Days",
-      "stars": 187576,
+      "stars": 187581,
       "commit": "44b2575bf42a02d0a38d9dada3f60335c95c5ec2",
       "files": 713,
       "findings": {
@@ -897,7 +914,7 @@
     },
     {
       "repo": "CyC2018/CS-Notes",
-      "stars": 186385,
+      "stars": 186384,
       "commit": "fb246251714b931f62348107fce6eb39f61ddd14",
       "files": 3118,
       "findings": {
@@ -923,7 +940,7 @@
     },
     {
       "repo": "521xueweihan/HelloGitHub",
-      "stars": 185671,
+      "stars": 185709,
       "commit": "8172b9f1a21aeb131245c485fb88fb155783a654",
       "files": 268,
       "findings": {
@@ -940,7 +957,7 @@
     },
     {
       "repo": "ollama/ollama",
-      "stars": 185297,
+      "stars": 185321,
       "commit": "4d22e65d493f281adce5e4de7f2cd1efa847cd13",
       "files": 1585,
       "findings": {
@@ -993,7 +1010,7 @@
     },
     {
       "repo": "anthropics/skills",
-      "stars": 184880,
+      "stars": 184909,
       "commit": "ca45fc496a3436251f191354091d557da31c15b5",
       "files": 446,
       "findings": {
@@ -1019,14 +1036,14 @@
     },
     {
       "repo": "getify/You-Dont-Know-JS",
-      "stars": 184837,
+      "stars": 184835,
       "commit": "044120ef55564939cd35f5ddaf3f6c0a45d7b02c",
       "files": 82,
       "findings": {}
     },
     {
       "repo": "DietrichGebert/ponytail",
-      "stars": 180460,
+      "stars": 180581,
       "commit": "96608e078b2d5ea607c5c3b8b5a54d1c1fba6846",
       "files": 216,
       "findings": {
@@ -1052,7 +1069,7 @@
     },
     {
       "repo": "github/gitignore",
-      "stars": 176111,
+      "stars": 176107,
       "commit": "09f8241c2d1f2b5a4f39fcf1126cd6550d901b0d",
       "files": 316,
       "findings": {
@@ -1072,67 +1089,62 @@
     {
       "repo": "freeCodeCamp/freeCodeCamp",
       "stars": 458208,
-      "reason": "larger than the clone limit (570.8 MB > 500 MB)"
+      "reason": "larger than the clone limit (570.3 MB > 500 MB)"
     },
     {
       "repo": "openclaw/openclaw",
-      "stars": 393414,
+      "stars": 393422,
       "reason": "larger than the clone limit (11.1 GB > 500 MB)"
     },
     {
       "repo": "NousResearch/hermes-agent",
-      "stars": 258630,
+      "stars": 258677,
       "reason": "larger than the clone limit (1.3 GB > 500 MB)"
     },
     {
       "repo": "torvalds/linux",
-      "stars": 253810,
+      "stars": 253819,
       "reason": "larger than the clone limit (6.1 GB > 500 MB)"
     },
     {
       "repo": "react/react",
-      "stars": 251754,
+      "stars": 251755,
       "reason": "larger than the clone limit (1.1 GB > 500 MB)"
     },
     {
-      "repo": "multica-ai/andrej-karpathy-skills",
-      "stars": 226578,
-      "reason": "scan failed (exit code 3): repovet: error: analysis aborted: fetching https://github.com/multica-ai/andrej-karpathy-skills failed: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))"
-    },
-    {
       "repo": "anomalyco/opencode",
-      "stars": 223149,
-      "reason": "larger than the clone limit (601.0 MB > 500 MB)"
+      "stars": 223169,
+      "reason": "larger than the clone limit (601.2 MB > 500 MB)"
     },
     {
       "repo": "n8n-io/n8n",
-      "stars": 209079,
-      "reason": "larger than the clone limit (757.9 MB > 500 MB)"
+      "stars": 209097,
+      "reason": "larger than the clone limit (761.0 MB > 500 MB)"
     },
     {
       "repo": "tensorflow/tensorflow",
-      "stars": 201214,
+      "stars": 201215,
       "reason": "larger than the clone limit (1.4 GB > 500 MB)"
     },
     {
       "repo": "microsoft/vscode",
-      "stars": 194364,
+      "stars": 194367,
       "reason": "larger than the clone limit (1.6 GB > 500 MB)"
     },
     {
       "repo": "Significant-Gravitas/AutoGPT",
-      "stars": 187825,
-      "reason": "larger than the clone limit (596.7 MB > 500 MB)"
+      "stars": 187826,
+      "reason": "larger than the clone limit (597.3 MB > 500 MB)"
     },
     {
       "repo": "flutter/flutter",
-      "stars": 180654,
+      "stars": 180668,
       "reason": "larger than the clone limit (500.1 MB > 500 MB)"
     },
     {
       "repo": "f/prompts.chat",
-      "stars": 175147,
-      "reason": "larger than the clone limit (686.0 MB > 500 MB)"
+      "stars": 175167,
+      "reason": "larger than the clone limit (686.2 MB > 500 MB)"
     }
   ]
 }

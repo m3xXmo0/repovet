@@ -4,16 +4,21 @@
 # A command that downloads something.
 network_fetch: '(?i:\b(?:curl|wget|Invoke-WebRequest|Invoke-RestMethod|iwr|irm|Start-BitsTransfer|bitsadmin)\b|\bcertutil\b[^\n]{0,80}-urlcache)'
 
-# Output piped straight into an interpreter.
-shell_pipe_exec: '(?i:\|[ \t]*(?:sudo[ \t]+)?(?:sh|bash|zsh|dash|ksh|python[23]?|node|perl|ruby|iex|Invoke-Expression)\b)'
+# Output piped straight into an interpreter, also through sudo (with options), env or
+# an absolute path (/bin/sh, /usr/bin/env bash). The name must end there (not
+# zsh-helper), and an inline script (sh -c, python -c, node -e/-p, perl/ruby -e) reads
+# the download as data, not as code.
+shell_pipe_exec: '(?i:\|[ \t]*(?:sudo(?:[ \t]+-[A-Za-z]+)*[ \t]+)?(?:(?:/usr)?/bin/)?(?:env(?:[ \t]+-[A-Za-z]+)*[ \t]+)?(?:(?:/usr)?/bin/)?(?:(?:sh|bash|zsh|dash|ksh|python[23]?)(?![\w-])(?![ \t]+-[A-Za-z]*c)|node(?![\w-])(?![ \t]+(?:-[ep]\b|--eval\b|--print\b))|(?:perl|ruby)(?![\w-])(?![ \t]+-[A-Za-z]*e)|(?:iex|Invoke-Expression)\b))'
 
 # Encoded payloads that are decoded right away.
 encoded_payload: '(?i:\bbase64[ \t]+(?:-d|--decode)\b|\bFromBase64String\b|[ \t]-(?:e|ec|en|enc|encodedcommand)[ \t]+[A-Za-z0-9+/]{40,}={0,2})'
 
-# Download and run in one step: a download piped into an interpreter, a shell running
-# a command or process substitution of a download, PowerShell IEX of a download.
-# The gap between download and pipe is bounded to keep the search linear.
-download_exec: '(?:{{network_fetch}})[^\n]{0,300}?{{shell_pipe_exec}}|(?i:\b(?:ba|z|da|k)?sh[ \t]+(?:-c[ \t]+)?["'']?\$\([ \t]*(?:curl|wget)\b)|(?i:\b(?:ba|z|da|k)?sh[ \t]+<\([ \t]*(?:curl|wget)\b)|(?i:\b(?:iex|Invoke-Expression)\b[ \t]*\(?[ \t]*\(?[ \t]*(?:iwr|irm|Invoke-WebRequest|Invoke-RestMethod|New-Object[ \t]+(?:System\.)?Net\.WebClient)\b)|(?i:\.DownloadString\()'
+# Download and run in one step: a download piped into an interpreter; a command
+# substitution ($(...) or backticks) of a download given to a shell, eval, python -c,
+# node -e, perl -e or ruby -e; a shell reading a process substitution of a download;
+# PowerShell IEX of a download. The gap between download and pipe is bounded to keep the
+# search linear.
+download_exec: '(?:{{network_fetch}})[^\n]{0,300}?{{shell_pipe_exec}}|(?i:(?:\b(?:ba|z|da|k)?sh(?:[ \t]+-[a-z]{0,3}c)?|\beval|\bpython[23]?[ \t]+-c|\bnode[ \t]+-e|\b(?:perl|ruby)[ \t]+-e)[ \t]+["'']?(?:\$\(|`)[ \t]*(?:curl|wget)\b)|(?i:\b(?:ba|z|da|k)?sh[ \t]+<\([ \t]*(?:curl|wget)\b)|(?i:\b(?:iex|Invoke-Expression)\b[ \t]*\(?[ \t]*\(?[ \t]*(?:iwr|irm|Invoke-WebRequest|Invoke-RestMethod|New-Object[ \t]+(?:System\.)?Net\.WebClient)\b)|(?i:\.DownloadString\()'
 
 # Anything that downloads, runs a download or decodes a payload.
 fetch_or_run: '{{download_exec}}|{{network_fetch}}|{{shell_pipe_exec}}|{{encoded_payload}}'
@@ -56,3 +61,14 @@ temp_path: '(?i:/tmp/|/var/tmp/|/dev/shm/|%te?mp%|\$env:te?mp\b|\$TMPDIR\b|\bGet
 # A line that is only a comment (shell/Python/PowerShell #, C-style // and /* *,
 # Lua/SQL --, batch REM and ::). Code in comments does not run.
 comment_line: '\A[ \t]*(?:#|//|/\*|\*|--|::|(?i:rem)\b)'
+
+# Prose in AI agent files (RC-AGENT-028). A verb that moves data off the machine.
+agent_exfil_verb: '\b(?:send|post|upload|paste|exfiltrate|transmit|forward)\b'
+
+# Prose: secrets, credentials and the environment. A bare "token" is not counted (in AI
+# agent files it usually means model tokens); access, API, auth ... tokens and
+# environment variable names such as GITHUB_TOKEN are.
+agent_secret_ref: '(?:\A|[\s`"''(/])\.env\b|\benv\b|\benvironment[ \t]+variables?\b|\bprintenv\b|\b(?:access|api|auth|bearer|github|gh|gitlab|npm|pypi|deploy|session|refresh|personal)[ \t_-]+tokens?\b|(?-i:\b[A-Z][A-Z0-9_]*_(?:TOKEN|KEY|SECRET)\b)|\bsecrets?\b|\bcredentials?\b|\bapi[ _-]?keys?\b|\bpasswords?\b|\bprivate[ \t]+keys?\b|\bid_(?:rsa|ed25519|ecdsa)\b|(?:~|\$HOME)/\.(?:ssh|aws|npmrc|netrc|config/gh)\b'
+
+# Prose: "to <URL>" for an address that is not the local machine.
+agent_remote_target: '\b(?:to|into|at)[ \t]+(?:the[ \t]+|this[ \t]+)?(?:url[ \t]+|endpoint[ \t]+|server[ \t]+|address[ \t]+)?[<`"''(]?https?://(?!localhost\b|127\.|0\.0\.0\.0\b)[^\s<>`"'')]'

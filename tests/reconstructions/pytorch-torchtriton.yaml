@@ -20,3 +20,34 @@ files:
 must_fire:
   - {rule: RC-DEP-011, path: requirements.txt}
 must_not_fire: [RC-DEP-001, RC-DEP-012]
+
+variants:
+  - id: index-url
+    technique: The default index is replaced with --index-url instead of adding one.
+    files:
+      requirements.txt: |
+        --index-url https://download.example.invalid/whl/nightly
+        torch
+        torchtriton
+  - id: nested-requirements
+    technique: The extra index sits in a second requirements file that the first one includes.
+    files:
+      requirements.txt: |
+        -r requirements/nightly.txt
+        torch
+      requirements/nightly.txt: |
+        --extra-index-url https://download.example.invalid/whl/nightly
+        torchtriton
+  - id: uv-index
+    technique: The extra index is configured for uv in pyproject.toml instead of requirements.txt.
+    files:
+      requirements.txt: null
+      pyproject.toml: |
+        [project]
+        name = "demo"
+        version = "0.1.0"
+        dependencies = ["torch", "torchtriton"]
+
+        [[tool.uv.index]]
+        name = "nightly"
+        url = "https://download.example.invalid/whl/nightly"

@@ -28,3 +28,19 @@ must_fire:
   - {rule: RC-AUTO-032, path: .git/config}
   - {rule: RC-AUTO-032, path: fixtures/demo.git/config}
 must_not_fire: [RC-AUTO-030, RC-AUTO-031]
+
+variants:
+  - id: mixed-case-key
+    technique: Section and key written in mixed case (Git config names are case-insensitive).
+    files:
+      .git/config: "[Core]\n\trepositoryformatversion = 0\n\tbare = false\n\tFsMonitor = \"echo dummy\"\n"
+  - id: include-file
+    technique: The config includes another file from the repository that sets core.fsmonitor.
+    files:
+      .git/config: "[core]\n\trepositoryformatversion = 0\n\tbare = false\n[include]\n\tpath = ../tools/git.inc\n"
+      tools/git.inc: "[core]\n\tfsmonitor = \"echo dummy\"\n"
+known_gaps:
+  - variant: include-file
+    reason: >
+      Included config files are not followed. RC-AUTO-031 reports the include as high;
+      the fsmonitor command in the included file is not read as Git config.

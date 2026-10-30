@@ -4,6 +4,7 @@ from collections.abc import Callable
 
 from repovet.engine.checks import (
     blob,
+    chain,
     dependency,
     filename,
     import_ref,
@@ -12,6 +13,8 @@ from repovet.engine.checks import (
     metric,
     python_ast,
     regex,
+    sentence,
+    split_payload,
     tree,
     unicode,
 )
@@ -22,6 +25,8 @@ type Builder = Callable[[Params, BuildEnv], Check]
 BUILDERS: dict[str, Builder] = {
     "filename": filename.build,
     "regex": regex.build,
+    "sentence": sentence.build,
+    "split_payload": split_payload.build,
     "keypath": keypath.build,
     "unicode": unicode.build,
     "python_ast": python_ast.build,
@@ -31,6 +36,7 @@ BUILDERS: dict[str, Builder] = {
     "tree": tree.build,
     "dependency": dependency.build,
     "metric": metric.build,
+    "chain": chain.build,
 }
 
 # Check types that arrive in later milestones.

@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://repovet.invalid/schemas/report-1.3.json",
+  "$id": "https://repovet.invalid/schemas/report-1.4.json",
   "title": "repovet JSON report",
-  "description": "Output of `repovet scan --format json`, schema_version 1.3. All strings that come from the checked repository are sanitized: invisible and control characters appear as <U+XXXX>. A report without findings does not mean the repository is safe; see 'coverage'.",
+  "description": "Output of `repovet scan --format json`, schema_version 1.4. All strings that come from the checked repository are sanitized: invisible and control characters appear as <U+XXXX>. A report without findings does not mean the repository is safe; see 'coverage'.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -17,7 +17,7 @@
     "disclaimer"
   ],
   "properties": {
-    "schema_version": {"const": "1.3"},
+    "schema_version": {"const": "1.4"},
     "tool": {
       "type": "object",
       "additionalProperties": false,
@@ -53,9 +53,24 @@
     "summary": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["findings", "hidden_below_min_severity", "by_severity", "by_category"],
+      "required": [
+        "findings",
+        "part_of_chains",
+        "hidden_below_min_severity",
+        "by_severity",
+        "by_category"
+      ],
       "properties": {
-        "findings": {"type": "integer", "minimum": 0},
+        "findings": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Findings that count: all at or above min_severity except the parts of a chain, which count through their chain finding. by_severity and by_category count the same findings."
+        },
+        "part_of_chains": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Listed findings that are part of a chain (in_chain set) and not counted again."
+        },
         "hidden_below_min_severity": {"type": "integer", "minimum": 0},
         "by_severity": {
           "type": "object",
@@ -114,7 +129,9 @@
         "rationale",
         "recommendation",
         "references",
-        "context"
+        "context",
+        "chain",
+        "in_chain"
       ],
       "properties": {
         "rule_id": {"type": "string", "pattern": "^RC-[A-Z]+-[0-9]{3}$"},
@@ -149,6 +166,38 @@
         "context": {
           "enum": ["vendored", "test", "example", "docs", null],
           "description": "Label for a file in vendored code, tests, examples or docs. Findings there are reported all the same."
+        },
+        "chain": {
+          "description": "Set on a chain finding: the files from an auto-run entry point to the dangerous code, entry point first.",
+          "oneOf": [
+            {"type": "null"},
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["id", "steps"],
+              "properties": {
+                "id": {"type": "string", "pattern": "^chain-[0-9]+$"},
+                "steps": {
+                  "type": "array",
+                  "minItems": 2,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["path", "line"],
+                    "properties": {
+                      "path": {"type": "string"},
+                      "line": {"type": ["integer", "null"], "minimum": 1}
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "in_chain": {
+          "type": ["string", "null"],
+          "pattern": "^chain-[0-9]+$",
+          "description": "The id of the chain this finding is part of. It is listed but not counted again in the summary or for --fail-on."
         }
       }
     },

@@ -71,10 +71,10 @@ RC-BIN-003:
 
 RC-BIN-004:
   positive:
-    - name: right-to-left override in a file name
+    - name: byte order mark in a file name
       files:
-        "invoice\U0000202Etxt.exe": "dummy"
-      expect: [{path: "invoice\U0000202Etxt.exe"}]
+        "read\U0000FEFFme.txt": "dummy"
+      expect: [{path: "read\U0000FEFFme.txt", severity: high}]
     - name: zero-width space in a folder name
       files:
         "src\U0000200B/main.py": "print('hi')\n"
@@ -84,6 +84,28 @@ RC-BIN-004:
       files:
         "docs/Übersicht.md": "Text\n"
         "i18n/日本語.json": "{}\n"
+    - name: right-to-left override (reported by RC-BIN-014)
+      files:
+        "invoice\U0000202Etxt.exe": "dummy"
+
+RC-BIN-014:
+  positive:
+    - name: right-to-left override in a file name
+      files:
+        "invoice\U0000202Etxt.exe": "dummy"
+      expect: [{path: "invoice\U0000202Etxt.exe", severity: critical}]
+    - name: right-to-left isolate in a folder name
+      files:
+        "build\U00002067gpj/run.sh": "echo dummy\n"
+      expect: [{path: "build\U00002067gpj/run.sh"}]
+  negative:
+    - name: zero-width and other invisible characters (reported by RC-BIN-004)
+      files:
+        "src\U0000200B/main.py": "print('hi')\n"
+    - name: right-to-left scripts in names
+      files:
+        "docs/\u05e9\u05dc\u05d5\u05dd.md": "Text\n"
+        "i18n/\u0645\u0631\u062d\u0628\u0627.json": "{}\n"
 
 RC-BIN-005:
   positive:

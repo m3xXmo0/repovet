@@ -43,3 +43,32 @@ not_covered: >
   in hex form is not reported (RC-OBF-001 looks at high-entropy Base64 only). The
   decryption and the compile step are separate statements, so the one-expression rule
   RC-OBF-003 stays silent; RC-OBF-011 reports them as a pair in one file.
+
+variants:
+  - id: vm-context
+    technique: The decrypted source runs in a vm context instead of a new module.
+    files:
+      index.min.js: |
+        const { Readable } = require("stream");
+        const vm = require("vm");
+        module.exports = () => new Readable({ read() {} });
+
+        function unpackExtra(hexText, secret) {
+          const cipher = require("crypto").createDecipheriv("aes-256-cbc", secret, Buffer.alloc(16));
+          const source = cipher.update(hexText, "hex", "utf8") + cipher.final("utf8");
+          return vm.runInThisContext(source);
+        }
+        module.exports.unpackExtra = unpackExtra;
+  - id: function-constructor
+    technique: The decrypted source runs through `new Function` instead of the module compiler.
+    files:
+      index.min.js: |
+        const { Readable } = require("stream");
+        module.exports = () => new Readable({ read() {} });
+
+        function unpackExtra(hexText, secret) {
+          const cipher = require("crypto").createDecipheriv("aes-256-cbc", secret, Buffer.alloc(16));
+          const source = cipher.update(hexText, "hex", "utf8") + cipher.final("utf8");
+          return new Function("module", source)(module);
+        }
+        module.exports.unpackExtra = unpackExtra;

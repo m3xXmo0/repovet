@@ -39,6 +39,7 @@ from repovet.engine.loader import load_rules
 from repovet.github.client import ApiError, GitHubClient, token_from_env
 from repovet.github.transport import UrllibTransport
 from repovet.limits import format_size, parse_size
+from repovet.models import AREAS
 from repovet.report.sanitize import sanitize
 from repovet.sources.remote import DEFAULT_MAX_CLONE_SIZE
 
@@ -92,9 +93,14 @@ def _highest(severities: Mapping[str, int]) -> str:
 
 def summarize(report: Mapping[str, Any]) -> dict[str, Any]:
     """Commit, file count and findings per rule: confidence split, findings per severity
-    (a finding can be reported below its rule's severity) and the highest severity."""
+    (a finding can be reported below its rule's severity) and the highest severity.
+    Parts of a chain are not counted again, as in the report's summary; their number is
+    kept as ``chain_parts``."""
     rules: dict[str, dict[str, Any]] = {}
+    parts = sum(1 for f in report["findings"] if f.get("in_chain"))
     for finding in report["findings"]:
+        if finding.get("in_chain"):
+            continue
         entry = rules.setdefault(
             finding["rule_id"],
             {"severity": finding["severity"], **dict.fromkeys(CONFIDENCES, 0), "severities": {}},
@@ -104,11 +110,14 @@ def summarize(report: Mapping[str, Any]) -> dict[str, Any]:
         severities[finding["severity"]] = severities.get(finding["severity"], 0) + 1
         entry["severity"] = _highest(severities)
     source = report.get("facts", {}).get("source") or {}
-    return {
+    summary: dict[str, Any] = {
         "commit": str(source.get("commit") or ""),
         "files": int(report["scan"]["files_scanned"]),
         "findings": dict(sorted(rules.items())),
     }
+    if parts:
+        summary["chain_parts"] = parts
+    return summary
 
 
 def scan_repository(
@@ -195,6 +204,44 @@ def headline(data: Mapping[str, Any]) -> dict[str, int]:
     }
 
 
+def area_of(rule_id: str) -> str:
+    prefix = rule_id.split("-")[1] if rule_id.count("-") == 2 else ""
+    return next((name for name, info in AREAS.items() if info.prefix == prefix), "other")
+
+
+def area_table(data: Mapping[str, Any]) -> list[dict[str, Any]]:
+    """Per area (in the order of the areas): findings per severity and repositories with
+    a finding of the area."""
+    rows: dict[str, dict[str, Any]] = {
+        name: {"area": name, "repos": 0, **dict.fromkeys(SEVERITIES, 0)} for name in AREAS
+    }
+    for repo in data["repositories"]:
+        seen: set[str] = set()
+        for rule_id, per_rule in repo["findings"].items():
+            row = rows.setdefault(
+                area_of(rule_id),
+                {"area": area_of(rule_id), "repos": 0, **dict.fromkeys(SEVERITIES, 0)},
+            )
+            for severity, number in _by_severity(per_rule).items():
+                row[severity] += number
+            seen.add(row["area"])
+        for name in seen:
+            rows[name]["repos"] += 1
+    return list(rows.values())
+
+
+def area_lines(data: Mapping[str, Any]) -> list[str]:
+    """The per-area table as Markdown rows (with header)."""
+    lines = [
+        "| Area | critical | high | medium | low | info | Repositories |",
+        "|------|---------:|-----:|-------:|----:|-----:|-------------:|",
+    ]
+    for row in area_table(data):
+        cells = " | ".join(str(row[s]) for s in SEVERITIES)
+        lines.append(f"| {row['area']} | {cells} | {row['repos']} |")
+    return lines
+
+
 def _titles() -> dict[str, str]:
     return {rule.id: rule.title for rule in load_rules().rules}
 
@@ -231,6 +278,10 @@ def render_markdown(data: Mapping[str, Any]) -> str:
         f"- Repositories with at least one high or critical finding: {head['repos_high']} "
         f"of {scanned}",
         "- Findings by severity: " + ", ".join(f"{head[s]} {s}" for s in SEVERITIES),
+        "",
+        "## Findings per area",
+        "",
+        *area_lines(data),
         "",
         "## Rules that fire most often",
         "",
@@ -308,6 +359,7 @@ def run(argv: Sequence[str], client: GitHubClient | None = None) -> int:
     if args.render_only:
         recorded = json.loads(args.data.read_text(encoding="utf-8"))
         args.markdown.write_text(render_markdown(recorded), encoding="utf-8")
+        print("\n".join(area_lines(recorded)))
         return EXIT_OK
     if not 1 <= args.n <= 1000:
         print("-n must be between 1 and 1000", file=sys.stderr)
@@ -341,6 +393,7 @@ def run(argv: Sequence[str], client: GitHubClient | None = None) -> int:
     args.data.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
     args.markdown.write_text(render_markdown(data), encoding="utf-8")
     head = headline(data)
+    print("\n".join(area_lines(data)))
     print(f"{head['scanned']} scanned, {head['skipped']} skipped; written {args.markdown}")
     return EXIT_OK
 

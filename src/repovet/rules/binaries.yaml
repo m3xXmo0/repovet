@@ -25,7 +25,8 @@
 - id: RC-BIN-002
   title: Executable disguised as a document, image or text file
   area: binaries
-  severity: critical
+  # High, not critical: the program runs only when someone opens it.
+  severity: high
   confidence: high
   files: [{set: decoy_files}]
   exclude: [{set: vendored}]
@@ -46,7 +47,8 @@
 - id: RC-BIN-003
   title: File name with a double extension
   area: binaries
-  severity: critical
+  # High, not critical: the file runs only when someone opens it.
+  severity: high
   confidence: high
   exclude: [{set: vendored}]
   check:
@@ -68,16 +70,16 @@
 - id: RC-BIN-004
   title: Invisible or control characters in a file or folder name
   area: binaries
-  severity: critical
+  severity: high
   confidence: high
   check:
     type: filename
     target: path
-    name_regex: '[\x00-\x1f\x7f\U0000200B-\U0000200F\U0000202A-\U0000202E\U00002066-\U00002069\U0000FEFF]'
+    # Bidirectional embedding, override and isolate characters: RC-BIN-014.
+    name_regex: '[\x00-\x1f\x7f\U0000200B-\U0000200F\U0000FEFF]'
   message: "Path contains invisible or control characters: {path}"
   rationale: >
-    Right-to-left overrides make "exe.txt" display as "txt.exe" and similar tricks;
-    invisible and control characters make two different paths look identical or
+    Invisible and control characters make two different paths look identical or
     confuse tools and terminals.
   recommendation: >
     Do not open the file. List the folder in a tool that shows escapes and treat the
@@ -274,3 +276,24 @@
   references:
     - https://peps.python.org/pep-3147/
   tags: [binary, bytecode, python]
+
+- id: RC-BIN-014
+  title: Bidirectional control character in a file or folder name
+  area: binaries
+  severity: critical
+  confidence: high
+  check:
+    type: filename
+    target: path
+    name_regex: '[\U0000202A-\U0000202E\U00002066-\U00002069]'
+  message: "Path contains a character that reverses how the name is shown: {path}"
+  rationale: >
+    Right-to-left overrides and similar characters make "exe.txt" display as "txt.exe":
+    the name shows a harmless type while the system runs the real one. No ordinary file
+    name needs them.
+  recommendation: >
+    Do not open the file. List the folder in a tool that shows escapes and treat the
+    repository as malicious.
+  references:
+    - https://attack.mitre.org/techniques/T1036/002/
+  tags: [masquerading, unicode]

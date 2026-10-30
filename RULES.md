@@ -13,7 +13,7 @@ The tables below are generated with `uv run repovet rules list --markdown`; a te
 fails if they are out of date.
 
 <!-- rules-table:start -->
-#### Auto-run code (`autorun`, 48 rules)
+#### Auto-run code (`autorun`, 49 rules)
 
 | ID | Severity | Description |
 |----|----------|-------------|
@@ -65,13 +65,14 @@ fails if they are out of date.
 | RC-AUTO-086 | medium | Gradle wrapper downloads Gradle from an unofficial location |
 | RC-AUTO-087 | low | Ruby gem builds a native extension on install |
 | RC-AUTO-088 | high | Ruby install or build script downloads and runs code |
+| RC-AUTO-090 | critical | Auto-run entry point reaches dangerous code in another file |
 
-#### AI agent instructions and configuration (`agents`, 27 rules)
+#### AI agent instructions and configuration (`agents`, 28 rules)
 
 | ID | Severity | Description |
 |----|----------|-------------|
 | RC-AGENT-001 | info | AI agent file present |
-| RC-AGENT-002 | critical | Hidden Unicode tag characters in an AI agent file |
+| RC-AGENT-002 | high | Hidden Unicode tag characters in an AI agent file |
 | RC-AGENT-003 | high | Hidden Unicode tag characters in a text file |
 | RC-AGENT-004 | high | Bidirectional control characters in an AI agent file |
 | RC-AGENT-005 | medium | Zero-width characters in an AI agent file |
@@ -87,6 +88,7 @@ fails if they are out of date.
 | RC-AGENT-025 | high | Agent instruction loads further instructions from the web |
 | RC-AGENT-026 | high | Agent file imports files from outside the repository |
 | RC-AGENT-027 | medium | Code starts an AI coding agent with approvals or sandbox switched off |
+| RC-AGENT-028 | high | Plain-text instruction to run commands, send data away or act behind the user's back |
 | RC-AGENT-030 | high | Claude Code hooks in project settings |
 | RC-AGENT-031 | high | Broad agent permissions in project settings |
 | RC-AGENT-032 | critical | Claude Code API traffic redirected or API key helper set |
@@ -98,7 +100,7 @@ fails if they are out of date.
 | RC-AGENT-050 | medium | Slash command or skill runs shell commands |
 | RC-AGENT-060 | high | Other AI agents set to run commands without asking |
 
-#### Obfuscated code (`obfuscation`, 11 rules)
+#### Obfuscated code (`obfuscation`, 12 rules)
 
 | ID | Severity | Description |
 |----|----------|-------------|
@@ -113,8 +115,9 @@ fails if they are out of date.
 | RC-OBF-009 | medium | Invisible characters in source code |
 | RC-OBF-010 | medium | Name mixes Latin letters with look-alike letters from another script |
 | RC-OBF-011 | high | Decrypted data is compiled and run as code |
+| RC-OBF-012 | high | Encoded string split into constants is joined, decoded and run |
 
-#### Download-and-execute (`download_exec`, 6 rules)
+#### Download-and-execute (`download_exec`, 7 rules)
 
 | ID | Severity | Description |
 |----|----------|-------------|
@@ -124,15 +127,16 @@ fails if they are out of date.
 | RC-DLX-004 | high | Script downloads a file into a temporary folder and runs it |
 | RC-DLX-005 | medium | Code contacts a webhook, tunnel, paste or file-sharing service or a raw IP |
 | RC-DLX-006 | high | GitHub workflow sends secrets to a request catcher or paste service |
+| RC-DLX-007 | medium | Script stores a download in a variable and runs it |
 
-#### Binaries, archives, file-system tricks (`binaries`, 13 rules)
+#### Binaries, archives, file-system tricks (`binaries`, 14 rules)
 
 | ID | Severity | Description |
 |----|----------|-------------|
 | RC-BIN-001 | high | Executable program in the repository |
-| RC-BIN-002 | critical | Executable disguised as a document, image or text file |
-| RC-BIN-003 | critical | File name with a double extension |
-| RC-BIN-004 | critical | Invisible or control characters in a file or folder name |
+| RC-BIN-002 | high | Executable disguised as a document, image or text file |
+| RC-BIN-003 | high | File name with a double extension |
+| RC-BIN-004 | high | Invisible or control characters in a file or folder name |
 | RC-BIN-005 | medium | Compiled code that cannot be reviewed |
 | RC-BIN-006 | low | Archive in the repository |
 | RC-BIN-007 | medium | Password-protected archive |
@@ -142,6 +146,7 @@ fails if they are out of date.
 | RC-BIN-011 | medium | Link that points outside the repository |
 | RC-BIN-012 | high | Git submodule with a dangerous URL or path |
 | RC-BIN-013 | medium | Python bytecode cache without its source file |
+| RC-BIN-014 | critical | Bidirectional control character in a file or folder name |
 
 #### Suspicious dependencies (`dependencies`, 7 rules)
 

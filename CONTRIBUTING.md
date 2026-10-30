@@ -24,8 +24,10 @@ These hold for every change; a pull request that breaks one will not be merged.
   GitHub API; `--offline` turns the API off. An optional token is read from the
   environment and never printed.
 - **Measured, not claimed.** What repovet detects is checked against reconstructions of
-  documented attacks (`tests/reconstructions/`), and false alarms against popular
-  repositories (`docs/fp-benchmark.md`); known gaps stay written down.
+  documented attacks and rewritten variants of them (`tests/reconstructions/`), and false
+  alarms against popular repositories (`docs/fp-benchmark.md`); known gaps stay written
+  down. A new evasion technique belongs in a variant, listed as a known gap until a rule
+  catches it.
 
 ## Ground rules
 

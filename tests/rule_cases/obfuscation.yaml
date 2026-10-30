@@ -120,6 +120,12 @@ RC-OBF-003:
           ])
         configure: "#!/bin/sh\nzcat tests/files/data.gz | /bin/sh\n"
       expect: [{path: m4/build-to-host.m4, line: 3}, {path: configure, line: 2}]
+    - name: decompressed data run with eval and a command substitution
+      files:
+        m4/init.m4: |
+          AC_CONFIG_COMMANDS([init], [echo dummy], [eval "$(xz -dc tests/files/data.xz 2>/dev/null)"])
+        build.sh: "sh -c \"$(gunzip -c tests/files/data.gz)\"\n"
+      expect: [{path: m4/init.m4, line: 1}, {path: build.sh, line: 1}]
   negative:
     - name: decompression and child processes without decoding into execution
       files:
@@ -332,7 +338,18 @@ RC-OBF-011:
           const text = require("crypto").createDecipher("aes256", key).update(data, "hex", "utf8");
           vm.runInNewContext(text, {});
       expect: [{path: lib/plugin.js, line: 3}]
+    - name: decrypted data run through the Function constructor
+      files:
+        lib/extra.js: |
+          const d = require("crypto").createDecipheriv("aes-256-cbc", key, iv);
+          const source = d.update(blob, "hex", "utf8") + d.final("utf8");
+          new Function("module", source)(module);
+      expect: [{path: lib/extra.js, line: 3}]
   negative:
+    - name: Function constructor without decryption
+      files:
+        lib/template.js: |
+          const render = new Function("data", "return data.name;");
     - name: require hook that compiles without decrypting
       files:
         register.js: |
@@ -345,3 +362,80 @@ RC-OBF-011:
           const d = crypto.createDecipheriv("aes-256-gcm", key, iv);
           const plain = d.update(data, "hex", "utf8") + d.final("utf8");
           module.exports = JSON.parse(plain);
+
+RC-OBF-012:
+  positive:
+    - name: JavaScript joins two Base64 constants, decodes them and runs eval in a later statement
+      files:
+        dist/index.js: |
+          const head = "Y29uc29sZS5sb2coImR1bW15IHBheWxvYWQsIG5vdGhpbmcg";
+          const tail = "cnVucyIpOyAvLyBodHRwczovL2V4YW1wbGUuaW52YWxpZA==";
+          const joined = head + tail;
+          const source = Buffer.from(joined, "base64").toString("utf8");
+          eval(source);
+      expect: [{path: dist/index.js, line: 5}]
+    - name: TypeScript array join decoded with atob inside new Function
+      files:
+        src/boot.ts: |
+          const parts: string = ["Y29uc29sZS5sb2coImR1bW15", "IHBheWxvYWQiKTs="].join("");
+          new Function(atob(parts))();
+      expect: [{path: src/boot.ts, line: 2}]
+    - name: hex constants passed to execSync
+      files:
+        lib/run.cjs: |
+          const { execSync } = require("child_process");
+          const A = "6563686f2064756d6d79";
+          const B = "202d6e6f7468696e67";
+          execSync(Buffer.from(A + B, "hex").toString());
+      expect: [{path: lib/run.cjs, line: 4}]
+    - name: Python joins constants, decodes them and runs exec in a later statement
+      files:
+        helper.py: |
+          import base64
+
+          PART_A = "cHJpbnQoImR1bW15IHBheWxv"
+          PART_B = "YWQsIG5vdGhpbmcgcnVucyIp"
+          payload = base64.b64decode(PART_A + PART_B)
+          exec(payload)
+      expect: [{path: helper.py, line: 6}]
+    - name: Python with aliased import, join() and subprocess
+      files:
+        tools/sync.py: |
+          import subprocess
+          from base64 import b64decode as d
+
+          CMD = d("".join(["ZWNobyBkdW1teSAt", "bm90aGluZw=="])).decode()
+          subprocess.run(CMD, shell=True)
+      expect: [{path: tools/sync.py, line: 5}]
+  negative:
+    - name: one Base64 constant (reported by other rules, not as split)
+      files:
+        a.js: |
+          const blob = "Y29uc29sZS5sb2coImR1bW15IHBheWxvYWQiKTs=";
+          eval(atob(blob));
+    - name: joined constants decoded but only used as data
+      files:
+        icon.js: |
+          const a = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB";
+          const b = "CAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA";
+          const png = Buffer.from(a + b, "base64");
+          module.exports = png;
+    - name: name assigned more than once is not a constant
+      files:
+        load.py: |
+          import base64
+
+          code = "cHJpbnQoImR1bW15IHBheWxv"
+          code = code + read_rest()
+          exec(base64.b64decode(code + "YWQsIG5vdGhpbmcgcnVucyIp"))
+    - name: joined text that is not encoded
+      files:
+        greet.js: |
+          const first = "Hello, ";
+          const second = "world and everyone else";
+          eval("console.log(" + JSON.stringify(first + second) + ")");
+    - name: split payload in a test folder
+      files:
+        tests/test_sample.py: |
+          import base64
+          exec(base64.b64decode("cHJpbnQoImR1bW15IHBheWxv" + "YWQsIG5vdGhpbmcgcnVucyIp"))

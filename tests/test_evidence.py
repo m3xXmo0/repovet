@@ -6,6 +6,7 @@ date is taken from README.md (it records when the section was generated).
 """
 
 import json
+from dataclasses import replace
 
 import evidence
 import fp_benchmark
@@ -65,8 +66,9 @@ def test_render_counts_and_wording() -> None:
     assert "**1 not detected**" in text
     rows = [line for line in text.splitlines() if line.startswith("| [")]
     assert [row.split("]")[0] for row in rows] == ["| [One", "| [Two", "| [Three"]
-    assert "| detected | RC-AUTO-001 | - |" in rows[0]
-    assert "| not detected | - | RC-OBF-003 |" in rows[2]
+    assert "| detected | - | RC-AUTO-001 | - |" in rows[0]
+    assert "| not detected | - | - | RC-OBF-003 |" in rows[2]
+    assert "**0 of 0 variants detected**" in text
     assert "the 2 most-starred GitHub repositories** (repovet 0.3.0, 2026-10-30)" in text
     assert "1 scanned offline with all rules, 1 skipped" in text
     assert "RC-AUTO-001 (medium, 1 of 1)" in text
@@ -123,3 +125,34 @@ def test_readme_section_is_generated() -> None:
 def test_benchmark_data_is_present() -> None:
     data = json.loads(fp_benchmark.DATA.read_text(encoding="utf-8"))
     assert data["repositories"], "the benchmark has no scanned repositories"
+
+
+def test_variants_are_counted_next_to_the_canonical_result() -> None:
+    data = {
+        "id": "demo",
+        "title": "Demo",
+        "kind": "technique",
+        "year": 2024,
+        "technique": "t",
+        "sources": ["https://example.invalid/report"],
+        "reconstruction": "r",
+        "files": {"a.sh": "x"},
+        "must_fire": ["RC-DLX-001"],
+        "variants": [
+            {"id": "one", "technique": "t", "files": {"a.sh": "y"}},
+            {"id": "two", "technique": "t", "files": {"a.sh": "z"}},
+        ],
+        "known_gaps": [{"variant": "two", "reason": "r"}],
+    }
+    entry = reconstructions.parse_entry(data, "demo.yaml")
+    hit = {"rule_id": "RC-DLX-001", "severity": "medium", "location": {"path": "a.sh"}}
+    canonical = {"findings": [hit]}
+    results = (
+        reconstructions.evaluate_variant(entry, entry.variants[0], canonical, canonical),
+        reconstructions.evaluate_variant(entry, entry.variants[1], canonical, {"findings": []}),
+    )
+    evaluation = replace(reconstructions.evaluate(entry, canonical), variants=results)
+    text = render([evaluation], BENCHMARK, version="1", date="d")
+    assert "**1 of 2 variants detected**" in text
+    assert "| detected | 1 of 2 | RC-DLX-001 | variant `two` |" in text
+    assert "the known gaps above are examples of what it misses." in text

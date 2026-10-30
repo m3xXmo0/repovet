@@ -18,3 +18,13 @@ must_fire:
   - {rule: RC-AGENT-006, path: extension.js}
   - {rule: RC-OBF-003, path: extension.js}
 must_not_fire: [RC-AGENT-002, RC-OBF-009]
+
+variants:
+  - id: function-constructor
+    technique: The decoded payload runs through `new Function` instead of `eval`.
+    files:
+      extension.js: "const hidden = \"\U000E0149\U000E0122\U000E0129\U000E0165\U000E0153\U000E0122\U000E0129\U000E0163\U000E014A\U000E0143\U000E0125\U000E0163\U000E0152\U000E0122\U000E0153\U000E015F\U000E013A\U000E0122\U000E0142\U000E0121\U000E0152\U000E0147\U000E0121\U000E0125\U000E013A\U000E0169\U000E015B\U000E012D\";\nconst decode = (s) => [...s].map((c) => { const p = c.codePointAt(0); return String.fromCharCode(p >= 0xe0100 ? p - 0xe0100 + 16 : p - 0xfe00); }).join(\"\");\nnew Function(Buffer.from(decode(hidden), \"base64\").toString(\"utf8\"))();\n"
+  - id: split-hidden-runs
+    technique: The hidden bytes are split into short runs in several strings.
+    files:
+      extension.js: "const parts = [\"\U000E0149\U000E0122\U000E0129\U000E0165\", \"\U000E0153\U000E0122\U000E0129\U000E0163\", \"\U000E014A\U000E0143\U000E0125\U000E0163\", \"\U000E0152\U000E0122\U000E0153\U000E015F\", \"\U000E013A\U000E0122\U000E0142\U000E0121\", \"\U000E0152\U000E0147\U000E0121\U000E0125\", \"\U000E013A\U000E0169\U000E015B\U000E012D\"];\nconst decode = (s) => [...s].map((c) => { const p = c.codePointAt(0); return String.fromCharCode(p >= 0xe0100 ? p - 0xe0100 + 16 : p - 0xfe00); }).join(\"\");\neval(Buffer.from(decode(parts.join(\"\")), \"base64\").toString(\"utf8\"));\n"

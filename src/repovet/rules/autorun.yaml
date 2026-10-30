@@ -1216,3 +1216,54 @@
     - https://guides.rubygems.org/gems-with-extensions/
     - https://bundler.io/guides/gemfile.html
   tags: [ruby, install, download]
+
+# --- Chains ----------------------------------------------------------------------------
+
+- id: RC-AUTO-090
+  title: Auto-run entry point reaches dangerous code in another file
+  area: autorun
+  # The upper bound; each chain gets the severity of what it reaches (see check).
+  severity: critical
+  confidence: high
+  files: ["**"]
+  check:
+    type: chain
+    max_hops: 2
+    # A chain ends at a finding of medium or above in one of these areas.
+    endpoint_areas: [download_exec, obfuscation, autorun, agents]
+    # Code that downloads or executes (rules tagged so) reached through a chain gets at
+    # least the severity that the entry point's own rule gives the same code inline.
+    raise_tags: [download, exec]
+    # Reached files are also checked with the content rules of these areas whose file
+    # patterns skip them (a script without an extension, a script in a test folder).
+    recheck_areas: [download_exec, obfuscation]
+    entries:
+      - kind: vscode_folder_open
+        label: VS Code task runs on folder open
+        rules: [RC-AUTO-020, RC-AUTO-021]
+        inline: RC-AUTO-021
+      - kind: devcontainer_host
+        label: Dev container initializeCommand runs on the host
+        rules: [RC-AUTO-025]
+        inline: RC-AUTO-025
+      - kind: devcontainer_container
+        label: Dev container lifecycle command runs in the container
+        rules: [RC-AUTO-026]
+      - kind: npm_install
+        label: npm install script runs on install
+        rules: [RC-AUTO-001, RC-AUTO-002, RC-AUTO-003]
+        inline: RC-AUTO-003
+  message: "{key} and reaches {match} after {count} steps: {value}"
+  rationale: >
+    The entry point runs automatically and starts a file of the repository, which in
+    turn contains the dangerous code (directly or through one more file). Each file on
+    its own looks less alarming than the combination. The findings of the files on the
+    path stay in the report, marked as part of this chain, and are not counted again.
+  recommendation: >
+    Follow the path and read each file before opening the folder with trust or
+    installing. The quoted line is the code at the end of the path.
+  references:
+    - https://code.visualstudio.com/docs/editor/tasks#_run-behavior
+    - https://docs.npmjs.com/cli/using-npm/scripts#life-cycle-scripts
+    - https://containers.dev/implementors/json_reference/#lifecycle-scripts
+  tags: [chain, autorun]

@@ -2,8 +2,10 @@
 
 No JavaScript and no external resources: the Content-Security-Policy allows nothing but
 the inline style sheet. Findings are grouped like in the text report and collapse with
-``<details>``. Every string from the repository is sanitized first and then
-HTML-escaped, so neither markup nor invisible characters get through.
+``<details>`` (only critical and high groups start open). A chain finding shows its
+path; the findings on the path are marked as part of the chain and not counted again.
+Every string from the repository is sanitized first and then HTML-escaped, so neither
+markup nor invisible characters get through.
 """
 
 import html
@@ -12,6 +14,7 @@ from collections.abc import Sequence
 from repovet.models import CATEGORIES, CoverageItem, Finding, ScanResult, Severity
 from repovet.report.common import (
     Group,
+    action_line,
     disclaimer,
     group_findings,
     no_findings,
@@ -90,6 +93,7 @@ table { border-collapse: collapse; width: 100%; }
 th, td { text-align: left; vertical-align: top; padding: 4px 8px;
   border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
 th { width: 130px; color: var(--muted); font-weight: 600; }
+.action { font-weight: 600; margin: 0 0 8px; }
 .notice { margin-top: 32px; padding: 12px 16px; border-radius: 8px;
   border: 1px solid var(--line); background: var(--panel); }
 """
@@ -108,6 +112,8 @@ def _place(finding: Finding) -> str:
         path = html.escape(sanitize_path(loc.path), quote=True)
         place = f"{path}:{loc.line}" if loc.line else path
     label = f' <span class="label">{_text(finding.context)}</span>' if finding.context else ""
+    if finding.in_chain:
+        label += f' <span class="label">part of {_text(finding.in_chain)}</span>'
     return f"<code>{place}</code>{label}"
 
 
@@ -130,10 +136,19 @@ def _group(group: Group, anchor: str) -> list[str]:
     out = [
         f'<details id="{anchor}" class="{sev}"{opened}>',
         f"<summary>{_badge(first.severity)} <code>{first.rule_id}</code> "
-        f'<span class="place">{where}</span> &mdash; {_text(first.message)}</summary>',
+        f'<span class="place">{where}</span> &mdash; {_text(group.headline)}</summary>',
         '<div class="body"><dl>',
         f"<dt>Rule</dt><dd>{_text(first.title)}</dd>",
         f"<dt>Confidence</dt><dd>{first.confidence.label}</dd>",
+    ]
+    if first.chain is not None:
+        steps = " &rarr; ".join(
+            f"<code>{html.escape(sanitize_path(step.path), quote=True)}"
+            f"{f':{step.line}' if step.line else ''}</code>"
+            for step in first.chain.steps
+        )
+        out.append(f"<dt>Path</dt><dd>{_text(first.chain.id)}: {steps}</dd>")
+    out += [
         "</dl>",
         '<ul class="places">',
     ]
@@ -155,7 +170,11 @@ def _group(group: Group, anchor: str) -> list[str]:
 def _summary(
     visible: Sequence[Finding], groups: Sequence[Group], anchors: dict[int, str]
 ) -> list[str]:
-    out = ['<section class="summary" aria-label="Summary">', '<ul class="counts">']
+    out = ['<section class="summary" aria-label="Summary">']
+    action = action_line(visible)
+    if action is not None:
+        out.append(f'<p class="action">{_text(action)}</p>')
+    out.append('<ul class="counts">')
     for severity, count in severity_counts(visible):
         zero = " zero" if not count else ""
         out.append(f'<li class="{severity.label}{zero}">{_badge(severity)} {count}</li>')

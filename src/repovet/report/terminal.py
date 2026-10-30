@@ -1,9 +1,11 @@
 """Human-readable terminal report.
 
-Compact by default: a summary box with the counts per severity and the findings to look
-at first, findings of the same rule and message grouped (one explanation, a list of
-places), and Why/Do only for critical and high findings. ``details=True`` explains every
-finding and lists every place.
+Compact by default: a summary box with what not to do yet, the counts per severity and
+the findings to look at first; findings of the same rule grouped (one explanation, at
+most five places and "+N more"); info findings as one line per rule; Why/Do only for
+critical and high findings. ``details=True`` explains every finding and lists every
+place. A chain finding shows its path; the findings on the path are marked as part of
+the chain and not counted again.
 """
 
 import codecs
@@ -11,9 +13,10 @@ import sys
 import textwrap
 from collections.abc import Mapping, Sequence
 
-from repovet.models import CATEGORIES, CoverageItem, Finding, ScanResult, Severity
+from repovet.models import CATEGORIES, CoverageItem, Finding, Location, ScanResult, Severity
 from repovet.report.common import (
     Group,
+    action_line,
     disclaimer,
     group_findings,
     no_findings,
@@ -52,7 +55,7 @@ _BOLD = "\x1b[1m"
 _DIM = "\x1b[2m"
 
 UNTRUSTED_NOTE = "Lines starting with '>' are untrusted content quoted from the repository."
-DETAILS_NOTE = "Why/Do for medium, low and info findings and all places: --details"
+DETAILS_NOTE = "Why/Do for medium, low and info findings, all places and info details: --details"
 SEPARATOR = " · "
 ASCII_SEPARATOR = " | "
 ASCII_ELLIPSIS = "..."
@@ -75,7 +78,13 @@ def _location(finding: Finding) -> str:
         return "(repository)"
     path = sanitize_path(loc.path)
     place = f"{path}:{loc.line}" if loc.line else path
-    return f"{place} [{finding.context}]" if finding.context else place
+    place = f"{place} [{finding.context}]" if finding.context else place
+    return f"{place} (part of {finding.in_chain})" if finding.in_chain else place
+
+
+def _step(step: Location) -> str:
+    path = sanitize_path(step.path)
+    return f"{path}:{step.line}" if step.line else path
 
 
 def _wrap(label: str, text: str) -> list[str]:
@@ -103,12 +112,22 @@ def _group(group: Group, style: _Style, details: bool) -> list[str]:
     where = _location(first) if single else f"{len(group.findings)} places"
     lines = [_head(first, where, style)]
     lines += textwrap.wrap(
-        sanitize(first.message, None),
+        sanitize(group.headline, None),
         WIDTH,
         initial_indent=INDENT,
         subsequent_indent=INDENT,
         break_on_hyphens=False,
     )
+    if first.chain is not None:
+        path = " -> ".join(_step(step) for step in first.chain.steps)
+        lines += textwrap.wrap(
+            f"{first.chain.id}: {path}",
+            WIDTH,
+            initial_indent=f"{INDENT}Path ",
+            subsequent_indent=f"{INDENT}     ",
+            break_on_hyphens=False,
+            break_long_words=False,
+        )
     if single:
         if first.evidence:
             lines.append(style(_DIM, f"{INDENT}> {sanitize(first.evidence)}"))
@@ -119,11 +138,20 @@ def _group(group: Group, style: _Style, details: bool) -> list[str]:
             if finding.evidence:
                 lines.append(style(_DIM, f"{INDENT}  > {sanitize(finding.evidence)}"))
         if len(group.findings) > len(shown):
-            lines.append(f"{INDENT}+{len(group.findings) - len(shown)} more")
+            lines.append(f"{INDENT}+{len(group.findings) - len(shown)} more (--details)")
     if details or group.explained:
         lines += _wrap("Why", first.rationale)
         lines += _wrap("Do", first.recommendation)
     return lines
+
+
+def _info_line(group: Group, style: _Style) -> str:
+    """An info group in one line: rule, number of places (or the place) and title."""
+    first = group.first
+    where = _location(first) if len(group.findings) == 1 else f"{len(group.findings)} places"
+    head = f"  {style(_STYLES[first.severity], f'{first.severity.label.upper():<9}')} "
+    text = _clip(f"{first.rule_id:<13} {where}: {sanitize(first.title, None)}", WIDTH - 12)
+    return head + text
 
 
 def render_finding(finding: Finding, *, color: bool = False) -> str:
@@ -194,7 +222,13 @@ def _summary_rows(
     styled = sep.join(
         style(_STYLES[s], f"{n} {s.label}") if n else f"{n} {s.label}" for s, n in counts
     )
-    rows = [(plain, styled)]
+    rows: list[tuple[str, str]] = []
+    action = action_line(visible)
+    if action is not None:
+        for line in textwrap.wrap(sanitize(action, None), WIDTH - 4, break_on_hyphens=False):
+            rows.append((line, style(_BOLD, line)))
+        rows.append(("", ""))
+    rows.append((plain, styled))
     first = top_groups(groups)
     if not visible:
         return rows
@@ -279,9 +313,15 @@ def render(
             found = [f for g in in_category for f in g.findings]
             counts = sep.join(f"{n} {s.label}" for s, n in severity_counts(found) if n)
             lines.append(style(_BOLD, f"{category.upper():<40} {counts}"))
+            infos = []
             for group in in_category:
+                if not details and group.first.severity == Severity.INFO:
+                    infos.append(_info_line(group, style))
+                    continue
                 lines += _group(group, style, details)
                 lines.append("")
+            if infos:
+                lines += [*infos, ""]
         if not details and any(not g.explained for g in groups):
             lines.append(style(_DIM, DETAILS_NOTE))
             lines.append("")

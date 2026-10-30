@@ -42,3 +42,36 @@ must_not_fire: [RC-AUTO-060, RC-AUTO-061, RC-DLX-001]
 not_covered: >
   Cache poisoning and the later use of a leftover PyPI token happen on GitHub's side
   and are not visible in the repository.
+
+variants:
+  - id: head-ref-field
+    technique: The branch name comes from pull_request.head.ref instead of github.head_ref.
+    files:
+      action.yml: |
+        name: Ultralytics Actions
+        runs:
+          using: composite
+          steps:
+            - name: Commit and Push Changes
+              shell: bash
+              run: |
+                git add .
+                git commit -m "Auto-format by Ultralytics actions"
+                git push origin ${{ github.event.pull_request.head.ref }}
+  - id: workflow-inline
+    technique: The injected step is written directly into the workflow instead of a composite action.
+    files:
+      action.yml: null
+      .github/workflows/format.yml: |
+        name: Ultralytics Actions
+        on:
+          pull_request_target:
+            branches: [main]
+        jobs:
+          format:
+            runs-on: ubuntu-latest
+            steps:
+              - name: Commit and Push Changes
+                run: |
+                  git pull origin ${{ github.head_ref }}
+                  git push origin ${{ github.head_ref }}

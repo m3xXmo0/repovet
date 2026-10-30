@@ -7,6 +7,68 @@ exit codes and the JSON report (`schema_version`) are stable interfaces.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-30
+
+This release hardens detection against simple rewrites of known attacks. Every
+reconstruction of a documented attack now comes with hand-written variants that use an
+evasion technique (a variable, a helper script, another downloader, a split string,
+plain prose); 48 of 52 variants reach the severity of the original, the other four are
+listed as known gaps. On an independent, unpublished set of 42 variants written by a
+third party, 11 are rated at the expected severity (0.3.1: 8), 13 are detected but rated
+lower (12) and 18 are missed (22); prose in agent files and GitHub Actions workflows
+remain the weakest areas. The JSON report moves to `schema_version` 1.4; exit codes are
+unchanged.
+
+### Added
+
+- **RC-AUTO-090 (chains):** a VS Code task that runs on folder open, a dev container
+  command or an npm install script that starts a file of the repository (`./setup.sh`,
+  `node tools/x.js`, `make setup`, `npm run x`) is followed for up to two files. Every
+  file reached is checked with the download and obfuscation rules, also files they would
+  otherwise skip, and a path that reaches dangerous code is reported as one finding with
+  each step. Download-and-execute code reached this way gets at least the severity the
+  entry point's rule gives the same code inline (critical on folder open, high for npm
+  install scripts). Only paths inside the repository are followed: no absolute paths,
+  vendored folders or links; cycles end the path.
+- **RC-AGENT-028:** plain-text instructions in AI agent files that combine running a
+  command, sending data to an address, secrets or the environment, or keeping something
+  from the user in one sentence. Medium with low confidence ("text an agent may follow,
+  not enforced code"); high only when a secret or the environment is sent to a URL.
+  Quoted attack examples are reported as low.
+- **RC-DLX-007:** a download stored in a variable and run within the next five lines
+  (`S=$(curl …); sh -c "$S"`, `eval "$STAGE"`).
+- **RC-OBF-012:** Base64 or hex strings split into constants of the same file, joined,
+  decoded and executed (Python, JavaScript, TypeScript).
+- **RC-BIN-014:** bidirectional control characters in a file or folder name (moved out
+  of RC-BIN-004, stays critical).
+- JSON report: `chain` (id and steps) on a chain finding, `in_chain` on the findings on
+  its path, `summary.part_of_chains`; SARIF: the steps as `relatedLocations`.
+- The text and HTML reports start the summary with what not to do yet (for example "Do
+  not open this folder in VS Code with trust"), based on the most severe findings.
+
+### Changed
+
+- Severity: **RC-BIN-002, RC-BIN-003, RC-BIN-004 and RC-AGENT-002 are now high instead
+  of critical**: the file runs, or the hidden text acts, only after a further step
+  (opening the file, starting an agent). Critical stays for code that runs as soon as the
+  folder is opened or used (RC-AUTO-021, RC-AUTO-032, RC-AGENT-032, chains on folder open)
+  and for reversed file names (RC-BIN-014).
+- **RC-DLX-001** also reports a download piped into `env sh`, `sudo -E bash` or
+  `/usr/bin/env bash`, a command substitution of a download given to `sh -c`, `eval`,
+  `python -c`, `node -e`, `perl -e` or `ruby -e` (also with backticks), and a pipe on a
+  continuation line. It no longer reports a pipe into a command whose name only starts
+  like a shell (`| zsh-helper`) or into an inline script that reads the download as data
+  (`| node -e "…"`, `| perl -wlne '…'`, `| python3 -c '…'`).
+- **RC-OBF-003** also reports decompressed data run through `eval "$(xz -dc …)"` or
+  `sh -c "$(gunzip -c …)"`; **RC-OBF-011** also the Function constructor.
+- **RC-AGENT-024** also checks `.code-workspace` files and reports approval of every
+  terminal command (`"chat.tools.terminal.autoApprove": {"/.*/": true}`).
+- Chain parts are listed but counted once: summaries, "Look at these first" and
+  `--fail-on` count the chain finding instead.
+- The text report groups findings per rule (at most five places, then `+N more`) and
+  shows info findings as one line per rule unless `--details` is given.
+- The README lists `pip install repovet` and `pipx install repovet` first.
+
 ## [0.3.1] - 2026-10-30
 
 This release removes the noisiest false alarms found by scanning the 50 most-starred
@@ -181,7 +243,8 @@ First release.
   threshold, 2 usage error, 3 analysis aborted.
 - Windows, macOS and Linux with Python 3.12 and 3.13.
 
-[Unreleased]: https://github.com/m3xXmo0/repovet/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/m3xXmo0/repovet/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/m3xXmo0/repovet/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/m3xXmo0/repovet/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/m3xXmo0/repovet/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/m3xXmo0/repovet/compare/v0.1.0...v0.2.0

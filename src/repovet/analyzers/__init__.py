@@ -12,6 +12,7 @@ from repovet.analyzers import (
     provenance,
     trust,
 )
+from repovet.engine import chains
 from repovet.engine.context import ScanContext
 from repovet.engine.runner import prepare_file_rules, run_rules
 from repovet.models import AREAS, AreaResult, CoverageStatus
@@ -53,4 +54,6 @@ def run_all(ctx: ScanContext) -> list[AreaResult]:
         )
         if ctx.rules.active(name):
             results.append(AreaResult(name, run_rules(ctx.rules.active(name), ctx)))
+    # Auto-run entry points that run files of the repository, across all areas.
+    chains.apply(ctx, results)
     return results

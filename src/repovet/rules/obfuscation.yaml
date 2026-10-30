@@ -71,9 +71,10 @@
       gzip, gunzip, bzip2, bunzip2, bzcat, zstd, zcat, lzcat, lz4, brotli]
     # Decoders inside exec/eval/new Function, inside child_process, subprocess or os.system
     # calls (Buffer.from only with a base64 or hex encoding), PowerShell, and shell
-    # pipelines that decode or decompress straight into a shell.
+    # pipelines that decode or decompress straight into a shell, or into eval / sh -c
+    # through a command substitution.
     pattern: >-
-      (?i:\b(?:execSync|execFileSync|spawnSync|spawn|execFile|exec|subprocess\.(?:run|call|check_call|check_output|Popen|getoutput|getstatusoutput)|os\.(?:system|popen))[ \t]*\([ \t]*(?:atob[ \t]*\(|Buffer\.from[ \t]*\([^\n]{0,2000}?["'](?:base64|base64url|hex)["']|(?:[\w.]+\.)?(?:b64decode|b32decode|b16decode|b85decode|a85decode|decodebytes|unhexlify|fromhex|decompress)[ \t]*\(|codecs\.decode[ \t]*\())|(?i:\b(?:(?:xz|lzma|gzip|bzip2|zstd|lz4|brotli)[ \t]+(?:-[A-Za-z]*d[A-Za-z]*|--decompress)\b|(?:unxz|unlzma|gunzip|bunzip2|unzstd|zcat|xzcat|lzcat|bzcat|zstdcat)\b)[^\n|]{0,120}\|[ \t]*(?:sudo[ \t]+)?(?:/(?:usr/)?bin/)?(?:(?:ba|z|da|k)?sh|eval)\b)|(?i:\b(?:exec|eval)[ \t]*\([ \t]*(?:compile[ \t]*\([ \t]*)?(?:__import__[ \t]*\(|(?:[\w.]+\.)?(?:b64decode|b32decode|b16decode|b85decode|a85decode|decodebytes|decodestring|decompress|unhexlify|fromhex|loads)[ \t]*\(|codecs\.decode[ \t]*\())|(?i:\beval[ \t]*\([ \t]*(?:atob|unescape|decodeURIComponent|Buffer\.from|String\.fromCharCode)[ \t]*\()|(?i:\bnew[ \t]+Function[ \t]*\([ \t]*(?:atob|unescape|Buffer\.from|String\.fromCharCode)[ \t]*\()|(?i:\b(?:iex|Invoke-Expression)\b[^\n]{0,120}\bFromBase64String\b|\bFromBase64String\b[^\n]{0,200}\|[ \t]*(?:iex|Invoke-Expression)\b)|(?i:\bpowershell(?:\.exe)?\b[^\n]{0,80}[ \t]-(?:e|ec|en|enc|encodedcommand)[ \t]+[A-Za-z0-9+/]{40,}={0,2})|(?i:\bbase64[ \t]+(?:-d|--decode|-D)\b[^\n]{0,80}\|[ \t]*(?:sudo[ \t]+)?(?:ba|z|da|k)?sh\b)|(?i:\b(?:eval|(?:ba|z|da|k)?sh[ \t]+-c)[ \t]+["']?\$\([^\n]{0,80}\bbase64[ \t]+(?:-d|--decode|-D)\b)
+      (?i:\b(?:execSync|execFileSync|spawnSync|spawn|execFile|exec|subprocess\.(?:run|call|check_call|check_output|Popen|getoutput|getstatusoutput)|os\.(?:system|popen))[ \t]*\([ \t]*(?:atob[ \t]*\(|Buffer\.from[ \t]*\([^\n]{0,2000}?["'](?:base64|base64url|hex)["']|(?:[\w.]+\.)?(?:b64decode|b32decode|b16decode|b85decode|a85decode|decodebytes|unhexlify|fromhex|decompress)[ \t]*\(|codecs\.decode[ \t]*\())|(?i:\b(?:(?:xz|lzma|gzip|bzip2|zstd|lz4|brotli)[ \t]+(?:-[A-Za-z]*d[A-Za-z]*|--decompress)\b|(?:unxz|unlzma|gunzip|bunzip2|unzstd|zcat|xzcat|lzcat|bzcat|zstdcat)\b)[^\n|]{0,120}\|[ \t]*(?:sudo[ \t]+)?(?:/(?:usr/)?bin/)?(?:(?:ba|z|da|k)?sh|eval)\b)|(?i:\b(?:exec|eval)[ \t]*\([ \t]*(?:compile[ \t]*\([ \t]*)?(?:__import__[ \t]*\(|(?:[\w.]+\.)?(?:b64decode|b32decode|b16decode|b85decode|a85decode|decodebytes|decodestring|decompress|unhexlify|fromhex|loads)[ \t]*\(|codecs\.decode[ \t]*\())|(?i:\beval[ \t]*\([ \t]*(?:atob|unescape|decodeURIComponent|Buffer\.from|String\.fromCharCode)[ \t]*\()|(?i:\bnew[ \t]+Function[ \t]*\([ \t]*(?:atob|unescape|Buffer\.from|String\.fromCharCode)[ \t]*\()|(?i:\b(?:iex|Invoke-Expression)\b[^\n]{0,120}\bFromBase64String\b|\bFromBase64String\b[^\n]{0,200}\|[ \t]*(?:iex|Invoke-Expression)\b)|(?i:\bpowershell(?:\.exe)?\b[^\n]{0,80}[ \t]-(?:e|ec|en|enc|encodedcommand)[ \t]+[A-Za-z0-9+/]{40,}={0,2})|(?i:\bbase64[ \t]+(?:-d|--decode|-D)\b[^\n]{0,80}\|[ \t]*(?:sudo[ \t]+)?(?:ba|z|da|k)?sh\b)|(?i:\b(?:eval|(?:ba|z|da|k)?sh[ \t]+-c)[ \t]+["']?\$\([^\n]{0,80}\b(?:base64[ \t]+(?:-d|--decode|-D)|(?:xz|lzma|gzip|bzip2|zstd|lz4|brotli)[ \t]+(?:-[A-Za-z]*d[A-Za-z]*|--decompress)|unxz|unlzma|gunzip|bunzip2|unzstd|zcat|xzcat|lzcat|bzcat|zstdcat)\b)
   message: "Decodes and executes code: {match}"
   rationale: >
     Executing the result of a Base64, hex or compression decoder in the same expression
@@ -292,10 +293,11 @@
     type: regex
     ignore: "{{comment_line}}"
     prefilter: [_compile, module.constructor, runinthiscontext, runinnewcontext, runincontext,
-      compilefunction, vm.script]
-    # Node's module compiler or vm in a file that also decrypts something. Require hooks
-    # (ts-node, babel) compile modules too, but do not decrypt them first.
-    pattern: '\._compile[ \t]*\(|\bnew[ \t]+module\.constructor\b|\bvm\.(?:runInThisContext|runInNewContext|runInContext|compileFunction)[ \t]*\(|\bnew[ \t]+vm\.Script[ \t]*\('
+      compilefunction, vm.script, new function]
+    # Node's module compiler, vm or the Function constructor in a file that also decrypts
+    # something. Require hooks (ts-node, babel) compile modules too, but do not decrypt
+    # them first.
+    pattern: '\._compile[ \t]*\(|\bnew[ \t]+module\.constructor\b|\bvm\.(?:runInThisContext|runInNewContext|runInContext|compileFunction)[ \t]*\(|\bnew[ \t]+vm\.Script[ \t]*\(|\bnew[ \t]+Function[ \t]*\('
     file_requires: ['\bcreateDecipher(?:iv)?[ \t]*\(']
   message: "Data decrypted in this file is compiled as code: {match}"
   rationale: >
@@ -310,3 +312,28 @@
     - https://github.com/advisories/GHSA-mh6f-8j2x-4483
     - https://attack.mitre.org/techniques/T1140/
   tags: [obfuscation, exec, javascript]
+
+- id: RC-OBF-012
+  title: Encoded string split into constants is joined, decoded and run
+  area: obfuscation
+  severity: high
+  confidence: high
+  files: ["**/*.py", "**/*.pyw", "**/*.js", "**/*.mjs", "**/*.cjs", "**/*.jsx", "**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"]
+  exclude: [{set: vendored}, {set: test_files}]
+  check:
+    # String constants of the same file joined with + (directly or through names assigned
+    # once), decoded from Base64 or hex and passed to eval, exec, Function, vm,
+    # child_process or subprocess.
+    type: split_payload
+  message: "Joins {count} string constants, decodes them and runs the result: {decoded}"
+  rationale: >
+    Splitting an encoded payload into several harmless-looking strings hides it from
+    scanners that look for one long encoded blob; the parts are joined, decoded and
+    executed only at run time. Ordinary code has no reason to execute decoded constants.
+  recommendation: >
+    Do not run this code. The decoded text is shown in the message; read it without
+    executing anything.
+  references:
+    - https://attack.mitre.org/techniques/T1140/
+    - https://attack.mitre.org/techniques/T1027/
+  tags: [obfuscation, exec]

@@ -74,7 +74,9 @@ def reconstruction_counts() -> Counts:
     """Findings per rule for every reconstruction (offline)."""
     return {
         evaluation.entry.id: reconstructions.rule_counts(evaluation.findings)
-        for evaluation in reconstructions.evaluate_all(reconstructions.load_entries())
+        for evaluation in reconstructions.evaluate_all(
+            reconstructions.load_entries(), variants=False
+        )
     }
 
 

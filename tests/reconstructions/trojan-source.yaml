@@ -16,3 +16,14 @@ files:
 must_fire:
   - {rule: RC-OBF-008, path: src/access.js}
 must_not_fire: [RC-AGENT-004, RC-OBF-009]
+
+variants:
+  - id: isolate-controls
+    technique: Only directional isolates (RLI/PDI) instead of an override character.
+    files:
+      src/access.js: "var accessLevel = \"user\";\nif (accessLevel != \"user\u2067 \u2066// Check if admin\u2069 \u2069\") {\n    console.log(\"You are an admin.\");\n}\n"
+  - id: python-file
+    technique: The same trick in a Python file.
+    files:
+      src/access.js: null
+      src/access.py: "access_level = \"user\"\nif access_level != \"user\u202E \u2066# Check if admin\u2069 \u2066\":\n    print(\"You are an admin.\")\n"

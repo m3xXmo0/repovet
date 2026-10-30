@@ -8,13 +8,14 @@ from typing import Any
 
 from github_fake import case_target
 from repovet.analyzers import provenance, trust
+from repovet.engine import chains
 from repovet.engine.checks import BUILDERS
-from repovet.engine.checks.base import BuildEnv, FactCheck, FileView, Match, Params
+from repovet.engine.checks.base import BuildEnv, FactCheck, FileView, Match, Params, ResultCheck
 from repovet.engine.context import ScanContext
 from repovet.engine.loader import Rule, RuleSet, load_rules
 from repovet.engine.runner import run_rules
 from repovet.limits import DEFAULT_LIMITS, Limits
-from repovet.models import CoverageCollector, CoverageItem, Finding
+from repovet.models import AreaResult, CoverageCollector, CoverageItem, Finding
 from repovet.sources import gitmeta
 from repovet.sources.local import LocalTree
 
@@ -114,6 +115,14 @@ def scan(
                 ctx.trust = case_target(github, source)
                 facts.update(trust.profile(ctx)[0])
         findings = run_rules(selected, ctx, facts=facts)
+        results = [r for r in selected if isinstance(r.check, ResultCheck)]
+        if results:
+            # Result checks (chains) work on the findings of all other rules.
+            others = [r for r in ruleset.active() if not isinstance(r.check, ResultCheck)]
+            areas = [AreaResult("all", run_rules(others, ctx))]
+            chains.apply(ctx, areas)
+            wanted = {r.id for r in selected}
+            findings += [f for a in areas for f in a.findings if f.rule_id in wanted]
     finally:
         if source is not None:
             source.objects.close()

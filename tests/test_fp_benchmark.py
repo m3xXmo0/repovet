@@ -12,7 +12,16 @@ from typing import Any
 
 import fp_benchmark
 import pytest
-from fp_benchmark import headline, most_starred, render_markdown, rule_table, run, summarize
+from fp_benchmark import (
+    area_lines,
+    area_table,
+    headline,
+    most_starred,
+    render_markdown,
+    rule_table,
+    run,
+    summarize,
+)
 
 from github_fake import Answer, FakeTransport
 from repovet import __version__
@@ -89,8 +98,25 @@ def test_summarize_a_report() -> None:
     assert summary["commit"] == "c" * 40
     assert summary["files"] == report["scan"]["files_scanned"]
     total = sum(sum(v[c] for c in ("high", "medium", "low")) for v in summary["findings"].values())
-    assert total == len(report["findings"])
+    # The two parts of the chain in the golden report are not counted again.
+    parts = sum(1 for f in report["findings"] if f["in_chain"])
+    assert (total, summary["chain_parts"]) == (len(report["findings"]) - parts, parts)
     assert list(summary["findings"]) == sorted(summary["findings"])
+
+
+def test_area_table() -> None:
+    finding = {"severity": "high", "high": 1, "medium": 0, "low": 0, "severities": {"high": 1}}
+    data = {
+        "repositories": [
+            {"repo": "a/b", "findings": {"RC-DLX-001": finding, "RC-DLX-007": finding}},
+            {"repo": "c/d", "findings": {"RC-AGENT-028": finding}},
+        ],
+        "skipped": [],
+    }
+    rows = {row["area"]: row for row in area_table(data)}
+    assert (rows["download_exec"]["high"], rows["download_exec"]["repos"]) == (2, 1)
+    assert (rows["agents"]["high"], rows["trust"]["repos"]) == (1, 0)
+    assert area_lines(data)[2].startswith("| autorun | 0 | 0 |")
 
 
 def test_findings_below_their_rule_severity_are_counted_at_their_own() -> None:

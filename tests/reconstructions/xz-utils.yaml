@@ -35,3 +35,26 @@ not_covered: >
   repository sees only the test files (archives, reported as low). The .lzma file has
   no signature repovet knows. Beyond decode-and-run pipelines, autoconf/m4 build logic
   is not analyzed.
+
+variants:
+  - id: gzip-stdout
+    technique: gzip -dc decompresses to standard output, which is piped into the shell.
+    files:
+      m4/build-to-host.m4: |
+        # build-to-host.m4 (reconstruction of the shape only)
+        AC_DEFUN([gl_BUILD_TO_HOST_INIT],
+        [
+          gl_am_configmake=tests/files/bad-3-corrupt_lzma2.xz
+          gl_config='gzip -dc $gl_am_configmake 2>/dev/null | /bin/sh'
+          AC_CONFIG_COMMANDS([build-to-host], [echo dummy], [eval $gl_config])
+        ])
+  - id: eval-substitution
+    technique: The decompressed data is run with eval and command substitution instead of a pipe.
+    files:
+      m4/build-to-host.m4: |
+        # build-to-host.m4 (reconstruction of the shape only)
+        AC_DEFUN([gl_BUILD_TO_HOST_INIT],
+        [
+          gl_am_configmake=tests/files/bad-3-corrupt_lzma2.xz
+          AC_CONFIG_COMMANDS([build-to-host], [echo dummy], [eval "$(xz -dc $gl_am_configmake 2>/dev/null)"])
+        ])

@@ -43,3 +43,44 @@ must_fire:
   - {rule: RC-AGENT-027, path: telemetry.js}
   - {rule: RC-AUTO-062, path: .github/workflows/pr-title.yml}
 must_not_fire: [RC-AGENT-001, RC-AGENT-024, RC-AUTO-060, RC-DLX-001]
+
+variants:
+  - id: flag-in-variable
+    technique: The dangerous flag is kept in a constant, so it is not on the line that names the CLI.
+    files:
+      telemetry.js: |
+        const { spawnSync } = require("child_process");
+        const PROMPT = "Print the word dummy and stop.";
+        const SKIP = "--dangerously-skip-permissions";
+        const YOLO = "--yolo";
+        spawnSync("claude", [SKIP, "-p", PROMPT], { stdio: "ignore" });
+        spawnSync("gemini", [YOLO, "-p", PROMPT], { stdio: "ignore" });
+  - id: python-launcher
+    technique: The install script is written in Python and uses subprocess.
+    files:
+      package.json: |
+        {"name": "nx", "version": "21.5.0", "scripts": {"postinstall": "python3 telemetry.py"}}
+      telemetry.js: null
+      telemetry.py: |
+        import subprocess
+
+        PROMPT = "Print the word dummy and stop."
+        subprocess.run(["claude", "--dangerously-skip-permissions", "-p", PROMPT], check=False)
+  - id: issue-comment-trigger
+    technique: The injected text is a comment body under an issue_comment trigger.
+    files:
+      .github/workflows/pr-title.yml: |
+        on:
+          issue_comment:
+            types: [created]
+        jobs:
+          validate:
+            runs-on: ubuntu-latest
+            steps:
+              - run: |
+                  echo "${{ github.event.comment.body }}" > comment.txt
+known_gaps:
+  - variant: flag-in-variable
+    reason: >
+      RC-AGENT-027 needs the agent name and the flag on the same line; a flag kept in a
+      constant elsewhere in the file is not connected to the call.

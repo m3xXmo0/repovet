@@ -88,17 +88,31 @@ def test_reports_are_ascii_and_sanitized(fmt: str) -> None:
 
 def test_json_content() -> None:
     report: Any = json_out.build(sample_result(sample_findings()), Severity.MEDIUM)
-    assert [f["rule_id"] for f in report["findings"]] == [
+    findings = report["findings"]
+    assert [f["rule_id"] for f in findings] == [
         "RC-AGENT-002",
+        "RC-AUTO-090",
         "RC-AGENT-020",
         "RC-AGENT-020",
         "RC-AUTO-001",
+        "RC-DLX-001",
     ]
     # One entry per finding (the text report groups them) with its context label.
-    assert [f["context"] for f in report["findings"]] == [None, "test", "test", None]
+    assert [f["context"] for f in findings] == [None, None, "test", "test", None, None]
+    assert findings[1]["chain"] == {
+        "id": "chain-1",
+        "steps": [
+            {"path": "package.json", "line": 3},
+            {"path": "x.js", "line": None},
+            {"path": "x.sh", "line": 2},
+        ],
+    }
+    assert [f["in_chain"] for f in findings] == [None, None, None, None, "chain-1", "chain-1"]
     summary = report["summary"]
-    assert summary["hidden_below_min_severity"] == 1
-    assert summary["by_severity"] == {"critical": 1, "high": 2, "medium": 1, "low": 0, "info": 0}
+    assert summary["hidden_below_min_severity"] == 3
+    # The parts of the chain are listed but counted once, through the chain finding.
+    assert (summary["findings"], summary["part_of_chains"]) == (4, 2)
+    assert summary["by_severity"] == {"critical": 1, "high": 3, "medium": 0, "low": 0, "info": 0}
     assert "not proof" in str(report["disclaimer"])
     empty = json_out.build(sample_result([]))
     assert "not a guarantee" in str(empty["disclaimer"])
@@ -109,14 +123,24 @@ def test_sarif_mapping() -> None:
     report: Any = sarif.build(sample_result(sample_findings()), sample_rules())
     run = report["runs"][0]
     rules = {r["id"]: r for r in run["tool"]["driver"]["rules"]}
-    assert rules["RC-AGENT-002"]["properties"]["security-severity"] == "9.5"
+    assert rules["RC-AGENT-002"]["properties"]["security-severity"] == "8.0"
     assert rules["RC-AGENT-002"]["defaultConfiguration"]["level"] == "error"
     results = run["results"]
-    assert [r["level"] for r in results] == ["error", "error", "error", "warning", "note"]
-    assert results[1]["properties"]["context"] == "test"
+    levels = ["error"] * 4 + ["warning"] * 2 + ["note"] * 3
+    assert [r["level"] for r in results] == levels
+    assert results[2]["properties"]["context"] == "test"
     assert "context" not in results[0]["properties"]
+    # The chain finding links its steps; its parts name the chain.
+    assert results[1]["properties"]["chain"] == "chain-1"
+    related = results[1]["relatedLocations"]
+    assert [r["physicalLocation"]["artifactLocation"]["uri"] for r in related] == [
+        "package.json",
+        "x.js",
+        "x.sh",
+    ]
+    assert [r["properties"].get("inChain") for r in results[4:6]] == ["chain-1", "chain-1"]
     # Repository-wide finding (no location); unknown rule id has no ruleIndex.
-    assert "locations" not in results[4] and "ruleIndex" not in results[4]
+    assert "locations" not in results[6] and "ruleIndex" not in results[6]
     location = results[0]["locations"][0]["physicalLocation"]
     assert location["artifactLocation"] == {"uri": "CLAUDE.md", "uriBaseId": "SRCROOT"}
     assert run["originalUriBaseIds"]["SRCROOT"]["uri"] == "file:///D:/src/demo/"

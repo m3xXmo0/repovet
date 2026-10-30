@@ -100,10 +100,14 @@ def test_scan_entry_counts_findings_per_rule_and_confidence(
     calls: list[list[str]] = []
     _recorded_scan(monkeypatch, calls)
     entry = {"name": "alpha", "repo": "octo/alpha", "commit": "1" * 40}
+    # Every finding of a rule counts, also the parts of a chain.
     assert corpus_counts.scan_entry(entry, tmp_path) == {
+        "RC-AGENT-001": {"high": 2, "medium": 0, "low": 0},
         "RC-AGENT-002": {"high": 1, "medium": 0, "low": 0},
         "RC-AGENT-020": {"high": 0, "medium": 2, "low": 0},
         "RC-AUTO-001": {"high": 1, "medium": 0, "low": 0},
+        "RC-AUTO-090": {"high": 1, "medium": 0, "low": 0},
+        "RC-DLX-001": {"high": 1, "medium": 0, "low": 0},
         "RC-TRUST-001": {"high": 1, "medium": 0, "low": 0},
     }
     assert calls == [
@@ -193,9 +197,11 @@ def test_save_then_compare_two_runs(
     comparison = out.split(f"compared with repovet 0.1.0 ({earlier})\n", 1)[1]
     assert comparison.split("\n\n")[0].splitlines() == [
         "rule           before   after  change",
+        "RC-AGENT-001        0       2      +2",
         "RC-AGENT-020        3       2      -1",
         "RC-AUTO-001         0       1      +1",
-        "RC-DLX-001          2       0      -2",
+        "RC-AUTO-090         0       1      +1",
+        "RC-DLX-001          2       1      -1",
         "RC-TRUST-001        0       1      +1",
     ]
 

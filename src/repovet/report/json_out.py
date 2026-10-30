@@ -2,11 +2,11 @@
 
 import json
 
-from repovet.models import CATEGORIES, CoverageItem, Finding, ScanResult, Severity
+from repovet.models import CATEGORIES, Chain, CoverageItem, Finding, ScanResult, Severity, counted
 from repovet.report.common import disclaimer, no_findings, visible_findings
 from repovet.report.sanitize import sanitize, sanitize_data, sanitize_path
 
-SCHEMA_VERSION = "1.3"
+SCHEMA_VERSION = "1.4"
 
 
 def _finding(finding: Finding) -> dict[str, object]:
@@ -27,6 +27,15 @@ def _finding(finding: Finding) -> dict[str, object]:
         "recommendation": sanitize(finding.recommendation, None),
         "references": [sanitize(r, None) for r in finding.references],
         "context": finding.context,
+        "chain": None if finding.chain is None else _chain(finding.chain),
+        "in_chain": finding.in_chain,
+    }
+
+
+def _chain(chain: Chain) -> dict[str, object]:
+    return {
+        "id": chain.id,
+        "steps": [{"path": sanitize_path(step.path), "line": step.line} for step in chain.steps],
     }
 
 
@@ -42,8 +51,10 @@ def _coverage(item: CoverageItem) -> dict[str, object]:
 
 def build(result: ScanResult, min_severity: Severity = Severity.INFO) -> dict[str, object]:
     visible = visible_findings(result, min_severity)
-    by_severity = {s.label: sum(1 for f in visible if f.severity == s) for s in reversed(Severity)}
-    by_category = {c: sum(1 for f in visible if f.category == c) for c in CATEGORIES}
+    # Parts of a chain are listed but counted once, through their chain finding.
+    tally = counted(visible)
+    by_severity = {s.label: sum(1 for f in tally if f.severity == s) for s in reversed(Severity)}
+    by_category = {c: sum(1 for f in tally if f.category == c) for c in CATEGORIES}
     text = (
         " ".join(disclaimer(result.rules_loaded)) if visible else no_findings(result.rules_loaded)
     )
@@ -61,7 +72,8 @@ def build(result: ScanResult, min_severity: Severity = Severity.INFO) -> dict[st
             "min_severity": min_severity.label,
         },
         "summary": {
-            "findings": len(visible),
+            "findings": len(tally),
+            "part_of_chains": len(visible) - len(tally),
             "hidden_below_min_severity": len(result.findings) - len(visible),
             "by_severity": by_severity,
             "by_category": by_category,

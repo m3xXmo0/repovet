@@ -12,7 +12,15 @@ from datetime import timedelta
 from pathlib import PurePosixPath, PureWindowsPath
 
 from repovet.engine.loader import Rule
-from repovet.models import Confidence, CoverageItem, CoverageStatus, Finding, ScanResult, Severity
+from repovet.models import (
+    Confidence,
+    CoverageItem,
+    CoverageStatus,
+    Finding,
+    Location,
+    ScanResult,
+    Severity,
+)
 from repovet.report.common import disclaimer, no_findings, visible_findings
 from repovet.report.sanitize import sanitize, sanitize_data, sanitize_path, sanitize_uri
 
@@ -99,7 +107,25 @@ def _result(finding: Finding, index: dict[str, int]) -> dict[str, object]:
         ]
         if not loc.line:
             properties["fileLevel"] = True
+    if finding.chain is not None:
+        properties["chain"] = finding.chain.id
+        result["relatedLocations"] = [
+            _related(index, step) for index, step in enumerate(finding.chain.steps, start=1)
+        ]
+    if finding.in_chain is not None:
+        properties["inChain"] = finding.in_chain
     return result
+
+
+def _related(index: int, step: Location) -> dict[str, object]:
+    return {
+        "id": index,
+        "message": {"text": f"Step {index}"},
+        "physicalLocation": {
+            "artifactLocation": {"uri": sanitize_uri(step.path), "uriBaseId": ROOT_ID},
+            "region": {"startLine": step.line or 1},
+        },
+    }
 
 
 def _notification(item: CoverageItem) -> dict[str, object]:

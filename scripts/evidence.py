@@ -5,8 +5,9 @@ Usage: python scripts/evidence.py [--write] [--date YYYY-MM-DD]
 The section between ``<!-- evidence:start -->`` and ``<!-- evidence:end -->`` is built
 from two sources, so its numbers are never typed by hand:
 
-- the reconstructions of documented attacks (``tests/reconstructions/``), scanned
-  offline right now with the installed rules;
+- the reconstructions of documented attacks (``tests/reconstructions/``) and their
+  variants (rewrites with an evasion technique), scanned offline right now with the
+  installed rules;
 - the false-positive benchmark data (``docs/fp-benchmark.json``).
 
 Without ``--write`` the section is printed. ``--write`` replaces it in README.md and
@@ -43,13 +44,20 @@ def _rules(expectations: Sequence[reconstructions.Expectation]) -> str:
 
 
 def _gaps(entry: reconstructions.Entry) -> str:
-    """Known gaps; with the file when the same rule also fires elsewhere in the entry."""
+    """Known gaps; with the file when the same rule also fires elsewhere in the entry,
+    then the variants that stay below the canonical severity."""
     firing = {e.rule for e in entry.must_fire}
     labels = {
         f"{gap.rule} in `{gap.path}`" if gap.rule in firing and gap.path else gap.rule
         for gap in entry.known_gaps
     }
-    return ", ".join(sorted(labels)) or "-"
+    variants = [f"variant `{v}`" for v in sorted(entry.variant_gaps)]
+    return ", ".join([*sorted(labels), *variants]) or "-"
+
+
+def _variants(evaluation: reconstructions.Evaluation) -> str:
+    total = len(evaluation.variants)
+    return f"{evaluation.variants_detected} of {total}" if total else "-"
 
 
 def render(
@@ -61,6 +69,8 @@ def render(
 ) -> str:
     """The section between the markers (without them)."""
     by_status = {s: sum(e.status == s for e in evaluations) for s in STATUSES}
+    variants = sum(len(e.variants) for e in evaluations)
+    detected = sum(e.variants_detected for e in evaluations)
     head = fp_benchmark.headline(benchmark)
     frequent = fp_benchmark.rule_table(benchmark)[:MOST_FREQUENT]
     scanned = head["scanned"]
@@ -79,8 +89,14 @@ def render(
         f"**{by_status['not detected']} not detected**. Each entry links its public "
         "sources.",
         "",
-        "| Technique | Year | Result | Rules that fire | Known gaps |",
-        "|-----------|-----:|--------|-----------------|------------|",
+        f"Each reconstruction also has hand-written **variants** that rewrite it with an "
+        "evasion technique (a variable, a helper script, another downloader, a split "
+        "string, plain prose). A variant counts as detected when it reaches the severity "
+        f"of the original in the files it rewrites: **{detected} of {variants} variants "
+        "detected**; the others are listed as known gaps.",
+        "",
+        "| Technique | Year | Result | Variants detected | Rules that fire | Known gaps |",
+        "|-----------|-----:|--------|------------------:|-----------------|------------|",
     ]
     order = {s: i for i, s in enumerate(STATUSES)}
     for evaluation in sorted(
@@ -89,8 +105,8 @@ def render(
         entry = evaluation.entry
         link = f"[{entry.title}]({REPO_URL}/tests/reconstructions/{entry.id}.yaml)"
         lines.append(
-            f"| {link} | {entry.year} | {evaluation.status} | {_rules(entry.must_fire)} "
-            f"| {_gaps(entry)} |"
+            f"| {link} | {entry.year} | {evaluation.status} | {_variants(evaluation)} "
+            f"| {_rules(entry.must_fire)} | {_gaps(entry)} |"
         )
     lines += [
         "",
@@ -117,7 +133,7 @@ def render(
         ]
     misses = (
         "the known gaps above are examples of what it misses"
-        if any(e.entry.known_gaps for e in evaluations)
+        if any(e.entry.known_gaps or e.entry.variant_gaps for e in evaluations)
         else "each reconstruction lists under *not covered* the parts of the real attack "
         "that it does not see (payloads only in published packages or release archives, "
         "moved tags, behaviour at run time)"
