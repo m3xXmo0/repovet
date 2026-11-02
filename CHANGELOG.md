@@ -7,6 +7,45 @@ exit codes and the JSON report (`schema_version`) are stable interfaces.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-02
+
+This release adds a static, offline comparison of two local Git revisions. Base and
+Head are rescanned with one current ruleset; no checkout, hooks, package managers or
+repository code are run. Existing findings remain visible, while new or worsened
+findings are evaluated against `--fail-on`. A green diff does not replace a full scan.
+
+### Added
+
+- `repovet diff PATH --base REV --head REV`, with terminal, JSON and SARIF output.
+  Base must be a proven ancestor; incomplete history is reported explicitly.
+- Central versioned finding fingerprints, deterministic occurrence matching and
+  ordered chain content identities. Renames and line shifts are matched where the
+  available evidence permits; unresolved ambiguity returns exit code 3.
+- Coverage-aware comparisons: newly unchecked changed files and lost rule scope
+  are not called fixed; unchanged equal gaps do not block, and newly available
+  coverage can introduce findings. Test/docs-to-code promotions count as worsened.
+- Explicit dependency coverage for Rust, Go, Ruby, PHP, JVM and .NET manifests.
+  Local dependency sources appear as neutral provenance facts; external or unresolved
+  targets are listed under "Not checked" without reading or following those paths.
+- Fingerprint-based corpus and benchmark comparisons. Payload-free records preserve
+  coverage and snapshots; commit drift and legacy aggregate-only comparisons are named.
+
+### Changed
+
+- JSON scan schema is 1.5, with finding identities, a ruleset digest, complete coverage
+  paths and lossless URI paths alongside shortened display paths. Diff JSON has its
+  own schema 1.0. SARIF stays 2.1.0 and includes fingerprints and baseline states.
+- Corpus baseline schema is 2.0. Old counts-only baselines must be explicitly
+  regenerated; individual identities are never reconstructed from aggregate counts.
+- Saved unfiltered offline Git reports can be used as a diff baseline; tool or
+  ruleset differences are warned, and invalid or incompatible metadata is rejected.
+- Per-file finding caps now record partial coverage so hidden extra occurrences do
+  not silently pass a change comparison. Exit codes for existing commands are unchanged.
+
+The release retains 141 rules. All 16 reconstructions are detected; 60 of 64 variants reach the expected severity. The previous partially independent holdout remains 13 rated, 13 detected below the expected rating or in another area, and 16 missed; 23 of 24 harmless cases stay below medium. A newly sealed blind gap list yields 13 rated, 2 lower or other, and 15 missed attacks; 25 of 30 harmless cases stay below medium. Its predefined regression gate passes with no new false alarms, misses or rating regressions. These small sets are gap lists, not general detection rates.
+
+The renewed 50-repository benchmark scanned 38 and skipped 12: 0 critical, 5 high, 62 medium, 58 low and 448 info findings. Counts at medium and above are unchanged from the previous measurement; provenance info increased by one. Repository snapshots and list membership can change between runs.
+
 ## [0.4.1] - 2026-10-30
 
 This release hardens plain-text instructions in agent files and GitHub Actions checks.

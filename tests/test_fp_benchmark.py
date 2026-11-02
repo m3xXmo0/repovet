@@ -5,13 +5,13 @@ docs/fp-benchmark.json, so its numbers cannot be edited by hand.
 """
 
 import json
-import shutil
 import sys
 from pathlib import Path
 from typing import Any
 
 import fp_benchmark
 import pytest
+from corpus_counts import compact_coverage
 from fp_benchmark import (
     area_lines,
     area_table,
@@ -26,6 +26,7 @@ from fp_benchmark import (
 from github_fake import Answer, FakeTransport
 from repovet import __version__
 from repovet.cli import EXIT_ABORTED, EXIT_FINDINGS, EXIT_OK, EXIT_USAGE
+from repovet.engine.loader import load_rules
 from repovet.github.client import GitHubClient
 
 GOLDEN_REPORT = Path(__file__).parent / "golden" / "report.json"
@@ -206,7 +207,7 @@ def test_run_writes_data_and_markdown(tmp_path: Path, monkeypatch: pytest.Monkey
 
     def scan(argv: list[str]) -> int:
         calls.append(argv)
-        shutil.copyfile(GOLDEN_REPORT, argv[argv.index("-o") + 1])
+        Path(argv[argv.index("-o") + 1]).write_text(json.dumps(_raw_report()), encoding="utf-8")
         return EXIT_FINDINGS
 
     monkeypatch.setattr(fp_benchmark, "main", scan)
@@ -240,3 +241,247 @@ def test_committed_report_matches_its_data() -> None:
     assert fp_benchmark.MARKDOWN.read_text(encoding="utf-8") == render_markdown(data), (
         "docs/fp-benchmark.md is out of date; run scripts/fp_benchmark.py --render-only"
     )
+
+
+def _finding(identity: str = "1", *, line: int = 1) -> dict[str, Any]:
+    return {
+        "rule_id": "RC-DLX-001",
+        "title": "Example",
+        "category": "danger",
+        "area": "download_exec",
+        "severity": "medium",
+        "confidence": "high",
+        "location": {"path": "setup.sh", "line": line, "column": None},
+        "message": "DUMMY_EXTERNAL_PAYLOAD",
+        "evidence": "DUMMY_EXTERNAL_PAYLOAD",
+        "rationale": "Example",
+        "recommendation": "Review",
+        "references": ["https://example.invalid/reference"],
+        "context": None,
+        "chain": None,
+        "in_chain": None,
+        "fingerprint": "repovet:v1:" + identity * 64,
+    }
+
+
+def _raw_report(*, digest: str | None = None) -> dict[str, Any]:
+    return {
+        "tool": {"name": "repovet", "version": __version__},
+        "ruleset_digest": digest or load_rules().digest,
+        "facts": {"source": {"commit": "a" * 40}},
+        "scan": {
+            "files_scanned": 1,
+            "snapshot": {".": "40000:" + "3" * 40, "setup.sh": "100644:" + "2" * 40},
+        },
+        "coverage": [],
+        "findings": [_finding()],
+    }
+
+
+def _new_data(identity: str = "1", *, line: int = 1) -> dict[str, Any]:
+    report = _raw_report(digest="a" * 64)
+    report["findings"] = [_finding(identity, line=line)]
+    report["scan"]["snapshot"]["setup.sh"] = "100644:" + identity * 40
+    entry = summarize(report, include_records=True)
+    entry.pop("tool_version")
+    entry.pop("ruleset_digest")
+    return {
+        **DATA,
+        "schema_version": "2.0",
+        "repovet": __version__,
+        "ruleset_digest": "a" * 64,
+        "repositories": [{"repo": "octo/alpha", "stars": 300, **entry}],
+        "skipped": [],
+    }
+
+
+def test_summarize_persists_compact_counted_records() -> None:
+    report = _raw_report()
+    report["findings"].append({**_finding("2"), "in_chain": "chain-1"})
+    summary = summarize(report, include_records=True)
+    assert summary["ruleset_digest"] == report["ruleset_digest"]
+    assert summary["tool_version"] == __version__
+    assert len(summary["finding_records"]) == 1
+    stored = summary["finding_records"][0]
+    assert stored["fingerprint"] == _finding()["fingerprint"]
+    assert stored["message"] == "" and stored["evidence"] is None
+    assert stored["references"] == []
+    assert "DUMMY_EXTERNAL_PAYLOAD" not in json.dumps(summary)
+
+
+def test_individual_comparison_uses_shared_identity_matcher(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    before, after = _new_data(), _new_data("2")
+    assert before["repositories"][0]["findings"] == after["repositories"][0]["findings"]
+    assert fp_benchmark.compare_runs(before, after) == EXIT_OK
+    out = capsys.readouterr().out
+    assert "new 1" in out and "absent 1" in out
+    assert fp_benchmark.compare_runs(before, _new_data(line=20)) == EXIT_OK
+    assert "no change in finding identities" in capsys.readouterr().out
+
+
+def test_benchmark_comparison_warns_about_commit_and_rule_drift(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    before, after = _new_data(), _new_data()
+    after["repositories"][0]["commit"] = "b" * 40
+    after["ruleset_digest"] = "b" * 64
+    assert fp_benchmark.compare_runs(before, after) == EXIT_OK
+    err = capsys.readouterr().err
+    assert "commit" in err and "octo/alpha" in err and "ruleset" in err
+
+
+def test_legacy_benchmark_comparison_is_explicitly_aggregate_only(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    assert fp_benchmark.compare_runs(DATA, _new_data()) == EXIT_OK
+    out = capsys.readouterr().out
+    assert "aggregate comparison only" in out
+    assert "finding identities unavailable" in out
+    assert "no change in finding identities" not in out
+
+
+def test_benchmark_rejects_payloads_in_stored_records() -> None:
+    before, after = _new_data(), _new_data()
+    before["repositories"][0]["finding_records"][0]["evidence"] = "DUMMY_EXTERNAL_PAYLOAD"
+    with pytest.raises(ValueError, match="payload"):
+        fp_benchmark.compare_runs(before, after)
+
+
+def test_render_only_can_compare_without_scanning(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    previous, current, markdown = tmp_path / "old.json", tmp_path / "new.json", tmp_path / "b.md"
+    previous.write_text(json.dumps(_new_data()), encoding="utf-8")
+    current.write_text(json.dumps(_new_data("2")), encoding="utf-8")
+    monkeypatch.setattr(fp_benchmark, "main", lambda _args: pytest.fail("unexpected scan"))
+    assert (
+        run(
+            [
+                "--render-only",
+                "--data",
+                str(current),
+                "--markdown",
+                str(markdown),
+                "--compare",
+                str(previous),
+            ]
+        )
+        == EXIT_OK
+    )
+    assert "new 1" in capsys.readouterr().out
+    assert "Ruleset digest" in markdown.read_text(encoding="utf-8")
+
+
+def test_skipped_repository_is_not_reported_as_resolved(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    before, after = _new_data(), _new_data()
+    before["repositories"].append({**before["repositories"][0], "repo": "octo/beta"})
+    after["skipped"] = [{"repo": "octo/beta", "stars": 1, "reason": "larger than limit"}]
+    assert fp_benchmark.compare_runs(before, after) == EXIT_OK
+    captured = capsys.readouterr()
+    assert "not comparable" in captured.err and "octo/beta" in captured.err
+    assert "absent" not in captured.out
+
+
+def test_metadata_change_during_benchmark_prevents_writing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client = _client(
+        {SEARCH.format(page=1, per_page=1): Answer({"items": [_item("octo/alpha", 1)]})}
+    )
+
+    def scan(argv: list[str]) -> int:
+        Path(argv[argv.index("-o") + 1]).write_text(
+            json.dumps(_raw_report(digest="b" * 64)), encoding="utf-8"
+        )
+        return EXIT_FINDINGS
+
+    monkeypatch.setattr(fp_benchmark, "main", scan)
+    data, markdown = tmp_path / "b.json", tmp_path / "b.md"
+    assert (
+        run(["-n", "1", "--data", str(data), "--markdown", str(markdown)], client=client)
+        == EXIT_ABORTED
+    )
+    assert not data.exists() and not markdown.exists()
+
+
+def _file_gap() -> dict[str, Any]:
+    return compact_coverage(
+        {
+            "scope": "file",
+            "status": "skipped",
+            "reason": "PRIVATE_DUMMY_PARSE_PAYLOAD",
+            "count": 1,
+            "sample": ["setup.sh"],
+            "paths": ["setup.sh"],
+            "uris": ["setup.sh"],
+        }
+    )
+
+
+def test_benchmark_comparison_blocks_changed_unchecked_file() -> None:
+    before, after = _new_data(), _new_data("2")
+    after["repositories"][0]["coverage_records"] = [_file_gap()]
+    assert "PRIVATE_DUMMY_PARSE_PAYLOAD" not in json.dumps(after)
+    assert fp_benchmark.compare_runs(before, after) == EXIT_ABORTED
+
+
+def test_benchmark_comparison_does_not_block_unchanged_unchecked_file() -> None:
+    before, after = _new_data(), _new_data()
+    for data in (before, after):
+        data["repositories"][0]["coverage_records"] = [_file_gap()]
+    assert fp_benchmark.compare_runs(before, after) == EXIT_OK
+
+
+def test_new_benchmark_metadata_is_validated() -> None:
+    before, after = _new_data(), _new_data()
+    before["ruleset_digest"] = "invalid"
+    with pytest.raises(ValueError, match="digest"):
+        fp_benchmark.compare_runs(before, after)
+
+
+def test_missing_comparison_file_fails_before_any_network(tmp_path: Path) -> None:
+    assert run(["--compare", str(tmp_path / "missing.json")]) == EXIT_USAGE
+
+
+def test_compare_loads_old_data_before_overwriting_same_output(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    data, markdown = tmp_path / "b.json", tmp_path / "b.md"
+    data.write_text(json.dumps(_new_data()), encoding="utf-8")
+    client = _client(
+        {SEARCH.format(page=1, per_page=1): Answer({"items": [_item("octo/alpha", 1)]})}
+    )
+
+    def scan(argv: list[str]) -> int:
+        report = _raw_report()
+        report["findings"] = [_finding("2")]
+        Path(argv[argv.index("-o") + 1]).write_text(json.dumps(report), encoding="utf-8")
+        return EXIT_FINDINGS
+
+    monkeypatch.setattr(fp_benchmark, "main", scan)
+    assert (
+        run(
+            ["-n", "1", "--data", str(data), "--markdown", str(markdown), "--compare", str(data)],
+            client=client,
+        )
+        == EXIT_OK
+    )
+    out = capsys.readouterr().out
+    assert "new 1" in out and "absent 1" in out
+
+
+def test_benchmark_without_common_scans_is_incomplete() -> None:
+    before, after = _new_data(), _new_data()
+    after["repositories"][0]["repo"] = "octo/beta"
+    assert fp_benchmark.compare_runs(before, after) == EXIT_ABORTED
+
+
+def test_benchmark_rejects_counts_not_derived_from_records() -> None:
+    before, after = _new_data(), _new_data()
+    before["repositories"][0]["findings"]["RC-DLX-001"]["high"] = 2
+    with pytest.raises(ValueError, match="aggregates"):
+        fp_benchmark.compare_runs(before, after)

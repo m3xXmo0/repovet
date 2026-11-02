@@ -2,17 +2,19 @@
 
 import json
 
+from repovet.identity import fingerprint
 from repovet.models import CATEGORIES, Chain, CoverageItem, Finding, ScanResult, Severity, counted
 from repovet.report.common import disclaimer, no_findings, visible_findings
-from repovet.report.sanitize import sanitize, sanitize_data, sanitize_path
+from repovet.report.sanitize import sanitize, sanitize_data, sanitize_path, sanitize_uri
 
-SCHEMA_VERSION = "1.4"
+SCHEMA_VERSION = "1.5"
 
 
 def _finding(finding: Finding) -> dict[str, object]:
     loc = finding.location
     return {
         "rule_id": finding.rule_id,
+        "fingerprint": finding.fingerprint or fingerprint(finding),
         "title": sanitize(finding.title, None),
         "category": finding.category,
         "area": finding.area,
@@ -20,7 +22,12 @@ def _finding(finding: Finding) -> dict[str, object]:
         "confidence": finding.confidence.label,
         "location": None
         if loc is None
-        else {"path": sanitize_path(loc.path), "line": loc.line, "column": loc.column},
+        else {
+            "path": sanitize_path(loc.path),
+            "uri": sanitize_uri(loc.path),
+            "line": loc.line,
+            "column": loc.column,
+        },
         "message": sanitize(finding.message, None),
         "evidence": sanitize(finding.evidence) if finding.evidence else None,
         "rationale": sanitize(finding.rationale, None),
@@ -35,7 +42,10 @@ def _finding(finding: Finding) -> dict[str, object]:
 def _chain(chain: Chain) -> dict[str, object]:
     return {
         "id": chain.id,
-        "steps": [{"path": sanitize_path(step.path), "line": step.line} for step in chain.steps],
+        "steps": [
+            {"path": sanitize_path(step.path), "uri": sanitize_uri(step.path), "line": step.line}
+            for step in chain.steps
+        ],
     }
 
 
@@ -46,6 +56,8 @@ def _coverage(item: CoverageItem) -> dict[str, object]:
         "reason": sanitize(item.reason, None),
         "count": item.count,
         "sample": [sanitize_path(p) for p in item.sample],
+        "paths": [sanitize_path(p) for p in item.paths],
+        "uris": [sanitize_uri(p) for p in item.paths],
     }
 
 
@@ -61,9 +73,13 @@ def build(result: ScanResult, min_severity: Severity = Severity.INFO) -> dict[st
     return {
         "schema_version": SCHEMA_VERSION,
         "tool": {"name": "repovet", "version": result.tool_version},
+        "ruleset_digest": result.ruleset_digest or None,
         "target": sanitize_path(result.target),
         "scan": {
             "mode": result.mode,
+            "snapshot": None
+            if result.snapshot is None
+            else {sanitize_uri(path): oid for path, oid in result.snapshot.items()},
             "online": result.online,
             "started": result.started.isoformat(timespec="milliseconds").replace("+00:00", "Z"),
             "duration_s": round(result.duration_s, 3),

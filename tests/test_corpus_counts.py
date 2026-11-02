@@ -1,32 +1,20 @@
-"""scripts/corpus_counts.py with recorded data: no repository is fetched.
-
-The scan itself is replaced by a recorded JSON report (tests/golden/report.json), so
-counting, the table, ``--save``, ``--compare`` and the baseline are tested without the
-network. The reconstructions are replaced by fixed counts here; they are scanned for
-real in tests/test_reconstructions.py.
-"""
+"""Versioned corpus records, shared finding comparisons and deliberate migration."""
 
 import json
-import shutil
+from copy import deepcopy
 from pathlib import Path
+from typing import Any
+from urllib.parse import quote
 
 import corpus_counts
 import pytest
-from corpus_counts import (
-    Counts,
-    build_parser,
-    changes,
-    print_changes,
-    print_comparison,
-    print_table,
-    run,
-    totals,
-)
+from jsonschema import Draft202012Validator
 
 from repovet import __version__
 from repovet.cli import EXIT_ABORTED, EXIT_FINDINGS, EXIT_USAGE
 
-GOLDEN_REPORT = Path(__file__).parent / "golden" / "report.json"
+ROOT = Path(__file__).parent.parent
+DIGEST = "a" * 64
 MANIFEST = """\
 - name: alpha
   repo: octo/alpha
@@ -35,286 +23,228 @@ MANIFEST = """\
   repo: octo/beta
   commit: 2222222222222222222222222222222222222222
 """
-# Counts as an earlier run recorded them with --save.
-EARLIER: Counts = {
-    "alpha": {
-        "RC-AGENT-002": {"high": 1, "medium": 0, "low": 0},
-        "RC-AGENT-020": {"high": 0, "medium": 3, "low": 0},
-        "RC-DLX-001": {"high": 0, "medium": 0, "low": 2},
-    },
-    "beta": {"RC-AUTO-001": {"high": 1, "medium": 0, "low": 0}},
-}
-
-RECONSTRUCTED: Counts = {
-    "demo-attack": {"RC-AUTO-001": {"high": 1, "medium": 0, "low": 0}},
-    "quiet-attack": {},
-}
-
 type Capture = pytest.CaptureFixture[str]
 
 
+def finding(
+    fingerprint: str = "1", *, path: str = "setup.sh", severity: str = "medium"
+) -> dict[str, Any]:
+    return {
+        "rule_id": "RC-DLX-001",
+        "title": "Example",
+        "category": "danger",
+        "area": "download_exec",
+        "severity": severity,
+        "confidence": "high",
+        "location": {"path": path, "uri": quote(path, safe="/"), "line": 1, "column": None},
+        "message": "do not copy this payload",
+        "evidence": "PRIVATE_FIXTURE_TEXT",
+        "rationale": "Example",
+        "recommendation": "Review",
+        "references": [],
+        "context": None,
+        "chain": None,
+        "in_chain": None,
+        "fingerprint": "repovet:v1:" + fingerprint * 64,
+    }
+
+
+def section(records: dict[str, list[dict[str, Any]]] | None = None) -> corpus_counts.Section:
+    return corpus_counts.Section(__version__, DIGEST, records or {"quiet": []})
+
+
 @pytest.fixture(autouse=True)
-def _no_real_scans(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    """Fixed reconstruction counts and no committed baseline in these tests."""
-    monkeypatch.setattr(corpus_counts, "reconstruction_counts", lambda: RECONSTRUCTED)
+def no_real_scans(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(corpus_counts, "BASELINE", tmp_path / "no-baseline.json")
+    monkeypatch.setattr(corpus_counts, "current_digest", lambda: DIGEST, raising=False)
+    monkeypatch.setattr(corpus_counts, "reconstruction_section", section, raising=False)
 
 
-def test_arguments() -> None:
-    args = build_parser().parse_args([])
-    assert args.manifest == corpus_counts.MANIFEST
-    assert (args.only, args.save, args.compare) == ([], None, None)
-    assert (args.offline_only, args.update_baseline) == (False, False)
-    assert args.baseline == corpus_counts.BASELINE
-    args = build_parser().parse_args(
-        ["--only", "flask", "--only", "ruff", "--save", "new.json", "--compare", "old.json"]
-    )
-    assert args.only == ["flask", "ruff"]
-    assert (args.save, args.compare) == (Path("new.json"), Path("old.json"))
-    with pytest.raises(SystemExit) as exc:
-        build_parser().parse_args(["--unknown"])
-    assert exc.value.code == 2
-
-
-def test_manifest_must_be_a_list(tmp_path: Path) -> None:
-    manifest = tmp_path / "corpus.yaml"
-    manifest.write_text("name: flask\n", encoding="utf-8")
-    with pytest.raises(SystemExit, match="expected a list"):
-        corpus_counts.load_manifest(manifest)
-
-
-def _recorded_scan(monkeypatch: pytest.MonkeyPatch, calls: list[list[str]]) -> None:
-    """Replace the scan by copying the recorded report to the ``-o`` path."""
-
+def recorded_scan(monkeypatch: pytest.MonkeyPatch, calls: list[list[str]]) -> None:
     def scan(argv: list[str]) -> int:
         calls.append(argv)
-        shutil.copyfile(GOLDEN_REPORT, argv[argv.index("-o") + 1])
+        Path(argv[argv.index("-o") + 1]).write_text(
+            json.dumps(
+                {
+                    "schema_version": "1.5",
+                    "tool": {"name": "repovet", "version": __version__},
+                    "ruleset_digest": DIGEST,
+                    "findings": [finding()],
+                    "coverage": [],
+                    "scan": {"snapshot": None},
+                }
+            ),
+            encoding="utf-8",
+        )
         return EXIT_FINDINGS
 
     monkeypatch.setattr(corpus_counts, "main", scan)
 
 
-def test_scan_entry_counts_findings_per_rule_and_confidence(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_arguments() -> None:
+    args = corpus_counts.build_parser().parse_args([])
+    assert (args.only, args.save, args.compare) == ([], None, None)
+    assert not args.offline_only and not args.update_baseline
+
+
+def test_scan_entry_retains_count_wrapper(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[list[str]] = []
-    _recorded_scan(monkeypatch, calls)
-    entry = {"name": "alpha", "repo": "octo/alpha", "commit": "1" * 40}
-    # Every finding of a rule counts, also the parts of a chain.
-    assert corpus_counts.scan_entry(entry, tmp_path) == {
-        "RC-AGENT-001": {"high": 2, "medium": 0, "low": 0},
-        "RC-AGENT-002": {"high": 1, "medium": 0, "low": 0},
-        "RC-AGENT-020": {"high": 0, "medium": 2, "low": 0},
-        "RC-AUTO-001": {"high": 1, "medium": 0, "low": 0},
-        "RC-AUTO-090": {"high": 1, "medium": 0, "low": 0},
-        "RC-DLX-001": {"high": 1, "medium": 0, "low": 0},
-        "RC-TRUST-001": {"high": 1, "medium": 0, "low": 0},
-    }
-    assert calls == [
-        [
-            "scan",
-            "https://github.com/octo/alpha",
-            "--ref",
-            "1" * 40,
-            "--offline",
-            "--format",
-            "json",
-            "-o",
-            str(tmp_path / "alpha.json"),
-        ]
-    ]
+    recorded_scan(monkeypatch, calls)
+    assert corpus_counts.scan_entry(
+        {"name": "alpha", "repo": "octo/alpha", "commit": "1" * 40}, tmp_path
+    ) == {"RC-DLX-001": {"high": 1, "medium": 0, "low": 0}}
+    assert calls[0][0:2] == ["scan", "https://github.com/octo/alpha"]
 
 
-def test_scan_entry_reports_a_failed_scan(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(corpus_counts, "main", lambda argv: EXIT_ABORTED)
-    entry = {"name": "alpha", "repo": "octo/alpha", "commit": "1" * 40}
-    assert corpus_counts.scan_entry(entry, tmp_path) == "scan failed with exit code 3"
-
-
-def test_totals() -> None:
-    assert totals(EARLIER) == {
-        "RC-AGENT-002": 1,
-        "RC-AGENT-020": 3,
-        "RC-DLX-001": 2,
-        "RC-AUTO-001": 1,
-    }
-
-
-def test_table_format(capsys: Capture) -> None:
-    print_table(EARLIER)
-    assert capsys.readouterr().out.splitlines() == [
-        "rule           total         h/m/l  alpha   beta",
-        "RC-AGENT-002       1         1/0/0      1      0",
-        "RC-AGENT-020       3         0/3/0      3      0",
-        "RC-AUTO-001        1         1/0/0      0      1",
-        "RC-DLX-001         2         0/0/2      2      0",
-    ]
-
-
-def test_comparison_lists_only_changed_rules(capsys: Capture) -> None:
-    later: Counts = {
-        "alpha": {
-            "RC-AGENT-002": {"high": 1, "medium": 0, "low": 0},
-            "RC-AGENT-020": {"high": 0, "medium": 1, "low": 0},
-            "RC-OBF-009": {"high": 0, "medium": 0, "low": 4},
-        },
-        "beta": {"RC-AUTO-001": {"high": 1, "medium": 0, "low": 0}},
-    }
-    print_comparison(EARLIER, later)
-    assert capsys.readouterr().out.splitlines() == [
-        "rule           before   after  change",
-        "RC-AGENT-020        3       1      -2",
-        "RC-DLX-001          2       0      -2",
-        "RC-OBF-009          0       4      +4",
-    ]
-    print_comparison(EARLIER, EARLIER)
-    assert capsys.readouterr().out == "no change in the number of findings per rule\n"
-
-
-def test_save_then_compare_two_runs(
+def test_scan_failure_does_not_write_baseline(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: Capture
 ) -> None:
     manifest = tmp_path / "corpus.yaml"
     manifest.write_text(MANIFEST, encoding="utf-8")
-    calls: list[list[str]] = []
-    _recorded_scan(monkeypatch, calls)
-    saved = tmp_path / "now.json"
-    assert run(["--manifest", str(manifest), "--save", str(saved)]) == 0
-    first = capsys.readouterr()
-    assert first.out.startswith(f"repovet {__version__}, 2 repositories\n")
-    assert "scanning octo/alpha @ 111111111111 ..." in first.err
-    payload = json.loads(saved.read_text(encoding="utf-8"))
-    assert payload["repovet"] == __version__
-    assert sorted(payload["counts"]) == ["alpha", "beta"]
-
-    # A second run compared with the recorded earlier one; --only limits both sides.
-    earlier = tmp_path / "earlier.json"
-    earlier.write_text(json.dumps({"repovet": "0.1.0", "counts": EARLIER}), encoding="utf-8")
-    assert run(["--manifest", str(manifest), "--only", "alpha", "--compare", str(earlier)]) == 0
-    out = capsys.readouterr().out
-    assert len(calls) == 3
-    assert f"repovet {__version__}, 1 repositories" in out
-    comparison = out.split(f"compared with repovet 0.1.0 ({earlier})\n", 1)[1]
-    assert comparison.split("\n\n")[0].splitlines() == [
-        "rule           before   after  change",
-        "RC-AGENT-001        0       2      +2",
-        "RC-AGENT-020        3       2      -1",
-        "RC-AUTO-001         0       1      +1",
-        "RC-AUTO-090         0       1      +1",
-        "RC-DLX-001          2       1      -1",
-        "RC-TRUST-001        0       1      +1",
-    ]
-
-
-def test_failed_scans_are_listed_and_set_the_exit_code(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: Capture
-) -> None:
-    manifest = tmp_path / "corpus.yaml"
-    manifest.write_text(MANIFEST, encoding="utf-8")
-    monkeypatch.setattr(corpus_counts, "main", lambda argv: EXIT_ABORTED)
-    assert run(["--manifest", str(manifest)]) == 1
-    captured = capsys.readouterr()
-    assert "repovet" in captured.out and "0 repositories" in captured.out
-    assert "alpha: scan failed with exit code 3" in captured.err
-    assert "beta: scan failed with exit code 3" in captured.err
-
-
-def test_changes_per_entry_and_rule(capsys: Capture) -> None:
-    later: Counts = {
-        "alpha": {
-            "RC-AGENT-002": {"high": 1, "medium": 0, "low": 0},
-            "RC-AGENT-020": {"high": 0, "medium": 1, "low": 0},
-        },
-        "gamma": {"RC-OBF-009": {"high": 0, "medium": 0, "low": 4}},
-    }
-    assert changes(EARLIER, later) == [
-        ("alpha", "RC-AGENT-020", 3, 1),
-        ("alpha", "RC-DLX-001", 2, 0),
-        ("beta", "RC-AUTO-001", 1, 0),
-        ("gamma", "RC-OBF-009", 0, 4),
-    ]
-    print_changes(EARLIER, later)
-    assert capsys.readouterr().out.splitlines() == [
-        "       rule           before   after  change",
-        "alpha  RC-AGENT-020        3       1      -2",
-        "alpha  RC-DLX-001          2       0      -2",
-        "beta   RC-AUTO-001         1       0      -1",
-        "gamma  RC-OBF-009          0       4      +4",
-    ]
-    print_changes(EARLIER, EARLIER)
-    assert capsys.readouterr().out == "no change against the baseline\n"
-
-
-def _no_network(argv: list[str]) -> int:
-    raise AssertionError("the real repositories must not be scanned")
-
-
-def test_offline_only_without_baseline(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: Capture
-) -> None:
-    monkeypatch.setattr(corpus_counts, "main", _no_network)
     baseline = tmp_path / "baseline.json"
-    assert run(["--offline-only", "--baseline", str(baseline)]) == 0
-    out = capsys.readouterr().out
-    assert f"repovet {__version__}, 2 reconstructions" in out
-    assert "demo-attack   RC-AUTO-001 1" in out
-    assert "quiet-attack  -" in out
-    assert f"no baseline for the reconstructions in {baseline}" in out
+    monkeypatch.setattr(corpus_counts, "main", lambda argv: EXIT_ABORTED)
+    assert (
+        corpus_counts.run(
+            ["--manifest", str(manifest), "--baseline", str(baseline), "--update-baseline"]
+        )
+        == 1
+    )
     assert not baseline.exists()
-
-
-def test_update_then_compare_with_the_baseline(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: Capture
-) -> None:
-    manifest = tmp_path / "corpus.yaml"
-    manifest.write_text(MANIFEST, encoding="utf-8")
-    _recorded_scan(monkeypatch, [])
-    baseline = tmp_path / "baseline.json"
-    common = ["--manifest", str(manifest), "--baseline", str(baseline)]
-    assert run([*common, "--update-baseline"]) == 0
-    assert f"baseline written: {baseline} (real, reconstructions)" in capsys.readouterr().out
-    written = json.loads(baseline.read_text(encoding="utf-8"))
-    assert list(written) == ["real", "reconstructions"]
-    assert written["real"]["repovet"] == __version__
-    assert sorted(written["real"]["counts"]) == ["alpha", "beta"]
-    assert written["reconstructions"]["counts"] == RECONSTRUCTED
-
-    # Same results: no change in either part, and the file is not touched without the flag.
-    before = baseline.read_text(encoding="utf-8")
-    assert run(common) == 0
-    out = capsys.readouterr().out
-    assert out.count("no change against the baseline") == 2
-    assert baseline.read_text(encoding="utf-8") == before
-
-    # A changed reconstruction shows up per entry and rule.
-    changed: Counts = {"demo-attack": {}, "quiet-attack": {"RC-OBF-009": {"low": 2}}}
-    monkeypatch.setattr(corpus_counts, "reconstruction_counts", lambda: changed)
-    monkeypatch.setattr(corpus_counts, "main", _no_network)
-    assert run(["--offline-only", "--baseline", str(baseline)]) == 0
-    out = capsys.readouterr().out
-    assert f"reconstructions against the baseline (repovet {__version__}):" in out
-    assert "demo-attack   RC-AUTO-001         1       0      -1" in out
-    assert "quiet-attack  RC-OBF-009          0       2      +2" in out
-
-    # --offline-only replaces only the reconstruction part.
-    assert run(["--offline-only", "--baseline", str(baseline), "--update-baseline"]) == 0
-    assert "(reconstructions)" in capsys.readouterr().out
-    updated = json.loads(baseline.read_text(encoding="utf-8"))
-    assert updated["real"] == written["real"]
-    assert updated["reconstructions"]["counts"] == changed
-
-
-def test_baseline_is_not_updated_after_failed_scans(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: Capture
-) -> None:
-    manifest = tmp_path / "corpus.yaml"
-    manifest.write_text(MANIFEST, encoding="utf-8")
-    monkeypatch.setattr(corpus_counts, "main", lambda argv: EXIT_ABORTED)
-    baseline = tmp_path / "baseline.json"
-    args = ["--manifest", str(manifest), "--baseline", str(baseline), "--update-baseline"]
-    assert run(args) == 1
     assert "baseline not updated" in capsys.readouterr().err
-    assert not baseline.exists()
+
+
+def test_compact_records_do_not_publish_payload_text() -> None:
+    record = corpus_counts.compact_finding(finding())
+    assert record["fingerprint"] == "repovet:v1:" + "1" * 64
+    assert record["location"]["path"] == "setup.sh"
+    assert record["message"] == "" and record["evidence"] is None
+    assert "PRIVATE_FIXTURE_TEXT" not in json.dumps(record)
+
+
+def test_baseline_round_trip_is_versioned_and_schema_valid(tmp_path: Path) -> None:
+    baseline = tmp_path / "baseline.json"
+    expected = section({"alpha": [corpus_counts.compact_finding(finding())], "quiet": []})
+    corpus_counts.write_baseline(baseline, {"real": expected})
+    data = json.loads(baseline.read_text(encoding="utf-8"))
+    assert data["schema_version"] == "2.0"
+    assert data["real"]["tool"] == {"name": "repovet", "version": __version__}
+    assert data["real"]["ruleset_digest"] == DIGEST
+    schema = json.loads((ROOT / "docs" / "corpus-baseline.schema.json").read_text(encoding="utf-8"))
+    Draft202012Validator.check_schema(schema)
+    Draft202012Validator(schema).validate(data)
+    loaded = corpus_counts.load_baseline(baseline)
+    assert loaded["real"].counts == {
+        "alpha": {"RC-DLX-001": {"high": 1, "medium": 0, "low": 0}},
+        "quiet": {},
+    }
+
+
+def test_counts_cannot_disagree_with_stored_findings(tmp_path: Path) -> None:
+    baseline = tmp_path / "baseline.json"
+    corpus_counts.write_baseline(
+        baseline, {"real": section({"alpha": [corpus_counts.compact_finding(finding())]})}
+    )
+    data = json.loads(baseline.read_text(encoding="utf-8"))
+    data["real"]["counts"]["alpha"]["RC-DLX-001"]["high"] = 9
+    baseline.write_text(json.dumps(data), encoding="utf-8")
+    with pytest.raises(ValueError, match=r"counts.*findings"):
+        corpus_counts.load_baseline(baseline)
+
+
+@pytest.mark.parametrize(
+    "legacy", [{"real": {"repovet": "0.4.1", "counts": {}}}, {"repovet": "0.4.1", "counts": {}}]
+)
+def test_counts_only_baseline_is_rejected(tmp_path: Path, legacy: dict[str, Any]) -> None:
+    baseline = tmp_path / "old.json"
+    baseline.write_text(json.dumps(legacy), encoding="utf-8")
+    with pytest.raises(ValueError, match="regenerate"):
+        corpus_counts.load_baseline(baseline)
+
+
+def test_explicit_offline_migration_discards_old_real_section(
+    tmp_path: Path, capsys: Capture
+) -> None:
+    baseline = tmp_path / "old.json"
+    baseline.write_text(json.dumps({"real": {"repovet": "0.4.1", "counts": {}}}), encoding="utf-8")
+    assert (
+        corpus_counts.run(["--offline-only", "--baseline", str(baseline), "--update-baseline"]) == 0
+    )
+    data = json.loads(baseline.read_text(encoding="utf-8"))
+    assert data["schema_version"] == "2.0" and "real" not in data
+    assert "discarded" in capsys.readouterr().err
+
+
+def test_offline_update_preserves_valid_real_section(tmp_path: Path) -> None:
+    baseline = tmp_path / "baseline.json"
+    old = section({"alpha": [corpus_counts.compact_finding(finding())]})
+    corpus_counts.write_baseline(baseline, {"real": old})
+    assert (
+        corpus_counts.run(["--offline-only", "--baseline", str(baseline), "--update-baseline"]) == 0
+    )
+    assert corpus_counts.load_baseline(baseline)["real"].records == old.records
+
+
+def test_equal_counts_can_still_have_new_and_absent_findings(capsys: Capture) -> None:
+    before = section({"alpha": [corpus_counts.compact_finding(finding("1"))]})
+    after = section({"alpha": [corpus_counts.compact_finding(finding("2"))]})
+    assert before.counts == after.counts
+    assert corpus_counts.print_finding_changes(before, after) == 0
+    out = capsys.readouterr().out
+    assert "RC-DLX-001" in out and "new 1" in out and "absent 1" in out
+
+
+def test_shared_matcher_handles_line_shift(capsys: Capture) -> None:
+    first = corpus_counts.compact_finding(finding())
+    second = deepcopy(first)
+    second["location"]["line"] = 20
+    assert (
+        corpus_counts.print_finding_changes(
+            section({"alpha": [first]}), section({"alpha": [second]})
+        )
+        == 0
+    )
+    assert "no change in finding identities" in capsys.readouterr().out
+
+
+def test_shared_matcher_reports_severity_promotion(capsys: Capture) -> None:
+    old = corpus_counts.compact_finding(finding(severity="medium"))
+    new = corpus_counts.compact_finding(finding(severity="high"))
+    assert (
+        corpus_counts.print_finding_changes(section({"alpha": [old]}), section({"alpha": [new]}))
+        == 0
+    )
+    assert "worsened 1" in capsys.readouterr().out
+
+
+def test_version_and_rule_digest_changes_are_explicit(capsys: Capture) -> None:
+    old = corpus_counts.Section("0.0.0", "b" * 64, {"quiet": []})
+    assert corpus_counts.print_finding_changes(old, section()) == 0
+    err = capsys.readouterr().err
+    assert "version" in err and "ruleset" in err
+
+
+def test_save_and_compare_use_record_schema(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: Capture
+) -> None:
+    manifest = tmp_path / "corpus.yaml"
+    manifest.write_text(MANIFEST, encoding="utf-8")
+    recorded_scan(monkeypatch, [])
+    saved = tmp_path / "saved.json"
+    assert corpus_counts.run(["--manifest", str(manifest), "--save", str(saved)]) == 0
+    assert corpus_counts.load_baseline(saved)["real"].records
+    assert corpus_counts.run(["--manifest", str(manifest), "--compare", str(saved)]) == 0
+    assert "no change in finding identities" in capsys.readouterr().out
+
+
+def test_changed_rule_metadata_during_scan_is_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: Capture
+) -> None:
+    manifest = tmp_path / "corpus.yaml"
+    manifest.write_text(MANIFEST, encoding="utf-8")
+    recorded_scan(monkeypatch, [])
+    monkeypatch.setattr(corpus_counts, "current_digest", lambda: "b" * 64)
+    assert corpus_counts.run(["--manifest", str(manifest)]) == 1
+    assert "metadata changed" in capsys.readouterr().err
 
 
 @pytest.mark.parametrize(
@@ -326,16 +256,218 @@ def test_baseline_is_not_updated_after_failed_scans(
         ["--offline-only", "--compare", "x.json"],
     ],
 )
-def test_contradicting_options(
-    argv: list[str], monkeypatch: pytest.MonkeyPatch, capsys: Capture
-) -> None:
-    monkeypatch.setattr(corpus_counts, "main", _no_network)
-    assert run(argv) == EXIT_USAGE
+def test_contradicting_options(argv: list[str], capsys: Capture) -> None:
+    assert corpus_counts.run(argv) == EXIT_USAGE
     assert capsys.readouterr().err
 
 
-def test_invalid_baseline(tmp_path: Path) -> None:
+def test_ambiguous_occurrences_are_not_a_success(capsys: Capture) -> None:
+    before = section(
+        {
+            "alpha": [
+                corpus_counts.compact_finding(finding(path="a.sh")),
+                corpus_counts.compact_finding(finding(path="b.sh")),
+            ]
+        }
+    )
+    after = section(
+        {
+            "alpha": [
+                corpus_counts.compact_finding(finding(path="c.sh")),
+                corpus_counts.compact_finding(finding(path="d.sh")),
+            ]
+        }
+    )
+    assert corpus_counts.print_finding_changes(before, after) == EXIT_ABORTED
+    assert "unresolved comparison" in capsys.readouterr().out
+
+
+def test_payload_text_in_stored_baseline_is_rejected(tmp_path: Path) -> None:
+    path = tmp_path / "baseline.json"
+    corpus_counts.write_baseline(path, {"real": section({"alpha": [finding()]})})
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["real"]["findings"]["alpha"][0]["message"] = "unwanted external text"
+    path.write_text(json.dumps(data), encoding="utf-8")
+    with pytest.raises(ValueError, match="omit payload"):
+        corpus_counts.load_baseline(path)
+
+
+def test_metadata_change_between_sections_prevents_baseline_write(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: Capture
+) -> None:
+    manifest = tmp_path / "corpus.yaml"
+    manifest.write_text(MANIFEST, encoding="utf-8")
+    recorded_scan(monkeypatch, [])
+    monkeypatch.setattr(
+        corpus_counts,
+        "reconstruction_section",
+        lambda: corpus_counts.Section(__version__, "b" * 64, {"quiet": []}),
+    )
     baseline = tmp_path / "baseline.json"
-    baseline.write_text('{"other": {}}', encoding="utf-8")
-    with pytest.raises(SystemExit, match="expected an object"):
-        corpus_counts.load_baseline(baseline)
+    assert (
+        corpus_counts.run(
+            ["--manifest", str(manifest), "--baseline", str(baseline), "--update-baseline"]
+        )
+        == 1
+    )
+    assert not baseline.exists()
+    assert "between corpus sections" in capsys.readouterr().err
+
+
+EARLIER: corpus_counts.Counts = {
+    "alpha": {
+        "RC-AGENT-002": {"high": 1, "medium": 0, "low": 0},
+        "RC-AGENT-020": {"high": 0, "medium": 3, "low": 0},
+        "RC-DLX-001": {"high": 0, "medium": 0, "low": 2},
+    },
+    "beta": {"RC-AUTO-001": {"high": 1, "medium": 0, "low": 0}},
+}
+
+
+def test_totals() -> None:
+    assert corpus_counts.totals(EARLIER) == {
+        "RC-AGENT-002": 1,
+        "RC-AGENT-020": 3,
+        "RC-DLX-001": 2,
+        "RC-AUTO-001": 1,
+    }
+
+
+def test_table_format(capsys: Capture) -> None:
+    corpus_counts.print_table(EARLIER)
+    assert capsys.readouterr().out.splitlines() == [
+        "rule           total         h/m/l  alpha   beta",
+        "RC-AGENT-002       1         1/0/0      1      0",
+        "RC-AGENT-020       3         0/3/0      3      0",
+        "RC-AUTO-001        1         1/0/0      0      1",
+        "RC-DLX-001         2         0/0/2      2      0",
+    ]
+
+
+def test_comparison_lists_only_changed_rules(capsys: Capture) -> None:
+    later: corpus_counts.Counts = {
+        "alpha": {
+            "RC-AGENT-002": {"high": 1, "medium": 0, "low": 0},
+            "RC-AGENT-020": {"high": 0, "medium": 1, "low": 0},
+            "RC-OBF-009": {"high": 0, "medium": 0, "low": 4},
+        },
+        "beta": {"RC-AUTO-001": {"high": 1, "medium": 0, "low": 0}},
+    }
+    corpus_counts.print_comparison(EARLIER, later)
+    assert capsys.readouterr().out.splitlines() == [
+        "rule           before   after  change",
+        "RC-AGENT-020        3       1      -2",
+        "RC-DLX-001          2       0      -2",
+        "RC-OBF-009          0       4      +4",
+    ]
+    corpus_counts.print_comparison(EARLIER, EARLIER)
+    assert capsys.readouterr().out == "no change in the number of findings per rule\n"
+
+
+def test_changes_per_entry_and_rule(capsys: Capture) -> None:
+    later: corpus_counts.Counts = {
+        "alpha": {
+            "RC-AGENT-002": {"high": 1, "medium": 0, "low": 0},
+            "RC-AGENT-020": {"high": 0, "medium": 1, "low": 0},
+        },
+        "gamma": {"RC-OBF-009": {"high": 0, "medium": 0, "low": 4}},
+    }
+    assert corpus_counts.changes(EARLIER, later) == [
+        ("alpha", "RC-AGENT-020", 3, 1),
+        ("alpha", "RC-DLX-001", 2, 0),
+        ("beta", "RC-AUTO-001", 1, 0),
+        ("gamma", "RC-OBF-009", 0, 4),
+    ]
+    corpus_counts.print_changes(EARLIER, later)
+    assert capsys.readouterr().out.splitlines() == [
+        "       rule           before   after  change",
+        "alpha  RC-AGENT-020        3       1      -2",
+        "alpha  RC-DLX-001          2       0      -2",
+        "beta   RC-AUTO-001         1       0      -1",
+        "gamma  RC-OBF-009          0       4      +4",
+    ]
+    corpus_counts.print_changes(EARLIER, EARLIER)
+    assert capsys.readouterr().out == "no change against the baseline\n"
+
+
+def test_compact_record_retains_lossless_uri_beyond_the_display_limit() -> None:
+    from repovet.report.json_in import finding_from_data
+
+    raw_path = "odd/\u202e" + "a" * 300 + ".sh"
+    original = finding(path=raw_path)
+    compact = corpus_counts.compact_finding(original)
+    assert compact["location"]["path"] != raw_path
+    assert "%E2%80%AE" in compact["location"]["uri"]
+    parsed = finding_from_data(compact)
+    assert parsed.location is not None and parsed.location.path == raw_path
+
+
+def coverage_record(path: str = "setup.sh") -> dict[str, Any]:
+    return {
+        "scope": "file",
+        "status": "partial",
+        "reason": "DUMMY PARSER DETAIL",
+        "count": 1,
+        "sample": [path],
+        "paths": [path],
+        "uris": [quote(path, safe="/")],
+    }
+
+
+def git_snapshot(content: str) -> dict[str, str]:
+    return {".": "40000:" + content * 40, "setup.sh": "100644:" + content * 40}
+
+
+def test_compact_coverage_is_idempotent_without_copying_foreign_reason() -> None:
+    from repovet.report.json_in import coverage_from_data
+
+    path = "odd/\u202e" + "a" * 300 + ".sh"
+    stored = corpus_counts.compact_coverage(coverage_record(path))
+    assert stored == corpus_counts.compact_coverage(stored)
+    assert stored["reason"].startswith("sha256:")
+    assert "DUMMY PARSER DETAIL" not in json.dumps(stored)
+    assert coverage_from_data(stored).paths == (path,)
+
+
+def test_changed_capped_entry_uses_shared_coverage_gate(capsys: Capture) -> None:
+    old = corpus_counts.Section(
+        __version__, DIGEST, {"alpha": []}, {"alpha": []}, {"alpha": git_snapshot("1")}
+    )
+    gap = corpus_counts.compact_coverage(coverage_record())
+    new = corpus_counts.Section(
+        __version__, DIGEST, {"alpha": []}, {"alpha": [gap]}, {"alpha": git_snapshot("2")}
+    )
+    assert corpus_counts.print_finding_changes(old, new) == EXIT_ABORTED
+    assert "unresolved comparison" in capsys.readouterr().out
+
+
+def test_unchanged_capped_entry_does_not_block(capsys: Capture) -> None:
+    gap = corpus_counts.compact_coverage(coverage_record())
+    old = corpus_counts.Section(
+        __version__, DIGEST, {"alpha": []}, {"alpha": [gap]}, {"alpha": git_snapshot("1")}
+    )
+    assert corpus_counts.print_finding_changes(old, old) == 0
+    assert "unresolved comparison" in capsys.readouterr().out
+
+
+def test_missing_snapshot_is_explicit_without_inventing_changed_paths(capsys: Capture) -> None:
+    assert corpus_counts.print_finding_changes(section(), section()) == 0
+    assert "without proof of file changes" in capsys.readouterr().err
+
+
+def test_baseline_transports_complete_coverage_and_raw_snapshot_keys(tmp_path: Path) -> None:
+    raw_path = "odd/\u202e" + "a" * 300 + ".sh"
+    gap = corpus_counts.compact_coverage(coverage_record(raw_path))
+    snapshot = {".": "40000:" + "1" * 40, raw_path: "100644:" + "2" * 40}
+    stored = corpus_counts.Section(
+        __version__, DIGEST, {"alpha": []}, {"alpha": [gap]}, {"alpha": snapshot}
+    )
+    path = tmp_path / "baseline.json"
+    corpus_counts.write_baseline(path, {"real": stored})
+    loaded = corpus_counts.load_baseline(path)["real"]
+    assert loaded.snapshots["alpha"] == snapshot
+    assert loaded.coverage["alpha"] == [gap]
+    data = json.loads(path.read_text(encoding="utf-8"))
+    assert quote(raw_path, safe="/") in data["real"]["snapshots"]["alpha"]
+    schema = json.loads((ROOT / "docs" / "corpus-baseline.schema.json").read_text(encoding="utf-8"))
+    Draft202012Validator(schema).validate(data)

@@ -110,6 +110,9 @@ class Finding:
     in_chain: str | None = None
     # The rule's tags (for the report's action line; not part of the JSON report).
     tags: tuple[str, ...] = ()
+    fingerprint: str = ""
+    # Digest of unshortened normalized match data; raw payloads are not retained.
+    identity_material: str | None = None
 
 
 def counted(findings: Sequence[Finding]) -> list[Finding]:
@@ -125,6 +128,8 @@ class CoverageItem:
     reason: str
     count: int
     sample: tuple[str, ...] = ()
+    # Complete paths for machine comparisons; sample remains the terminal preview.
+    paths: tuple[str, ...] = ()
 
 
 @dataclass
@@ -154,6 +159,8 @@ class ScanResult:
     root_uri: str | None = None
     # Terminal profile per category (e.g. provenance): (label, text) lines.
     summaries: dict[str, list[tuple[str, str]]] = field(default_factory=dict)
+    ruleset_digest: str = ""
+    snapshot: dict[str, str] | None = None
 
 
 _STATUS_ORDER = {status: index for index, status in enumerate(CoverageStatus)}
@@ -188,5 +195,9 @@ class CoverageCollector:
         for key in sorted(keys, key=lambda k: (_STATUS_ORDER[k[1]], k[0], k[2])):
             paths = sorted(self._paths.get(key, ()))
             count = len(paths) + self._counts.get(key, 0)
-            result.append(CoverageItem(key[0], key[1], key[2], count, tuple(paths[:_SAMPLE_SIZE])))
+            result.append(
+                CoverageItem(
+                    key[0], key[1], key[2], count, tuple(paths[:_SAMPLE_SIZE]), tuple(paths)
+                )
+            )
         return result

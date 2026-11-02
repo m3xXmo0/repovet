@@ -104,9 +104,9 @@ def test_json_content() -> None:
     assert findings[1]["chain"] == {
         "id": "chain-1",
         "steps": [
-            {"path": "package.json", "line": 3},
-            {"path": "x.js", "line": None},
-            {"path": "x.sh", "line": 2},
+            {"path": "package.json", "uri": "package.json", "line": 3},
+            {"path": "x.js", "uri": "x.js", "line": None},
+            {"path": "x.sh", "uri": "x.sh", "line": 2},
         ],
     }
     assert [f["in_chain"] for f in findings] == [None, None, None, None, "chain-1", "chain-1"]
@@ -193,6 +193,7 @@ def test_cli_json_to_stdout(repo: Path, capsys: Capture) -> None:
     assert [f["rule_id"] for f in report["findings"]] == ["RC-AUTO-023", "RC-AUTO-020"]
     assert report["findings"][0]["location"] == {
         "path": ".vscode/tasks.json",
+        "uri": ".vscode/tasks.json",
         "line": 1,
         "column": None,
     }

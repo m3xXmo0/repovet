@@ -18,6 +18,7 @@ from repovet.analyzers import run_all
 from repovet.engine.context import ScanContext
 from repovet.engine.loader import RuleSet, load_rules
 from repovet.github import target as github_target
+from repovet.identity import enrich_findings
 from repovet.limits import DEFAULT_LIMITS, Limits
 from repovet.models import AREAS, CoverageCollector, ScanResult, Severity, counted
 from repovet.sources import gitmeta, remote
@@ -222,7 +223,7 @@ def _analyze(
 ) -> Scanned:
     ctx = ScanContext(tree, rules, limits, coverage, git=git, git_note=git_note, trust=trust)
     results = run_all(ctx)
-    findings = [f for r in results for f in r.findings]
+    findings = enrich_findings([f for r in results for f in r.findings], tree, limits)
     all_facts: dict[str, object] = dict(facts or {})
     summaries: dict[str, list[tuple[str, str]]] = {}
     for area_result in results:
@@ -244,6 +245,8 @@ def _analyze(
         facts=all_facts,
         root_uri=root_uri,
         summaries=summaries,
+        ruleset_digest=rules.digest,
+        snapshot=dict(tree.snapshot) if isinstance(tree, GitTree) else None,
     )
     return Scanned(result, rules)
 

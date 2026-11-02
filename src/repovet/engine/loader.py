@@ -1,5 +1,7 @@
 """Load and validate YAML rules, named patterns, file sets and unsupported surfaces."""
 
+import hashlib
+import json
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
@@ -78,6 +80,7 @@ class Rule:
     deprecated: bool = False
     since: str | None = None
     source: str = ""
+    definition: dict[str, object] = field(default_factory=dict, compare=False)
 
     def applies_to(self, path: str) -> bool:
         return self.files.matches(path) and not self.exclude.matches(path)
@@ -103,6 +106,23 @@ class RuleSet:
     unsupported: list[UnsupportedSurface] = field(default_factory=list)
     patterns: dict[str, str] = field(default_factory=dict)
     filesets: dict[str, list[str]] = field(default_factory=dict)
+    unsupported_definitions: list[object] = field(default_factory=list)
+
+    @property
+    def digest(self) -> str:
+        payload = {
+            "rules": [
+                {"id": r.id, "definition": r.definition, "severity": r.severity.label}
+                for r in self.active()
+            ],
+            "patterns": self.patterns,
+            "filesets": self.filesets,
+            "unsupported": self.unsupported_definitions,
+        }
+        encoded = json.dumps(
+            payload, ensure_ascii=True, sort_keys=True, separators=(",", ":")
+        ).encode()
+        return hashlib.sha256(encoded).hexdigest()
 
     def active(self, area: str | None = None) -> list[Rule]:
         return [r for r in self.rules if not r.deprecated and (area is None or r.area == area)]
@@ -436,14 +456,16 @@ def load_rule_dirs(dirs: Sequence[Path]) -> RuleSet:
     for path in rule_files:
         for raw in _as_list(_read_yaml(path), str(path), "a rule file"):
             rule = builder.rule(raw, str(path))
+            rule = replace(rule, definition=_as_mapping(raw, str(path), "a rule"))
             if rule.id in seen:
                 raise RuleError(str(path), f"duplicate id (also in {seen[rule.id]})", rule.id)
             seen[rule.id] = str(path)
             rules.append(rule)
-    unsupported = [
-        builder.unsupported(raw, str(path))
+    unsupported_raw = [
+        (raw, path)
         for path in unsupported_files
         for raw in _as_list(_read_yaml(path), str(path), "unsupported surfaces")
     ]
+    unsupported = [builder.unsupported(raw, str(path)) for raw, path in unsupported_raw]
     rules.sort(key=lambda r: r.id)
-    return RuleSet(rules, unsupported, patterns, filesets)
+    return RuleSet(rules, unsupported, patterns, filesets, [raw for raw, _ in unsupported_raw])

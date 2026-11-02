@@ -1,0 +1,1769 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://repovet.invalid/schemas/diff-1.0.json",
+  "title": "repovet JSON diff report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "tool",
+    "ruleset_digest",
+    "base",
+    "head",
+    "fail_on",
+    "exit_code",
+    "summary",
+    "changes",
+    "issues",
+    "warnings",
+    "disclaimer",
+    "min_severity",
+    "hidden_below_min_severity"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "tool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "version"
+      ],
+      "properties": {
+        "name": {
+          "const": "repovet"
+        },
+        "version": {
+          "type": "string"
+        }
+      }
+    },
+    "ruleset_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "base": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commit",
+        "report"
+      ],
+      "properties": {
+        "commit": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        },
+        "report": {
+          "$ref": "#/$defs/scan_report"
+        }
+      }
+    },
+    "head": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commit",
+        "report"
+      ],
+      "properties": {
+        "commit": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        },
+        "report": {
+          "$ref": "#/$defs/scan_report"
+        }
+      }
+    },
+    "fail_on": {
+      "$ref": "#/$defs/severity"
+    },
+    "exit_code": {
+      "enum": [
+        0,
+        1,
+        3
+      ]
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "new",
+        "unchanged",
+        "updated",
+        "absent",
+        "ambiguous",
+        "unknown"
+      ],
+      "properties": {
+        "new": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unchanged": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "updated": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "absent": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "ambiguous": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unknown": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "changes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "status",
+          "worsened",
+          "before",
+          "after"
+        ],
+        "properties": {
+          "status": {
+            "enum": [
+              "new",
+              "unchanged",
+              "updated",
+              "absent",
+              "ambiguous",
+              "unknown"
+            ]
+          },
+          "worsened": {
+            "type": "boolean"
+          },
+          "before": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/$defs/finding"
+              }
+            ]
+          },
+          "after": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/$defs/finding"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "paths",
+          "reason",
+          "blocking"
+        ],
+        "properties": {
+          "paths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "reason": {
+            "type": "string"
+          },
+          "blocking": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "disclaimer": {
+      "type": "string"
+    },
+    "min_severity": {
+      "$ref": "#/$defs/severity"
+    },
+    "hidden_below_min_severity": {
+      "type": "integer",
+      "minimum": 0
+    }
+  },
+  "$defs": {
+    "severity": {
+      "enum": [
+        "critical",
+        "high",
+        "medium",
+        "low",
+        "info"
+      ]
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rule_id",
+        "title",
+        "category",
+        "area",
+        "severity",
+        "confidence",
+        "location",
+        "message",
+        "evidence",
+        "rationale",
+        "recommendation",
+        "references",
+        "context",
+        "chain",
+        "in_chain",
+        "fingerprint"
+      ],
+      "properties": {
+        "rule_id": {
+          "type": "string",
+          "pattern": "^RC-[A-Z]+-[0-9]{3}$"
+        },
+        "title": {
+          "type": "string"
+        },
+        "category": {
+          "enum": [
+            "danger",
+            "trust",
+            "provenance"
+          ]
+        },
+        "area": {
+          "type": "string"
+        },
+        "severity": {
+          "$ref": "#/$defs/severity"
+        },
+        "confidence": {
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ]
+        },
+        "location": {
+          "oneOf": [
+            {
+              "type": "null",
+              "description": "Repository-wide finding."
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "path",
+                "line",
+                "column",
+                "uri"
+              ],
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "description": "Relative, '/'-separated."
+                },
+                "line": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 1
+                },
+                "column": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 1
+                },
+                "uri": {
+                  "type": "string",
+                  "description": "Lossless canonical percent-encoded repository path; path is a shortened display value."
+                }
+              }
+            }
+          ]
+        },
+        "message": {
+          "type": "string"
+        },
+        "evidence": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Untrusted text quoted from the repository, sanitized and shortened."
+        },
+        "rationale": {
+          "type": "string"
+        },
+        "recommendation": {
+          "type": "string"
+        },
+        "references": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "context": {
+          "enum": [
+            "vendored",
+            "test",
+            "example",
+            "docs",
+            null
+          ],
+          "description": "Label for a file in vendored code, tests, examples or docs. Findings there are reported all the same."
+        },
+        "chain": {
+          "description": "Set on a chain finding: the files from an auto-run entry point to the dangerous code, entry point first.",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "steps"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^chain-[0-9]+$"
+                },
+                "steps": {
+                  "type": "array",
+                  "minItems": 2,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "path",
+                      "line",
+                      "uri"
+                    ],
+                    "properties": {
+                      "path": {
+                        "type": "string"
+                      },
+                      "line": {
+                        "type": [
+                          "integer",
+                          "null"
+                        ],
+                        "minimum": 1
+                      },
+                      "uri": {
+                        "type": "string",
+                        "description": "Lossless canonical percent-encoded step path."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "in_chain": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^chain-[0-9]+$",
+          "description": "The id of the chain this finding is part of. It is listed but not counted again in the summary or for --fail-on."
+        },
+        "fingerprint": {
+          "type": "string",
+          "pattern": "^repovet:v1:[a-f0-9]{64}$",
+          "description": "Versioned semantic result identity, not a tamper-evidence signature."
+        }
+      }
+    },
+    "source": {
+      "oneOf": [
+        {
+          "type": "object",
+          "description": "Only for URL targets: the repository and the commit that was checked.",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "url",
+            "ref",
+            "commit"
+          ],
+          "properties": {
+            "type": {
+              "const": "github"
+            },
+            "url": {
+              "type": "string"
+            },
+            "ref": {
+              "type": "string"
+            },
+            "commit": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{40}$"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "commit"
+          ],
+          "properties": {
+            "type": {
+              "const": "local_git"
+            },
+            "commit": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{40}$"
+            }
+          }
+        }
+      ]
+    },
+    "nullable_count": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/count"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "nullable_string": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "nullable_bool": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "nullable_date": {
+      "oneOf": [
+        {
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "trust": {
+      "description": "From the GitHub API (only when it was queried). Stars, forks, followers and accounts can be bought or faked: indicators, not proof. Missing values are null; why they are missing is in 'coverage'.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository",
+        "owner",
+        "activity",
+        "security_policy",
+        "code_files",
+        "stars",
+        "lookalike",
+        "manifest",
+        "local",
+        "api"
+      ],
+      "properties": {
+        "repository": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "full_name",
+            "requested",
+            "url",
+            "description",
+            "created",
+            "pushed",
+            "age_days",
+            "days_since_push",
+            "stars",
+            "forks",
+            "watchers",
+            "open_issues",
+            "has_issues",
+            "archived",
+            "disabled",
+            "fork",
+            "parent",
+            "parent_stars",
+            "parent_star_ratio",
+            "source",
+            "is_template",
+            "template",
+            "default_branch",
+            "default_branch_protected",
+            "license",
+            "license_other"
+          ],
+          "properties": {
+            "full_name": {
+              "$ref": "#/$defs/nullable_string"
+            },
+            "requested": {
+              "$ref": "#/$defs/nullable_string",
+              "description": "The name that was asked for, if GitHub answered for another one (renamed or transferred)."
+            },
+            "url": {
+              "$ref": "#/$defs/nullable_string"
+            },
+            "description": {
+              "$ref": "#/$defs/nullable_string"
+            },
+            "created": {
+              "$ref": "#/$defs/nullable_date"
+            },
+            "pushed": {
+              "$ref": "#/$defs/nullable_date"
+            },
+            "age_days": {
+              "$ref": "#/$defs/nullable_count"
+            },
+            "days_since_push": {
+              "$ref": "#/$defs/nullable_count"
+            },
+            "stars": {
+              "$ref": "#/$defs/nullable_count"
+            },
+            "forks": {
+              "$ref": "#/$defs/nullable_count"
+            },
+            "watchers": {
+              "$ref": "#/$defs/nullable_count"
+            },
+            "open_issues": {
+              "$ref": "#/$defs/nullable_count",
+              "description": "Open issues and pull requests."
+            },
+            "has_issues": {
+              "$ref": "#/$defs/nullable_bool"
+            },
+            "archived": {
+              "$ref": "#/$defs/nullable_bool"
+            },
+            "disabled": {
+              "$ref": "#/$defs/nullable_bool"
+            },
+            "fork": {
+              "$ref": "#/$defs/nullable_bool"
+            },
+            "parent": {
+              "$ref": "#/$defs/nullable_string",
+              "description": "For a fork: the repository it was forked from."
+            },
+            "parent_stars": {
+              "$ref": "#/$defs/nullable_count"
+            },
+            "parent_star_ratio": {
+              "oneOf": [
+                {
+                  "type": "number",
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Parent stars divided by this fork's stars (at least 1)."
+            },
+            "source": {
+              "$ref": "#/$defs/nullable_string",
+              "description": "For a fork: the root of the fork network."
+            },
+            "is_template": {
+              "$ref": "#/$defs/nullable_bool"
+            },
+            "template": {
+              "$ref": "#/$defs/nullable_string",
+              "description": "The template this repository was generated from."
+            },
+            "default_branch": {
+              "$ref": "#/$defs/nullable_string"
+            },
+            "default_branch_protected": {
+              "$ref": "#/$defs/nullable_bool"
+            },
+            "license": {
+              "$ref": "#/$defs/nullable_string",
+              "description": "SPDX id as detected by GitHub."
+            },
+            "license_other": {
+              "type": "boolean",
+              "description": "GitHub found a license it does not recognize."
+            }
+          }
+        },
+        "owner": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "login",
+                "type",
+                "created",
+                "age_days",
+                "public_repos",
+                "followers"
+              ],
+              "properties": {
+                "login": {
+                  "$ref": "#/$defs/nullable_string"
+                },
+                "type": {
+                  "$ref": "#/$defs/nullable_string",
+                  "description": "User or Organization."
+                },
+                "created": {
+                  "$ref": "#/$defs/nullable_date"
+                },
+                "age_days": {
+                  "$ref": "#/$defs/nullable_count"
+                },
+                "public_repos": {
+                  "$ref": "#/$defs/nullable_count"
+                },
+                "followers": {
+                  "$ref": "#/$defs/nullable_count"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "activity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "commits",
+            "last_commit",
+            "days_since_commit",
+            "contributors",
+            "releases",
+            "latest_release"
+          ],
+          "properties": {
+            "commits": {
+              "$ref": "#/$defs/nullable_count",
+              "description": "Commits on the default branch."
+            },
+            "last_commit": {
+              "$ref": "#/$defs/nullable_date"
+            },
+            "days_since_commit": {
+              "$ref": "#/$defs/nullable_count"
+            },
+            "contributors": {
+              "$ref": "#/$defs/nullable_count",
+              "description": "Including contributors without a GitHub account."
+            },
+            "releases": {
+              "$ref": "#/$defs/nullable_count"
+            },
+            "latest_release": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "tag",
+                    "published",
+                    "age_days",
+                    "prerelease",
+                    "assets",
+                    "binary_assets",
+                    "asset_names"
+                  ],
+                  "properties": {
+                    "tag": {
+                      "$ref": "#/$defs/nullable_string"
+                    },
+                    "published": {
+                      "$ref": "#/$defs/nullable_date"
+                    },
+                    "age_days": {
+                      "$ref": "#/$defs/nullable_count"
+                    },
+                    "prerelease": {
+                      "$ref": "#/$defs/nullable_bool"
+                    },
+                    "assets": {
+                      "$ref": "#/$defs/count"
+                    },
+                    "binary_assets": {
+                      "$ref": "#/$defs/count",
+                      "description": "Assets that are programs, installers or archives."
+                    },
+                    "asset_names": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "At most 20."
+                    }
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        },
+        "security_policy": {
+          "type": "boolean",
+          "description": "A security policy file is among the checked files."
+        },
+        "code_files": {
+          "$ref": "#/$defs/nullable_count",
+          "description": "Files in a programming language among the checked files."
+        },
+        "stars": {
+          "description": "When the stars arrived; only for 50 to 200 stars (all of them fit into two requests).",
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "sampled",
+                "complete",
+                "first",
+                "last",
+                "max_24h",
+                "max_24h_share"
+              ],
+              "properties": {
+                "sampled": {
+                  "$ref": "#/$defs/count"
+                },
+                "complete": {
+                  "type": "boolean"
+                },
+                "first": {
+                  "$ref": "#/$defs/nullable_date"
+                },
+                "last": {
+                  "$ref": "#/$defs/nullable_date"
+                },
+                "max_24h": {
+                  "$ref": "#/$defs/count",
+                  "description": "Most stars within any 24 hours."
+                },
+                "max_24h_share": {
+                  "$ref": "#/$defs/share"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "lookalike": {
+          "description": "A repository of another owner with the same name and the same description (from a name search).",
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "full_name",
+                "stars",
+                "star_ratio",
+                "created",
+                "older"
+              ],
+              "properties": {
+                "full_name": {
+                  "type": "string"
+                },
+                "stars": {
+                  "$ref": "#/$defs/nullable_count"
+                },
+                "star_ratio": {
+                  "oneOf": [
+                    {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "created": {
+                  "$ref": "#/$defs/nullable_date"
+                },
+                "older": {
+                  "type": "boolean"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "manifest": {
+          "description": "GitHub repositories that root manifests name as the project's repository.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "declared",
+            "other",
+            "other_file",
+            "other_exists"
+          ],
+          "properties": {
+            "declared": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "file",
+                  "repository"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string"
+                  },
+                  "repository": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "other": {
+              "$ref": "#/$defs/nullable_string",
+              "description": "One of them that belongs to another owner and is not related (fork, template, transfer)."
+            },
+            "other_file": {
+              "$ref": "#/$defs/nullable_string"
+            },
+            "other_exists": {
+              "$ref": "#/$defs/nullable_bool"
+            }
+          }
+        },
+        "local": {
+          "description": "Local folders only: the repository is named by a Git remote, which is a claim. head_found says whether GitHub knows the local HEAD commit there (GitHub also finds commits that exist only in forks).",
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "claimed_by",
+                "head",
+                "head_found"
+              ],
+              "properties": {
+                "claimed_by": {
+                  "type": "string"
+                },
+                "head": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{40}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "head_found": {
+                  "$ref": "#/$defs/nullable_bool"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "api": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "requests",
+            "token",
+            "token_source",
+            "rate_limit",
+            "stopped"
+          ],
+          "properties": {
+            "requests": {
+              "$ref": "#/$defs/count"
+            },
+            "token": {
+              "type": "boolean"
+            },
+            "token_source": {
+              "enum": [
+                "GITHUB_TOKEN",
+                "GH_TOKEN",
+                null
+              ],
+              "description": "Where the token came from; its value never appears in a report."
+            },
+            "rate_limit": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "limit",
+                    "remaining",
+                    "reset"
+                  ],
+                  "properties": {
+                    "limit": {
+                      "$ref": "#/$defs/count"
+                    },
+                    "remaining": {
+                      "$ref": "#/$defs/count"
+                    },
+                    "reset": {
+                      "type": "integer",
+                      "description": "Unix time."
+                    }
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "stopped": {
+              "$ref": "#/$defs/nullable_string",
+              "description": "Why no further requests were sent (rate limit, budget, time)."
+            }
+          }
+        }
+      }
+    },
+    "count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "share": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "paths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "description": "What the repository is made of (files) and how it came about (history). Indicators, not verdicts.",
+      "additionalProperties": false,
+      "required": [
+        "files",
+        "languages",
+        "largest_files",
+        "top_level",
+        "markers",
+        "generated",
+        "license",
+        "notable"
+      ],
+      "properties": {
+        "files": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "count",
+            "bytes",
+            "text_files",
+            "binary_files",
+            "unread_files",
+            "lines"
+          ],
+          "properties": {
+            "count": {
+              "$ref": "#/$defs/count"
+            },
+            "bytes": {
+              "$ref": "#/$defs/count"
+            },
+            "text_files": {
+              "$ref": "#/$defs/count"
+            },
+            "binary_files": {
+              "$ref": "#/$defs/count"
+            },
+            "unread_files": {
+              "$ref": "#/$defs/count",
+              "description": "Larger than --max-file-size or unreadable."
+            },
+            "lines": {
+              "$ref": "#/$defs/count"
+            }
+          }
+        },
+        "languages": {
+          "type": "array",
+          "description": "By file extension or name (data/languages.yaml), largest first.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "type",
+              "files",
+              "lines",
+              "bytes",
+              "share"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "type": {
+                "enum": [
+                  "programming",
+                  "markup",
+                  "data",
+                  "prose"
+                ]
+              },
+              "files": {
+                "$ref": "#/$defs/count"
+              },
+              "lines": {
+                "$ref": "#/$defs/count"
+              },
+              "bytes": {
+                "$ref": "#/$defs/count"
+              },
+              "share": {
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/share"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Share of programming and markup bytes; null for data and prose."
+              }
+            }
+          }
+        },
+        "largest_files": {
+          "type": "array",
+          "maxItems": 5,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "path",
+              "bytes"
+            ],
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "bytes": {
+                "$ref": "#/$defs/count"
+              }
+            }
+          }
+        },
+        "top_level": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "entries",
+            "count"
+          ],
+          "properties": {
+            "entries": {
+              "$ref": "#/$defs/paths",
+              "description": "Folders end with '/'."
+            },
+            "count": {
+              "$ref": "#/$defs/count"
+            }
+          }
+        },
+        "markers": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "present",
+            "missing"
+          ],
+          "properties": {
+            "present": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "missing": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "generated": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "files",
+            "bytes",
+            "file_share",
+            "byte_share",
+            "sample"
+          ],
+          "properties": {
+            "files": {
+              "$ref": "#/$defs/count"
+            },
+            "bytes": {
+              "$ref": "#/$defs/count"
+            },
+            "file_share": {
+              "$ref": "#/$defs/share"
+            },
+            "byte_share": {
+              "$ref": "#/$defs/share"
+            },
+            "sample": {
+              "$ref": "#/$defs/paths"
+            }
+          }
+        },
+        "license": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "files",
+            "declared"
+          ],
+          "properties": {
+            "files": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "path",
+                  "detected"
+                ],
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  },
+                  "detected": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "description": "SPDX id from a text match (an indicator, not a legal review)."
+                  }
+                }
+              }
+            },
+            "declared": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "path",
+                  "value"
+                ],
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  },
+                  "value": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "history": {
+          "$ref": "#/$defs/history"
+        },
+        "notable": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "label",
+              "count",
+              "sample"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
+              "count": {
+                "$ref": "#/$defs/count"
+              },
+              "sample": {
+                "$ref": "#/$defs/paths"
+              }
+            }
+          }
+        }
+      }
+    },
+    "history": {
+      "type": "object",
+      "description": "From the Git history (URL clone or local .git). Dates and authors are chosen by whoever commits and can be faked.",
+      "additionalProperties": false,
+      "required": [
+        "origin",
+        "head",
+        "commits",
+        "complete",
+        "merges",
+        "root_commits",
+        "first_commit",
+        "last_commit",
+        "author_span_seconds",
+        "author_span_days",
+        "committer_span_seconds",
+        "authors",
+        "committers",
+        "top_authors",
+        "email_domains",
+        "signed_commits",
+        "signed_share",
+        "head_files",
+        "root_files",
+        "root_file_share",
+        "root_file_percent",
+        "commits_after_root",
+        "future_commits",
+        "author_after_commit",
+        "ai_commits",
+        "ai_tools",
+        "ai_tool_commits",
+        "by_weekday",
+        "by_hour"
+      ],
+      "properties": {
+        "origin": {
+          "enum": [
+            "clone",
+            ".git folder"
+          ]
+        },
+        "head": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "commits": {
+          "$ref": "#/$defs/count"
+        },
+        "complete": {
+          "type": "boolean",
+          "description": "False if shallow, truncated (--max commits, time) or objects are missing."
+        },
+        "merges": {
+          "$ref": "#/$defs/count"
+        },
+        "root_commits": {
+          "$ref": "#/$defs/count"
+        },
+        "first_commit": {
+          "type": "string",
+          "format": "date",
+          "description": "Earliest author date (UTC)."
+        },
+        "last_commit": {
+          "type": "string",
+          "format": "date"
+        },
+        "author_span_seconds": {
+          "type": "integer"
+        },
+        "author_span_days": {
+          "type": "number"
+        },
+        "committer_span_seconds": {
+          "type": "integer"
+        },
+        "authors": {
+          "$ref": "#/$defs/count"
+        },
+        "committers": {
+          "$ref": "#/$defs/count"
+        },
+        "top_authors": {
+          "type": "array",
+          "maxItems": 5,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "commits"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "commits": {
+                "$ref": "#/$defs/count"
+              }
+            }
+          }
+        },
+        "email_domains": {
+          "type": "array",
+          "maxItems": 5,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "domain",
+              "commits"
+            ],
+            "properties": {
+              "domain": {
+                "type": "string"
+              },
+              "commits": {
+                "$ref": "#/$defs/count"
+              }
+            }
+          }
+        },
+        "signed_commits": {
+          "$ref": "#/$defs/count"
+        },
+        "signed_share": {
+          "$ref": "#/$defs/share"
+        },
+        "head_files": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "root_files": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "Files in the earliest root commit."
+        },
+        "root_file_share": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "root_files / head_files (can exceed 1 if files were deleted since)."
+        },
+        "root_file_percent": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "commits_after_root": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "future_commits": {
+          "$ref": "#/$defs/count"
+        },
+        "author_after_commit": {
+          "$ref": "#/$defs/count"
+        },
+        "ai_commits": {
+          "$ref": "#/$defs/count",
+          "description": "Commits whose message or author names an AI tool (an indicator, not proof)."
+        },
+        "ai_tools": {
+          "type": "string"
+        },
+        "ai_tool_commits": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "tool",
+              "commits"
+            ],
+            "properties": {
+              "tool": {
+                "type": "string"
+              },
+              "commits": {
+                "$ref": "#/$defs/count"
+              }
+            }
+          }
+        },
+        "by_weekday": {
+          "type": "object",
+          "description": "Commits per weekday in the author's local time.",
+          "additionalProperties": false,
+          "required": [
+            "Mon",
+            "Tue",
+            "Wed",
+            "Thu",
+            "Fri",
+            "Sat",
+            "Sun"
+          ],
+          "properties": {
+            "Mon": {
+              "$ref": "#/$defs/count"
+            },
+            "Tue": {
+              "$ref": "#/$defs/count"
+            },
+            "Wed": {
+              "$ref": "#/$defs/count"
+            },
+            "Thu": {
+              "$ref": "#/$defs/count"
+            },
+            "Fri": {
+              "$ref": "#/$defs/count"
+            },
+            "Sat": {
+              "$ref": "#/$defs/count"
+            },
+            "Sun": {
+              "$ref": "#/$defs/count"
+            }
+          }
+        },
+        "by_hour": {
+          "type": "array",
+          "minItems": 24,
+          "maxItems": 24,
+          "items": {
+            "$ref": "#/$defs/count"
+          },
+          "description": "Commits per hour of the day (0-23) in the author's local time."
+        }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope",
+        "status",
+        "reason",
+        "count",
+        "sample",
+        "paths",
+        "uris"
+      ],
+      "properties": {
+        "scope": {
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "not_implemented",
+            "skipped",
+            "failed",
+            "partial",
+            "unsupported"
+          ]
+        },
+        "reason": {
+          "type": "string"
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sample": {
+          "type": "array",
+          "maxItems": 5,
+          "items": {
+            "type": "string"
+          }
+        },
+        "paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Complete affected paths; sample is only a shortened display preview."
+        },
+        "uris": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Lossless affected paths, aligned with paths display values."
+        }
+      }
+    },
+    "scan_report": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tool",
+        "target",
+        "scan",
+        "summary",
+        "findings",
+        "coverage",
+        "facts",
+        "disclaimer",
+        "ruleset_digest"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.5"
+        },
+        "tool": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "version"
+          ],
+          "properties": {
+            "name": {
+              "const": "repovet"
+            },
+            "version": {
+              "type": "string"
+            }
+          }
+        },
+        "target": {
+          "type": "string",
+          "description": "Checked folder or URL."
+        },
+        "scan": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode",
+            "online",
+            "started",
+            "duration_s",
+            "files_scanned",
+            "rules_loaded",
+            "min_severity",
+            "snapshot"
+          ],
+          "properties": {
+            "mode": {
+              "type": "string"
+            },
+            "online": {
+              "type": "boolean",
+              "description": "Whether the GitHub API was queried."
+            },
+            "started": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "duration_s": {
+              "type": "number",
+              "minimum": 0
+            },
+            "files_scanned": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "rules_loaded": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "min_severity": {
+              "$ref": "#/$defs/severity"
+            },
+            "snapshot": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "Git tree entries keyed by lossless canonical relative URIs, values mode:object-id; null for a working folder."
+            }
+          }
+        },
+        "summary": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "findings",
+            "part_of_chains",
+            "hidden_below_min_severity",
+            "by_severity",
+            "by_category"
+          ],
+          "properties": {
+            "findings": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Findings that count: all at or above min_severity except the parts of a chain, which count through their chain finding. by_severity and by_category count the same findings."
+            },
+            "part_of_chains": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Listed findings that are part of a chain (in_chain set) and not counted again."
+            },
+            "hidden_below_min_severity": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "by_severity": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "critical",
+                "high",
+                "medium",
+                "low",
+                "info"
+              ],
+              "patternProperties": {
+                "^(critical|high|medium|low|info)$": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            },
+            "by_category": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "danger",
+                "trust",
+                "provenance"
+              ],
+              "patternProperties": {
+                "^(danger|trust|provenance)$": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            }
+          }
+        },
+        "findings": {
+          "type": "array",
+          "description": "Findings at or above min_severity, most severe first.",
+          "items": {
+            "$ref": "#/$defs/finding"
+          }
+        },
+        "coverage": {
+          "type": "array",
+          "description": "What was not checked ('Not checked' in the terminal report).",
+          "items": {
+            "$ref": "#/$defs/coverage"
+          }
+        },
+        "facts": {
+          "type": "object",
+          "description": "Facts, not findings: where the scanned content came from, the trust profile (GitHub API) and the provenance profile. Other keys may appear in later versions.",
+          "properties": {
+            "source": {
+              "$ref": "#/$defs/source"
+            },
+            "trust": {
+              "$ref": "#/$defs/trust"
+            },
+            "provenance": {
+              "$ref": "#/$defs/provenance"
+            }
+          }
+        },
+        "disclaimer": {
+          "type": "string"
+        },
+        "ruleset_digest": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-f0-9]{64}$",
+          "description": "Effective loaded rules, patterns, file sets and coverage definitions; null only if unavailable."
+        }
+      }
+    }
+  }
+}

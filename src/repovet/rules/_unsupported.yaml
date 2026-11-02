@@ -90,7 +90,32 @@
     Dependencies are checked by name and declared source only; their code and install
     scripts are not checked (no registry queries)
 
-- scope: ecosystem:rust-go-dependencies
-  files: ["**/Cargo.toml", "**/go.mod"]
+- scope: dependencies:rust
+  files: ["**/Cargo.toml", "**/Cargo.lock"]
   exclude: [{set: vendored}, "**/vendor/**"]
-  reason: Rust (Cargo.toml) and Go (go.mod) dependencies are not checked
+  reason: Rust dependency declarations and Cargo lockfile entries are not checked
+
+- scope: dependencies:go
+  files: ["**/go.mod", "**/go.sum", "**/go.work"]
+  exclude: [{set: vendored}, "**/vendor/**"]
+  reason: Go dependencies, checksums and workspace module sources are not checked
+
+- scope: dependencies:ruby
+  files: ["**/Gemfile", "**/Gemfile.lock", "**/*.gemspec"]
+  exclude: [{set: vendored}, "**/vendor/**"]
+  reason: Ruby dependency declarations and Bundler lockfile entries are not checked
+
+- scope: dependencies:php
+  files: ["**/composer.json", "**/composer.lock"]
+  exclude: [{set: vendored}, "**/vendor/**"]
+  reason: PHP dependency declarations and Composer lockfile entries are not checked
+
+- scope: dependencies:jvm
+  files: ["**/pom.xml", "**/build.gradle", "**/build.gradle.kts", "**/settings.gradle", "**/settings.gradle.kts"]
+  exclude: [{set: vendored}]
+  reason: Java and JVM dependencies from Maven and Gradle are not checked
+
+- scope: dependencies:dotnet
+  files: ["**/*.csproj", "**/*.fsproj", "**/*.vbproj", "**/packages.config", "**/packages.lock.json", "**/Directory.Packages.props"]
+  exclude: [{set: vendored}]
+  reason: .NET dependency declarations and NuGet lockfile entries are not checked

@@ -1,0 +1,388 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://repovet.invalid/schemas/corpus-baseline-2.0.json",
+  "title": "repovet corpus baseline",
+  "description": "Versioned individual finding identities and derived counts. Legacy counts-only files cannot be upgraded without scanning again. Records deliberately discard foreign payload text and references.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version"
+  ],
+  "anyOf": [
+    {
+      "required": [
+        "real"
+      ]
+    },
+    {
+      "required": [
+        "reconstructions"
+      ]
+    }
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "2.0"
+    },
+    "real": {
+      "$ref": "#/$defs/section"
+    },
+    "reconstructions": {
+      "$ref": "#/$defs/section"
+    }
+  },
+  "$defs": {
+    "section": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tool",
+        "ruleset_digest",
+        "counts",
+        "findings",
+        "coverage",
+        "snapshots"
+      ],
+      "properties": {
+        "tool": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "version"
+          ],
+          "properties": {
+            "name": {
+              "const": "repovet"
+            },
+            "version": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "ruleset_digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "counts": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "propertyNames": {
+              "pattern": "^RC-[A-Z]+-[0-9]{3}$"
+            },
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "high",
+                "medium",
+                "low"
+              ],
+              "properties": {
+                "high": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "medium": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "low": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            }
+          }
+        },
+        "findings": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "maxItems": 100000,
+            "items": {
+              "$ref": "#/$defs/finding"
+            }
+          }
+        },
+        "coverage": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/coverage"
+            }
+          }
+        },
+        "snapshots": {
+          "type": "object",
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/$defs/snapshot"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "line": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rule_id",
+        "title",
+        "category",
+        "area",
+        "severity",
+        "confidence",
+        "location",
+        "message",
+        "evidence",
+        "rationale",
+        "recommendation",
+        "references",
+        "context",
+        "chain",
+        "in_chain",
+        "fingerprint"
+      ],
+      "properties": {
+        "rule_id": {
+          "type": "string",
+          "pattern": "^RC-[A-Z]+-[0-9]{3}$"
+        },
+        "fingerprint": {
+          "type": "string",
+          "pattern": "^repovet:v1:[0-9a-f]{64}$"
+        },
+        "title": {
+          "const": ""
+        },
+        "category": {
+          "enum": [
+            "danger",
+            "trust",
+            "provenance"
+          ]
+        },
+        "area": {
+          "enum": [
+            "autorun",
+            "agents",
+            "obfuscation",
+            "download_exec",
+            "binaries",
+            "dependencies",
+            "provenance",
+            "trust"
+          ]
+        },
+        "severity": {
+          "enum": [
+            "info",
+            "low",
+            "medium",
+            "high",
+            "critical"
+          ]
+        },
+        "confidence": {
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "location": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "path",
+                "line",
+                "column",
+                "uri"
+              ],
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "line": {
+                  "$ref": "#/$defs/line"
+                },
+                "column": {
+                  "$ref": "#/$defs/line"
+                },
+                "uri": {
+                  "type": "string",
+                  "description": "Lossless percent-encoded relative path; path is a sanitized display label."
+                }
+              }
+            }
+          ]
+        },
+        "message": {
+          "const": ""
+        },
+        "evidence": {
+          "const": null
+        },
+        "rationale": {
+          "const": ""
+        },
+        "recommendation": {
+          "const": ""
+        },
+        "references": {
+          "type": "array",
+          "maxItems": 0
+        },
+        "context": {
+          "enum": [
+            null,
+            "vendored",
+            "test",
+            "example",
+            "docs"
+          ]
+        },
+        "chain": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "steps"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "steps": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "path",
+                      "line",
+                      "uri"
+                    ],
+                    "properties": {
+                      "path": {
+                        "type": "string"
+                      },
+                      "line": {
+                        "$ref": "#/$defs/line"
+                      },
+                      "uri": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "in_chain": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "snapshot": {
+      "type": "object",
+      "minProperties": 1,
+      "required": [
+        "."
+      ],
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[0-7]{1,11}:[0-9a-f]{40}$"
+      },
+      "properties": {
+        ".": {
+          "type": "string",
+          "pattern": "^40000:[a-f0-9]{40}$"
+        }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope",
+        "status",
+        "reason",
+        "count",
+        "sample",
+        "paths",
+        "uris"
+      ],
+      "properties": {
+        "scope": {
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "not_implemented",
+            "skipped",
+            "failed",
+            "partial",
+            "unsupported"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sample": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "uris": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

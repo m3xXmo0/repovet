@@ -12,6 +12,7 @@ from datetime import timedelta
 from pathlib import PurePosixPath, PureWindowsPath
 
 from repovet.engine.loader import Rule
+from repovet.identity import fingerprint
 from repovet.models import (
     Confidence,
     CoverageItem,
@@ -83,6 +84,9 @@ def _result(finding: Finding, index: dict[str, int]) -> dict[str, object]:
         properties["context"] = finding.context
     result: dict[str, object] = {
         "ruleId": finding.rule_id,
+        "partialFingerprints": {
+            "primaryLocationLineHash": finding.fingerprint or fingerprint(finding)
+        },
         "level": LEVELS[finding.severity],
         "message": {"text": sanitize(finding.message, None)},
         "properties": properties,
@@ -190,6 +194,7 @@ def build(
             "online": result.online,
             "filesScanned": result.files_scanned,
             "rulesLoaded": result.rules_loaded,
+            "rulesetDigest": result.ruleset_digest or None,
             "minSeverity": min_severity.label,
             "hiddenBelowMinSeverity": len(result.findings) - len(visible),
             "facts": sanitize_data(result.facts),

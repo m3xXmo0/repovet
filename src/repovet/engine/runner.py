@@ -1,5 +1,7 @@
 """Apply rules to files and turn matches into findings."""
 
+import hashlib
+import json
 import re
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import replace
@@ -17,6 +19,27 @@ _EVIDENCE_KEEP = 1000
 def render_message(template: str, values: dict[str, str], max_length: int) -> str:
     """Fill ``{placeholder}`` names with sanitized, shortened values."""
     return _PLACEHOLDER.sub(lambda m: sanitize(values.get(m.group(1), ""), max_length), template)
+
+
+def _identity_material(path: str | None, match: Match) -> str:
+    def normalize(value: str) -> str:
+        return value.replace("\r\n", "\n").replace("\r", "\n")
+
+    values = {
+        key: normalize(
+            "<file>"
+            if not match.evidence and path and value in (path, path.rsplit("/", 1)[-1])
+            else value
+        )
+        for key, value in match.values.items()
+        if key not in {"path", "line"}
+    }
+    payload = {
+        "evidence": None if match.evidence is None else normalize(match.evidence),
+        "values": values,
+    }
+    encoded = json.dumps(payload, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(encoded.encode("ascii")).hexdigest()
 
 
 def make_finding(rule: Rule, path: str | None, match: Match, ctx: ScanContext) -> Finding:
@@ -41,6 +64,7 @@ def make_finding(rule: Rule, path: str | None, match: Match, ctx: ScanContext) -
         references=rule.references,
         context=None if path is None else ctx.path_context(path),
         tags=rule.tags,
+        identity_material=_identity_material(path, match),
     )
 
 
@@ -56,6 +80,10 @@ def rule_findings(rule: Rule, view: FileView, ctx: ScanContext) -> list[Finding]
     findings = sorted(by_line.values(), key=lambda f: (f.location.line or 0) if f.location else 0)
     cap = ctx.limits.max_matches_per_file
     if len(findings) > cap:
+        view.note(
+            CoverageStatus.PARTIAL,
+            f"Only the first {cap} matches per rule and file are reported ({rule.id})",
+        )
         more = len(findings) - cap
         findings = findings[:cap]
         last = findings[-1]

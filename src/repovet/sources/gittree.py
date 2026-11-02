@@ -60,7 +60,9 @@ class GitTree:
         self._files: list[GitFile] = []
         self._links: list[LinkEntry] = []
         self._full = False
-        self._walk(objects.commit(commit).tree)
+        root = bytes(objects.commit(commit).tree)
+        self.snapshot: dict[str, str] = {".": f"40000:{root.decode('ascii')}"}
+        self._walk(root)
 
     def files(self) -> Sequence[GitFile]:
         return self._files
@@ -124,7 +126,12 @@ class GitTree:
             for name, entry in named:
                 rel = f"{rel_dir}/{name}" if rel_dir else name
                 mode = entry.mode
-                if name in ("", ".", "..") or "/" in name or "\0" in name:
+                valid_name = name not in ("", ".", "..") and "/" not in name and "\0" not in name
+                # Keep identities before scan limits, but never let a crafted name
+                # overwrite the root key. A skipped directory still has its tree id.
+                if valid_name:
+                    self.snapshot[rel] = f"{mode:o}:{entry.sha.decode('ascii')}"
+                if not valid_name:
                     self._skip(CoverageStatus.SKIPPED, REASON_BAD_NAME, rel)
                 elif name.casefold() == ".git":
                     self._skip(CoverageStatus.SKIPPED, REASON_DOT_GIT, rel)

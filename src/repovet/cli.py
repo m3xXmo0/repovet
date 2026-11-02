@@ -15,10 +15,12 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from repovet import __version__, interactive
+from repovet.comparison import diff_exit_code
+from repovet.differencing import compare_revisions
 from repovet.engine.loader import RuleError, RuleSet
 from repovet.limits import DEFAULT_LIMITS, format_size, parse_size
 from repovet.models import AREAS, Severity
-from repovet.report import formats, terminal
+from repovet.report import diff_out, formats, terminal
 from repovet.report.formats import FORMATS
 from repovet.report.sanitize import sanitize, sanitize_path
 from repovet.scanning import (
@@ -37,6 +39,7 @@ from repovet.scanning import (
 )
 from repovet.sources import checkout, remote
 from repovet.sources.gitobjects import GitObjectError
+from repovet.sources.revisions import RevisionError, RevisionIncomplete
 
 EXIT_OK = 0
 EXIT_FINDINGS = 1
@@ -190,6 +193,32 @@ def build_parser() -> argparse.ArgumentParser:
         "high) and list every place of grouped findings",
     )
 
+    diff = commands.add_parser(
+        "diff",
+        parents=[common],
+        help="compare two local Git revisions with current rules",
+        description="Scan Base and Head without checkout and report new, changed and "
+        "existing findings. A green diff does not replace a full scan.",
+    )
+    diff.add_argument("target", metavar="PATH", help="local Git repository")
+    baseline = diff.add_mutually_exclusive_group(required=True)
+    baseline.add_argument(
+        "--base", metavar="REV", help="ancestor revision, rescanned with current rules"
+    )
+    baseline.add_argument(
+        "--base-report",
+        type=Path,
+        metavar="FILE",
+        help="saved unfiltered Git scan or diff JSON report",
+    )
+    diff.add_argument(
+        "--head", default="HEAD", metavar="REV", help="revision to compare (default: HEAD)"
+    )
+    diff.add_argument("--format", choices=["text", "json", "sarif"], default="text")
+    diff.add_argument(
+        "-o", "--output", metavar="FILE", help="write report outside the checked repository"
+    )
+
     clone = commands.add_parser(
         "clone",
         parents=[common],
@@ -251,6 +280,20 @@ def _scan(args: argparse.Namespace) -> int:
     root = local_root(args.target)
     output = None if args.output is None else output_path(args.output, root)
     return _emit(args, scan_local(options), output)
+
+
+def _diff(args: argparse.Namespace) -> int:
+    options = _options(args, args.target)
+    root = local_root(args.target)
+    output = None if args.output is None else output_path(args.output, root)
+    compared = compare_revisions(options, args.base, args.head, base_report=args.base_report)
+    fail_on = Severity.parse(args.fail_on)
+    report = diff_out.render(args.format, compared, Severity.parse(args.min_severity), fail_on)
+    if output is None:
+        sys.stdout.write(report)
+    else:
+        write_report(output, report)
+    return diff_exit_code(compared.comparison, fail_on)
 
 
 def _emit(args: argparse.Namespace, scanned: Scanned, output: Path | None) -> int:
@@ -427,13 +470,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         if args.command == "scan":
             return _scan(args)
+        if args.command == "diff":
+            return _diff(args)
         if args.command == "clone":
             return _clone(args)
         return _rules_list(args)
-    except (UsageError, RuleError) as exc:
+    except (UsageError, RuleError, RevisionError) as exc:
         _error(str(exc))
         return EXIT_USAGE
-    except (remote.CloneError, GitObjectError) as exc:
+    except (remote.CloneError, GitObjectError, RevisionIncomplete) as exc:
         _error(f"analysis aborted: {exc}")
         return EXIT_ABORTED
     except checkout.CheckoutError as exc:

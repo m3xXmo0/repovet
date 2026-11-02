@@ -1,12 +1,14 @@
 {
-  "schema_version": "1.4",
+  "schema_version": "1.5",
   "tool": {
     "name": "repovet",
     "version": "0.1.0"
   },
+  "ruleset_digest": null,
   "target": "D:\\src\\demo",
   "scan": {
     "mode": "local folder",
+    "snapshot": null,
     "online": false,
     "started": "2026-10-29T00:00:00.000Z",
     "duration_s": 0.5,
@@ -34,6 +36,7 @@
   "findings": [
     {
       "rule_id": "RC-AGENT-002",
+      "fingerprint": "repovet:v1:d0f39a164bed3a62b9ac266f969a6a7d211231b42ad8983ec2e2553e5a915437",
       "title": "Title",
       "category": "danger",
       "area": "agents",
@@ -41,6 +44,7 @@
       "confidence": "high",
       "location": {
         "path": "CLAUDE.md",
+        "uri": "CLAUDE.md",
         "line": 3,
         "column": null
       },
@@ -55,6 +59,7 @@
     },
     {
       "rule_id": "RC-AUTO-090",
+      "fingerprint": "repovet:v1:585f60e0dd37a3a63c80d8a893de639169d03181ecd285f6db083714d01b713c",
       "title": "Title",
       "category": "danger",
       "area": "autorun",
@@ -62,6 +67,7 @@
       "confidence": "high",
       "location": {
         "path": "package.json",
+        "uri": "package.json",
         "line": 3,
         "column": null
       },
@@ -76,14 +82,17 @@
         "steps": [
           {
             "path": "package.json",
+            "uri": "package.json",
             "line": 3
           },
           {
             "path": "x.js",
+            "uri": "x.js",
             "line": null
           },
           {
             "path": "x.sh",
+            "uri": "x.sh",
             "line": 2
           }
         ]
@@ -92,6 +101,7 @@
     },
     {
       "rule_id": "RC-AGENT-020",
+      "fingerprint": "repovet:v1:ccd2f2992fb4b677a0c65d6b39f18138cfc41c44b368385fe19e9c64cada4d05",
       "title": "Title",
       "category": "danger",
       "area": "agents",
@@ -99,6 +109,7 @@
       "confidence": "medium",
       "location": {
         "path": "tests/fixtures/s1/SKILL.md",
+        "uri": "tests/fixtures/s1/SKILL.md",
         "line": 3,
         "column": null
       },
@@ -113,6 +124,7 @@
     },
     {
       "rule_id": "RC-AGENT-020",
+      "fingerprint": "repovet:v1:e94439484767cc27b620d5bf9afa12d60ad253d880d71b89e59e7f190a7c03ba",
       "title": "Title",
       "category": "danger",
       "area": "agents",
@@ -120,6 +132,7 @@
       "confidence": "medium",
       "location": {
         "path": "tests/fixtures/s2/SKILL.md",
+        "uri": "tests/fixtures/s2/SKILL.md",
         "line": 3,
         "column": null
       },
@@ -134,6 +147,7 @@
     },
     {
       "rule_id": "RC-AUTO-001",
+      "fingerprint": "repovet:v1:476063a58f1165e9dd2f59657070b64af58faa4363bffd81116913d73ae2cdd7",
       "title": "Title",
       "category": "danger",
       "area": "autorun",
@@ -141,6 +155,7 @@
       "confidence": "high",
       "location": {
         "path": "package.json",
+        "uri": "package.json",
         "line": 3,
         "column": null
       },
@@ -155,6 +170,7 @@
     },
     {
       "rule_id": "RC-DLX-001",
+      "fingerprint": "repovet:v1:b913e3ba23d3c92c40269fbf1c64e137cf5bdab32f5ffc1b54aca2f8f0058101",
       "title": "Title",
       "category": "danger",
       "area": "download_exec",
@@ -162,6 +178,7 @@
       "confidence": "high",
       "location": {
         "path": "x.sh",
+        "uri": "x.sh",
         "line": 2,
         "column": null
       },
@@ -176,6 +193,7 @@
     },
     {
       "rule_id": "RC-TRUST-001",
+      "fingerprint": "repovet:v1:55aabeb3bfb52daa42319a7ba3590126554e3ecd3cb2e7b9ee31bfb30ed3e6ad",
       "title": "Title",
       "category": "trust",
       "area": "trust",
@@ -193,6 +211,7 @@
     },
     {
       "rule_id": "RC-AGENT-001",
+      "fingerprint": "repovet:v1:10e98a33489f17f7a472da19ca9f434c8fed94233215d0f8b3097e9f3b2f6f6d",
       "title": "AI agent file present",
       "category": "danger",
       "area": "agents",
@@ -200,6 +219,7 @@
       "confidence": "high",
       "location": {
         "path": "AGENTS.md",
+        "uri": "AGENTS.md",
         "line": null,
         "column": null
       },
@@ -214,6 +234,7 @@
     },
     {
       "rule_id": "RC-AGENT-001",
+      "fingerprint": "repovet:v1:10e98a33489f17f7a472da19ca9f434c8fed94233215d0f8b3097e9f3b2f6f6d",
       "title": "AI agent file present",
       "category": "danger",
       "area": "agents",
@@ -221,6 +242,7 @@
       "confidence": "high",
       "location": {
         "path": "CLAUDE.md",
+        "uri": "CLAUDE.md",
         "line": null,
         "column": null
       },
@@ -240,7 +262,9 @@
       "status": "not_implemented",
       "reason": "trust (GitHub API): not implemented yet (milestone 4)",
       "count": 1,
-      "sample": []
+      "sample": [],
+      "paths": [],
+      "uris": []
     },
     {
       "scope": "file",
@@ -252,7 +276,9 @@
         "assets/b.mp4",
         "assets/c.mp4",
         "assets/d<U+202E>.mp4"
-      ]
+      ],
+      "paths": [],
+      "uris": []
     }
   ],
   "facts": {},
