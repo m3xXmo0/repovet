@@ -83,7 +83,13 @@ include = [
     "/pyproject.toml",
     "/uv.lock",
 ]
-exclude = ["__pycache__", "*.py[cod]"]
+# Recorded measurement data is too large to ship; the tests that read it skip in an sdist.
+exclude = [
+    "__pycache__",
+    "*.py[cod]",
+    "/docs/fp-benchmark.json",
+    "/scripts/corpus-baseline.json",
+]
 
 [tool.uv]
 required-version = ">=0.8"

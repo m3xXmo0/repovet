@@ -7,6 +7,13 @@ exit codes and the JSON report (`schema_version`) are stable interfaces.
 
 ## [Unreleased]
 
+### Changed
+
+- The sdist no longer contains the recorded measurement data `docs/fp-benchmark.json`
+  and `scripts/corpus-baseline.json` (about 3.5 MB compressed); they stay in the Git
+  repository. The tests that read them are skipped when run from an sdist.
+  `scripts/check_dist.py` now also fails on an sdist above 2.5 MB or a wheel above 1 MB.
+
 ## [0.5.1] - 2026-11-02
 
 ### Changed

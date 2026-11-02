@@ -13,7 +13,9 @@
 
 repovet reads a GitHub repository or a local folder as plain data and shows what could
 run on your machine or steer your AI agent before you open, install or hand it over – it
-never runs anything from it.
+never runs anything from it. To check changes later, `repovet diff` compares two
+revisions and fails only on new or worse findings, so it can run in CI
+([setup](https://github.com/m3xXmo0/repovet/blob/main/docs/usage.md#use-it-in-ci)).
 
 ## Why it matters
 
@@ -35,7 +37,8 @@ Then check a repository (or run `repovet` alone for a menu):
 repovet scan https://github.com/m3xXmo0/repovet-demo
 ```
 
-Real output (excerpt) for the harmless demo repository:
+Real output (excerpt) for the demo repository, which is harmless but built on purpose
+to trigger findings, so the high findings are expected:
 
 ```
 repovet 0.5.1 | GitHub repository https://github.com/m3xXmo0/repovet-demo @ main (088b45582bfa) | offline | 16 files | 141 rules
@@ -60,12 +63,16 @@ repovet 0.5.1 | GitHub repository https://github.com/m3xXmo0/repovet-demo @ main
 
 ## Evidence, in short
 
-- **16 of 16** reconstructions of documented attacks detected, and **60 of 64** hand-written evasion variants of them; both sets were built alongside the rules.
-- **3 of 38** scanned most-starred GitHub repositories had a high or critical finding (false-positive benchmark).
-- **Older holdout** (42 bypass variants and 24 harmless look-alikes written by a third party; partly independent since 0.4.1; measured with 0.5.0): 13 rated as expected, 13 detected lower or in another area, 16 missed; 23 of 24 look-alikes stay below medium.
-- **Sealed blind list** (measured with 0.5.0): of 30 attack variants, 13 rated as expected, 2 detected lower or in another area, 15 of 30 missed; 25 of 30 harmless cases stay below medium.
+These are small gap lists that show where repovet is blind, not detection rates. The
+reconstructions and variants were built alongside the rules, so they show what the rules
+are built for, not how well they generalize. The external sets and the benchmark were
+measured with repovet 0.5.0; the reconstructions are scanned again on every test run.
 
-These are gap lists, not detection rates: small sets that show where repovet is blind.
+- **Sealed blind list** (30 attack variants and 30 harmless cases, sealed before the first evaluation): 13 rated as expected, 2 detected lower or in another area, 15 of 30 missed; 25 of 30 harmless cases stay below medium.
+- **Older holdout** (42 bypass variants and 24 harmless look-alikes written by a third party; partly independent since 0.4.1): 13 rated as expected, 13 detected lower or in another area, 16 missed; 23 of 24 look-alikes stay below medium.
+- **16 of 16** reconstructions of documented attacks detected, and **60 of 64** hand-written evasion variants of them.
+- **3 of 38** scanned most-starred GitHub repositories had a high or critical finding. These are popular, presumably harmless projects, so every high or critical hit there is a false alarm or worth a manual look.
+
 In every report, read **"Not checked"** first. Details:
 [docs/evidence.md](https://github.com/m3xXmo0/repovet/blob/main/docs/evidence.md).
 

@@ -7,6 +7,7 @@ date is taken from docs/evidence.md (it records when the section was generated).
 """
 
 import json
+import re
 from dataclasses import replace
 from typing import Any
 
@@ -16,7 +17,11 @@ import pytest
 from evidence import current_section, render, replace_section, section_date
 
 import reconstructions
+from helpers import needs_measurement_data
 from repovet import __version__
+
+needs_benchmark = needs_measurement_data(fp_benchmark.DATA)
+_MEASURED_WITH = re.compile(r"measured with repovet (\d+\.\d+\.\d+)")
 
 BENCHMARK = {
     "date": "2026-10-30",
@@ -118,6 +123,7 @@ def measured() -> tuple[list[reconstructions.Evaluation], dict[str, Any]]:
     return evidence.evidence_data()
 
 
+@needs_benchmark
 def test_evidence_page_section_is_generated(
     measured: tuple[list[reconstructions.Evaluation], dict[str, Any]],
 ) -> None:
@@ -131,6 +137,15 @@ def test_evidence_page_section_is_generated(
     assert section == expected, "docs/evidence.md is out of date; run scripts/evidence.py --write"
 
 
+def _measuring_version(readme: str) -> str:
+    """The one version the README names for its measured numbers."""
+    assert readme.count("measured with") == 1, "README.md names the measuring version once"
+    match = _MEASURED_WITH.search(readme)
+    assert match, "README.md must say 'measured with repovet X.Y.Z'"
+    return match.group(1)
+
+
+@needs_benchmark
 def test_readme_numbers_match_the_evidence_data(
     measured: tuple[list[reconstructions.Evaluation], dict[str, Any]],
 ) -> None:
@@ -138,21 +153,32 @@ def test_readme_numbers_match_the_evidence_data(
     assert evidence.START not in readme, "the generated table belongs in docs/evidence.md"
     for claim in evidence.readme_claims(*measured):
         assert claim in readme, f"README.md does not match the evidence data: {claim!r}"
+    assert _measuring_version(readme) == measured[1]["repovet"]
 
 
 def test_readme_external_results_match_the_evidence_page() -> None:
     """The holdout and blind-list results are not regenerated; the README repeats the
-    summary lines of docs/evidence.md word for word."""
+    summary lines of docs/evidence.md word for word, without the measuring version that
+    it names only once."""
     readme = evidence.README.read_text(encoding="utf-8")
     page = evidence.EVIDENCE.read_text(encoding="utf-8")
+    version = _measuring_version(readme)
     for label in ("**Older holdout**", "**Sealed blind list**"):
         lines = [line for line in readme.splitlines() if line.startswith(f"- {label}")]
         assert len(lines) == 1, f"README.md needs one summary line for {label}"
-        assert lines[0][2:] in page.splitlines(), f"README.md and docs/evidence.md differ: {label}"
+        summaries = [line for line in page.splitlines() if line.startswith(label)]
+        assert len(summaries) == 1, f"docs/evidence.md needs one summary line for {label}"
+        assert f"; measured with {version})" in summaries[0], (
+            f"docs/evidence.md and README.md name different versions: {label}"
+        )
+        assert lines[0][2:] == summaries[0].replace(f"; measured with {version}", ""), (
+            f"README.md and docs/evidence.md differ: {label}"
+        )
     assert "15 of 30 missed" in readme
     assert "not detection rates" in readme
 
 
+@needs_benchmark
 def test_benchmark_data_is_present() -> None:
     data = json.loads(fp_benchmark.DATA.read_text(encoding="utf-8"))
     assert data["repositories"], "the benchmark has no scanned repositories"

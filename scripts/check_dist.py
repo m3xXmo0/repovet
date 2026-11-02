@@ -5,7 +5,9 @@ Usage: python scripts/check_dist.py [DIST_DIR]
 - the wheel contains every module, rule file and data file of ``src/repovet``, the
   ``repovet`` console script, the LICENSE file and the license expression
 - the sdist contains the same package files, the tests and the project files, and
-  nothing else from the project folder (no local working files or caches)
+  nothing else from the project folder (no local working files or caches, no recorded
+  measurement data)
+- neither file is larger than its limit (``MAX_WHEEL_BYTES``, ``MAX_SDIST_BYTES``)
 """
 
 import sys
@@ -49,11 +51,17 @@ SDIST_REQUIRED = {
     "docs/evidence.md",
     "docs/limits.md",
     "docs/fp-benchmark.md",
-    "docs/fp-benchmark.json",
-    "scripts/corpus-baseline.json",
     "tests/reconstructions/README.md",
     "tests/self-scan-baseline.json",
 }
+# Recorded measurement data stays in Git only: it is several MB and no installed code
+# reads it (the tests that do skip in an sdist).
+SDIST_EXCLUDED = {
+    "docs/fp-benchmark.json",
+    "scripts/corpus-baseline.json",
+}
+MAX_WHEEL_BYTES = 1024 * 1024
+MAX_SDIST_BYTES = 2560 * 1024
 SCRIPT_ENTRY = "repovet = repovet.cli:main"
 LICENSE = "MIT"
 
@@ -95,11 +103,19 @@ def check_sdist(path: Path, expected: set[str]) -> list[str]:
     packaged = {n.removeprefix("src/") for n in names if n.startswith("src/repovet/")}
     errors += [f"sdist: missing src/{n}" for n in sorted(expected - packaged)]
     errors += [f"sdist: missing {n}" for n in sorted(SDIST_REQUIRED - names)]
+    errors += [f"sdist: must not contain {n}" for n in sorted(SDIST_EXCLUDED & names)]
     for name in sorted(names):
         parts = PurePosixPath(name).parts
         if (parts and parts[0] not in SDIST_TOP_LEVEL) or "__pycache__" in parts:
             errors.append(f"sdist: must not contain {name}")
     return errors
+
+
+def check_size(path: Path, limit: int, kind: str) -> list[str]:
+    size = path.stat().st_size
+    if size > limit:
+        return [f"{kind}: {path.name} is {size} bytes, more than the limit of {limit}"]
+    return []
 
 
 def main(argv: list[str]) -> int:
@@ -111,6 +127,8 @@ def main(argv: list[str]) -> int:
         return 2
     expected = package_files()
     errors = check_wheel(wheels[0], expected) + check_sdist(sdists[0], expected)
+    errors += check_size(wheels[0], MAX_WHEEL_BYTES, "wheel")
+    errors += check_size(sdists[0], MAX_SDIST_BYTES, "sdist")
     for error in errors:
         print(error, file=sys.stderr)
     if not errors:

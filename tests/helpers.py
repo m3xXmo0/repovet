@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from github_fake import case_target
 from repovet.analyzers import provenance, trust
 from repovet.engine import chains
@@ -21,6 +23,16 @@ from repovet.sources.local import LocalTree
 
 _RULES: RuleSet | None = None
 _REPEAT_KEYS = {"prefix", "repeat", "count", "suffix"}
+_ROOT = Path(__file__).resolve().parent.parent
+
+
+def needs_measurement_data(path: Path) -> pytest.MarkDecorator:
+    """Skip a test when ``path`` is recorded measurement data that the sdist leaves out
+    (it is too large to ship). In a Git checkout a missing file still fails the test."""
+    in_sdist = (_ROOT / "PKG-INFO").is_file()
+    return pytest.mark.skipif(
+        in_sdist and not path.is_file(), reason=f"{path.name} is not part of the sdist"
+    )
 
 
 def can_create(tmp_path: Path, requirement: str) -> bool:

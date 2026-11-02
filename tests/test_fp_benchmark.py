@@ -24,6 +24,7 @@ from fp_benchmark import (
 )
 
 from github_fake import Answer, FakeTransport
+from helpers import needs_measurement_data
 from repovet import __version__
 from repovet.cli import EXIT_ABORTED, EXIT_FINDINGS, EXIT_OK, EXIT_USAGE
 from repovet.engine.loader import load_rules
@@ -236,6 +237,7 @@ def test_run_errors(tmp_path: Path) -> None:
     assert not (tmp_path / "x.json").exists()
 
 
+@needs_measurement_data(fp_benchmark.DATA)
 def test_committed_report_matches_its_data() -> None:
     data = json.loads(fp_benchmark.DATA.read_text(encoding="utf-8"))
     assert fp_benchmark.MARKDOWN.read_text(encoding="utf-8") == render_markdown(data), (
