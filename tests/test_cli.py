@@ -112,6 +112,19 @@ def test_help_and_version_exit_0(capsys: Capture) -> None:
     assert run(capsys, "scan", "--help")[0] == EXIT_OK
 
 
+def test_diff_help_omits_url_only_options(repo: Path, capsys: Capture) -> None:
+    url_only = ("--ref", "--max-clone-size", "--clone-timeout", "url")
+    code, out, _ = run(capsys, "diff", "--help")
+    assert code == EXIT_OK
+    assert "--offline" in out
+    assert not [option for option in url_only if option in out.lower()]
+    code, out, _ = run(capsys, "scan", "--help")
+    assert code == EXIT_OK
+    assert all(option in out.lower() for option in url_only)
+    assert "a url target is still cloned" in " ".join(out.lower().split())
+    assert run(capsys, "diff", str(repo), "--base", "HEAD", "--ref", "main")[0] == EXIT_USAGE
+
+
 def test_extra_and_invalid_rules(repo: Path, tmp_path: Path, capsys: Capture) -> None:
     (repo / "marker.txt").write_text("x", encoding="utf-8")
     extra = write_rule(tmp_path / "extra", severity="critical")

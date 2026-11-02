@@ -68,8 +68,8 @@ def _seconds(value: str) -> float:
     return seconds
 
 
-def _common_options() -> argparse.ArgumentParser:
-    """Options that ``scan`` and ``clone`` share."""
+def _remote_options() -> argparse.ArgumentParser:
+    """Options for URL targets, shared by ``scan`` and ``clone``."""
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument(
         "--offline",
@@ -99,6 +99,12 @@ def _common_options() -> argparse.ArgumentParser:
         help=f"URL targets: abort the download after this time "
         f"(default: {remote.DEFAULT_CLONE_TIMEOUT:.0f})",
     )
+    return common
+
+
+def _common_options() -> argparse.ArgumentParser:
+    """Options that ``scan``, ``clone`` and ``diff`` share."""
+    common = argparse.ArgumentParser(add_help=False)
     common.add_argument(
         "--min-severity",
         choices=_LEVELS,
@@ -158,10 +164,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--version", action="version", version=f"repovet {__version__}")
     commands = parser.add_subparsers(dest="command", metavar="COMMAND", required=True)
+    remote_options = _remote_options()
     common = _common_options()
 
     scan = commands.add_parser(
-        "scan", parents=[common], help="check a local folder or a GitHub repository"
+        "scan",
+        parents=[remote_options, common],
+        help="check a local folder or a GitHub repository",
     )
     scan.add_argument(
         "target",
@@ -201,6 +210,11 @@ def build_parser() -> argparse.ArgumentParser:
         "existing findings. A green diff does not replace a full scan.",
     )
     diff.add_argument("target", metavar="PATH", help="local Git repository")
+    diff.add_argument(
+        "--offline",
+        action="store_true",
+        help="accepted for consistency; diff never queries the GitHub API",
+    )
     baseline = diff.add_mutually_exclusive_group(required=True)
     baseline.add_argument(
         "--base", metavar="REV", help="ancestor revision, rescanned with current rules"
@@ -221,7 +235,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     clone = commands.add_parser(
         "clone",
-        parents=[common],
+        parents=[remote_options, common],
         help="check a GitHub repository, then clone it if you agree",
         description="Check a GitHub repository first, show the summary and ask before "
         "cloning. The clone is written from the checked Git objects: no hooks, filters, "
@@ -258,10 +272,10 @@ def _options(args: argparse.Namespace, target: str) -> ScanOptions:
     return ScanOptions(
         target,
         offline=args.offline,
-        ref=args.ref,
+        ref=getattr(args, "ref", None),
         keep_clone=getattr(args, "keep_clone", False),
-        max_clone_size=args.max_clone_size,
-        clone_timeout=args.clone_timeout,
+        max_clone_size=getattr(args, "max_clone_size", remote.DEFAULT_MAX_CLONE_SIZE),
+        clone_timeout=getattr(args, "clone_timeout", remote.DEFAULT_CLONE_TIMEOUT),
         rules=args.rules,
         ignore_rules=args.ignore_rule,
         max_file_size=args.max_file_size,

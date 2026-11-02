@@ -7,6 +7,12 @@ exit codes and the JSON report (`schema_version`) are stable interfaces.
 
 ## [Unreleased]
 
+### Changed
+
+- `repovet diff` no longer offers the URL-only options `--ref`, `--max-clone-size` and
+  `--clone-timeout`; `diff` only accepts a local Git repository. `--offline` is still
+  accepted and has no effect, because `diff` never queries the GitHub API.
+
 ## [0.5.0] - 2026-11-02
 
 This release adds a static, offline comparison of two local Git revisions. Base and

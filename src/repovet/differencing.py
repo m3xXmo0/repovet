@@ -119,8 +119,6 @@ def compare_revisions(
 ) -> ComparedScan:
     if is_url(options.target):
         raise UsageError("diff requires a local Git repository with both revisions available")
-    if options.ref is not None or options.keep_clone:
-        raise UsageError("--ref and --keep-clone do not apply to diff")
     root = local_root(options.target).resolve()
     rules, limits = _prepare(options)
     saved = _stored(base_report) if base_report is not None else None
