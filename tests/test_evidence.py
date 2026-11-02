@@ -1,12 +1,14 @@
-"""The README "Evidence" section is exactly what scripts/evidence.py generates.
+"""The evidence table in docs/evidence.md is exactly what scripts/evidence.py generates,
+and the short numbers in README.md agree with it.
 
 The reconstructions are scanned again here and the false-positive numbers come from
 docs/fp-benchmark.json, so no number in the section can be edited by hand. Only the
-date is taken from README.md (it records when the section was generated).
+date is taken from docs/evidence.md (it records when the section was generated).
 """
 
 import json
 from dataclasses import replace
+from typing import Any
 
 import evidence
 import fp_benchmark
@@ -111,15 +113,44 @@ def test_section_replacement() -> None:
         current_section("no markers")
 
 
-def test_readme_section_is_generated() -> None:
-    section = current_section(evidence.README.read_text(encoding="utf-8"))
+@pytest.fixture(scope="module")
+def measured() -> tuple[list[reconstructions.Evaluation], dict[str, Any]]:
+    return evidence.evidence_data()
+
+
+def test_evidence_page_section_is_generated(
+    measured: tuple[list[reconstructions.Evaluation], dict[str, Any]],
+) -> None:
+    section = current_section(evidence.EVIDENCE.read_text(encoding="utf-8"))
     date = section_date(section)
-    assert date, "the Evidence section has no date; run scripts/evidence.py --write"
+    assert date, "the evidence table has no date; run scripts/evidence.py --write"
     assert f"(repovet {__version__}, {date})" in section, (
-        "the Evidence section is from another version; run scripts/evidence.py --write"
+        "the evidence table is from another version; run scripts/evidence.py --write"
     )
-    expected = evidence.build_section(date)
-    assert section == expected, "README Evidence is out of date; run scripts/evidence.py --write"
+    expected = render(*measured, version=__version__, date=date)
+    assert section == expected, "docs/evidence.md is out of date; run scripts/evidence.py --write"
+
+
+def test_readme_numbers_match_the_evidence_data(
+    measured: tuple[list[reconstructions.Evaluation], dict[str, Any]],
+) -> None:
+    readme = evidence.README.read_text(encoding="utf-8")
+    assert evidence.START not in readme, "the generated table belongs in docs/evidence.md"
+    for claim in evidence.readme_claims(*measured):
+        assert claim in readme, f"README.md does not match the evidence data: {claim!r}"
+
+
+def test_readme_external_results_match_the_evidence_page() -> None:
+    """The holdout and blind-list results are not regenerated; the README repeats the
+    summary lines of docs/evidence.md word for word."""
+    readme = evidence.README.read_text(encoding="utf-8")
+    page = evidence.EVIDENCE.read_text(encoding="utf-8")
+    for label in ("**Older holdout**", "**Sealed blind list**"):
+        lines = [line for line in readme.splitlines() if line.startswith(f"- {label}")]
+        assert len(lines) == 1, f"README.md needs one summary line for {label}"
+        assert lines[0][2:] in page.splitlines(), f"README.md and docs/evidence.md differ: {label}"
+    assert "15 of 30 missed" in readme
+    assert "not detection rates" in readme
 
 
 def test_benchmark_data_is_present() -> None:

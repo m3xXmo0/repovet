@@ -1,4 +1,4 @@
-"""Generate the "Evidence" section of README.md from measured results.
+"""Generate the evidence table in docs/evidence.md from measured results.
 
 Usage: python scripts/evidence.py [--write] [--date YYYY-MM-DD]
 
@@ -10,9 +10,10 @@ from two sources, so its numbers are never typed by hand:
   installed rules;
 - the false-positive benchmark data (``docs/fp-benchmark.json``).
 
-Without ``--write`` the section is printed. ``--write`` replaces it in README.md and
-stamps it with today's date (or ``--date``). ``tests/test_evidence.py`` regenerates the
-section with the date found in README.md and fails if anything else differs.
+Without ``--write`` the section is printed. ``--write`` replaces it in docs/evidence.md
+and stamps it with today's date (or ``--date``). ``tests/test_evidence.py`` regenerates
+the section with the date found in docs/evidence.md and fails if anything else differs.
+It also checks the short numbers in README.md against the same data (``readme_claims``).
 """
 
 import argparse
@@ -31,6 +32,7 @@ from repovet import __version__
 
 ROOT = Path(__file__).resolve().parent.parent
 README = ROOT / "README.md"
+EVIDENCE = ROOT / "docs" / "evidence.md"
 START = "<!-- evidence:start -->"
 END = "<!-- evidence:end -->"
 REPO_URL = "https://github.com/m3xXmo0/repovet/blob/main"
@@ -150,7 +152,7 @@ def render(
 
 def current_section(text: str) -> str:
     if text.count(START) != 1 or text.count(END) != 1:
-        raise ValueError(f"README.md must contain {START} and {END} once each")
+        raise ValueError(f"the evidence page must contain {START} and {END} once each")
     return text.split(START, 1)[1].split(END, 1)[0].strip("\n")
 
 
@@ -166,28 +168,51 @@ def replace_section(text: str, section: str) -> str:
     return f"{before}{START}\n{section}\n{END}{after}"
 
 
-def build_section(date: str) -> str:
+def evidence_data() -> tuple[list[reconstructions.Evaluation], dict[str, Any]]:
+    """The reconstructions scanned now and the recorded false-positive benchmark."""
     evaluations = reconstructions.evaluate_all(reconstructions.load_entries())
     problems = [line for e in evaluations for line in reconstructions.describe(e)]
     if problems:
         raise SystemExit("reconstructions do not match their expectations:\n" + "\n".join(problems))
     benchmark = json.loads(fp_benchmark.DATA.read_text(encoding="utf-8"))
+    return evaluations, benchmark
+
+
+def readme_claims(
+    evaluations: Sequence[reconstructions.Evaluation], benchmark: Mapping[str, Any]
+) -> list[str]:
+    """Phrases with measured numbers that the short summary in README.md must contain,
+    derived from the same data as the generated section."""
+    detected = sum(e.status == "detected" for e in evaluations)
+    variants = sum(len(e.variants) for e in evaluations)
+    variants_detected = sum(e.variants_detected for e in evaluations)
+    head = fp_benchmark.headline(benchmark)
+    return [
+        f"**{detected} of {len(evaluations)}** reconstructions of documented attacks detected",
+        f"**{variants_detected} of {variants}** hand-written evasion variants",
+        f"**{head['repos_high']} of {head['scanned']}** scanned most-starred GitHub "
+        "repositories had a high or critical finding",
+    ]
+
+
+def build_section(date: str) -> str:
+    evaluations, benchmark = evidence_data()
     return render(evaluations, benchmark, version=__version__, date=date)
 
 
 def run(argv: Sequence[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--write", action="store_true", help="update README.md")
+    parser.add_argument("--write", action="store_true", help="update docs/evidence.md")
     parser.add_argument("--date", help="date of the results (default: today)")
     args = parser.parse_args(argv)
     section = build_section(args.date or datetime.now(UTC).date().isoformat())
     if not args.write:
         print(section)
         return 0
-    text = README.read_text(encoding="utf-8")
+    text = EVIDENCE.read_text(encoding="utf-8")
     current_section(text)  # both markers present
-    README.write_text(replace_section(text, section), encoding="utf-8")
-    print(f"updated {README}")
+    EVIDENCE.write_text(replace_section(text, section), encoding="utf-8", newline="\n")
+    print(f"updated {EVIDENCE}")
     return 0
 
 

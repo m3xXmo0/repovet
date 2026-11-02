@@ -46,6 +46,8 @@ SDIST_REQUIRED = {
     "tests/conftest.py",
     "docs/report.schema.json",
     "docs/agent-skills.md",
+    "docs/evidence.md",
+    "docs/limits.md",
     "docs/fp-benchmark.md",
     "docs/fp-benchmark.json",
     "scripts/corpus-baseline.json",
