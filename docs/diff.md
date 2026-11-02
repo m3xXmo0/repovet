@@ -72,7 +72,9 @@ these have different purposes and consumers should not use display paths as iden
 Scan JSON uses schema 1.5 and diff JSON schema 1.0. The complete current ruleset digest
 and tool version accompany the results. The definitions are in `report.schema.json`
 and `diff.schema.json`. SARIF remains 2.1.0 and uses `baselineState` and
-`partialFingerprints.primaryLocationLineHash`. Unknown results are never marked
+`partialFingerprints.primaryLocationLineHash`; that hash combines the fingerprint with
+the file, so code scanning keeps one alert per file and treats a moved finding as a new
+alert, while `diff` still reports it as updated. Unknown results are never marked
 absent, and an incomplete SARIF invocation is not reported as successful.
 
 `--base-report FILE` is an explicit fallback for a saved unfiltered offline Git scan

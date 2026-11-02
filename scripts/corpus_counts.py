@@ -343,8 +343,10 @@ def print_finding_changes(old: Section, new: Section) -> int:
             print(f"{sanitize(name, None)}  {rule_id}  {shown}")
         if comparison.issues:
             incomplete = incomplete or comparison.incomplete
+            blocking = sum(issue.blocking for issue in comparison.issues)
             print(
-                f"{sanitize(name, None)}: {len(comparison.issues)} unresolved comparison issue(s)"
+                f"{sanitize(name, None)}: comparison issues: {blocking} blocking, "
+                f"{len(comparison.issues) - blocking} not checked"
             )
     if not different and not incomplete:
         print("no change in finding identities")

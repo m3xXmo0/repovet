@@ -7,12 +7,27 @@ exit codes and the JSON report (`schema_version`) are stable interfaces.
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-11-02
+
+### Fixed
+
+- SARIF `partialFingerprints.primaryLocationLineHash` now includes the file of a
+  finding. Before, the same rule with the same match in two files (for example
+  RC-AGENT-001 in `AGENTS.md` and `CLAUDE.md`) had the same value, and GitHub code
+  scanning could merge them into one alert and hide one location. The value stays the
+  same when lines move within a file. The `fingerprint` field of the JSON report and
+  the matching in `repovet diff` are unchanged, so renamed files are still matched.
+  Existing code-scanning alerts get new identities once after the upgrade.
+
 ### Changed
 
 - The sdist no longer contains the recorded measurement data `docs/fp-benchmark.json`
   and `scripts/corpus-baseline.json` (about 3.5 MB compressed); they stay in the Git
   repository. The tests that read them are skipped when run from an sdist.
   `scripts/check_dist.py` now also fails on an sdist above 2.5 MB or a wheel above 1 MB.
+- `scripts/corpus_counts.py` reports comparison issues as blocking and not checked
+  separately (for example "0 blocking, 141 not checked") instead of one "unresolved"
+  count.
 
 ## [0.5.1] - 2026-11-02
 
@@ -362,7 +377,8 @@ First release.
   threshold, 2 usage error, 3 analysis aborted.
 - Windows, macOS and Linux with Python 3.12 and 3.13.
 
-[Unreleased]: https://github.com/m3xXmo0/repovet/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/m3xXmo0/repovet/compare/v0.5.2...HEAD
+[0.5.2]: https://github.com/m3xXmo0/repovet/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/m3xXmo0/repovet/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/m3xXmo0/repovet/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/m3xXmo0/repovet/compare/v0.4.0...v0.4.1

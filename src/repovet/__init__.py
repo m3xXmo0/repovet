@@ -1,3 +1,3 @@
 """repovet: static check of an untrusted Git repository before anything from it runs."""
 
-__version__ = "0.5.1"
+__version__ = "0.5.2"

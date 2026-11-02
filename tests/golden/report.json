@@ -277,8 +277,18 @@
         "assets/c.mp4",
         "assets/d<U+202E>.mp4"
       ],
-      "paths": [],
-      "uris": []
+      "paths": [
+        "assets/a.mp4",
+        "assets/b.mp4",
+        "assets/c.mp4",
+        "assets/d<U+202E>.mp4"
+      ],
+      "uris": [
+        "assets/a.mp4",
+        "assets/b.mp4",
+        "assets/c.mp4",
+        "assets/d%E2%80%AE.mp4"
+      ]
     }
   ],
   "facts": {},

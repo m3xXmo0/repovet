@@ -7,6 +7,7 @@ from typing import Any
 from jsonschema import Draft4Validator, Draft202012Validator
 
 from repovet.cli import main
+from repovet.report.sarif import location_hash
 from test_diff_cli import DOWNLOAD, Capture, diff_json, repository
 
 ROOT = Path(__file__).parent.parent
@@ -72,10 +73,12 @@ def test_sarif_baseline_states_and_fingerprints_match_the_json_delta(
         item for item in sarif["runs"][0]["results"] if item["ruleId"] == "RC-DLX-001"
     ]
     assert {item["baselineState"] for item in results} == {"new", "unchanged", "updated", "absent"}
+    # The SARIF hash is the diff fingerprint plus the file, so a moved finding gets a
+    # new alert in code scanning while repovet diff still matches it as updated.
     expected = {
-        (change["after"] or change["before"])["fingerprint"]
+        location_hash(finding["fingerprint"], finding["location"]["uri"])
         for change in json_report["changes"]
-        if (change["after"] or change["before"])["rule_id"] == "RC-DLX-001"
+        if (finding := change["after"] or change["before"])["rule_id"] == "RC-DLX-001"
     }
     assert {item["partialFingerprints"]["primaryLocationLineHash"] for item in results} == expected
 

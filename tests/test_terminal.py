@@ -49,6 +49,10 @@ def finding(rule_id: str, severity: Severity, path: str | None, **kw: object) ->
     return Finding(**values)  # type: ignore[arg-type]
 
 
+# Preview and complete list are the same here, so the goldens cover filled paths too.
+LARGE_FILES = ("assets/a.mp4", "assets/b.mp4", "assets/c.mp4", "assets/d\u202e.mp4")
+
+
 def sample_result(findings: list[Finding]) -> ScanResult:
     return ScanResult(
         target="D:\\src\\demo",
@@ -72,7 +76,8 @@ def sample_result(findings: list[Finding]) -> ScanResult:
                 CoverageStatus.SKIPPED,
                 "Files larger than 2 MB, content not checked",
                 4,
-                ("assets/a.mp4", "assets/b.mp4", "assets/c.mp4", "assets/d\u202e.mp4"),
+                LARGE_FILES,
+                LARGE_FILES,
             ),
         ],
         summaries={

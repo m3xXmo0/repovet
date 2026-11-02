@@ -2,9 +2,11 @@
 
 Mapping: rules from the YAML rules, ``level`` from the severity,
 ``properties.security-severity`` for GitHub, coverage gaps as tool execution
-notifications. Paths are relative to ``SRCROOT``.
+notifications. Paths are relative to ``SRCROOT``. ``primaryLocationLineHash`` combines
+the finding's fingerprint with its file, so GitHub keeps one alert per file.
 """
 
+import hashlib
 import json
 import re
 from collections.abc import Sequence
@@ -29,6 +31,7 @@ SCHEMA_URI = (
     "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json"
 )
 ROOT_ID = "SRCROOT"
+LOCATION_HASH_VERSION = "repovet:location:v1"
 
 LEVELS = {
     Severity.CRITICAL: "error",
@@ -73,6 +76,15 @@ def _rule(rule: Rule) -> dict[str, object]:
     return entry
 
 
+def location_hash(identity: str, uri: str | None) -> str:
+    """``primaryLocationLineHash`` of a finding: its fingerprint, which deliberately ignores
+    the path (``repovet diff`` matches renamed files with it), plus the encoded URI of its
+    file. Lines are left out, so the value stays the same when code above it moves."""
+    payload = json.dumps({"fingerprint": identity, "uri": uri}, sort_keys=True)
+    digest = hashlib.sha256(payload.encode("ascii")).hexdigest()
+    return f"{LOCATION_HASH_VERSION}:{digest}"
+
+
 def _result(finding: Finding, index: dict[str, int]) -> dict[str, object]:
     properties: dict[str, object] = {
         "severity": finding.severity.label,
@@ -82,18 +94,18 @@ def _result(finding: Finding, index: dict[str, int]) -> dict[str, object]:
     }
     if finding.context is not None:
         properties["context"] = finding.context
+    loc = finding.location
+    uri = sanitize_uri(loc.path) if loc is not None else None
+    identity = finding.fingerprint or fingerprint(finding)
     result: dict[str, object] = {
         "ruleId": finding.rule_id,
-        "partialFingerprints": {
-            "primaryLocationLineHash": finding.fingerprint or fingerprint(finding)
-        },
+        "partialFingerprints": {"primaryLocationLineHash": location_hash(identity, uri)},
         "level": LEVELS[finding.severity],
         "message": {"text": sanitize(finding.message, None)},
         "properties": properties,
     }
     if finding.rule_id in index:
         result["ruleIndex"] = index[finding.rule_id]
-    loc = finding.location
     if loc is not None:
         # GitHub code scanning needs a start line; file-level findings point to line 1.
         region: dict[str, object] = {"startLine": loc.line or 1}
@@ -104,7 +116,7 @@ def _result(finding: Finding, index: dict[str, int]) -> dict[str, object]:
         result["locations"] = [
             {
                 "physicalLocation": {
-                    "artifactLocation": {"uri": sanitize_uri(loc.path), "uriBaseId": ROOT_ID},
+                    "artifactLocation": {"uri": uri, "uriBaseId": ROOT_ID},
                     "region": region,
                 }
             }

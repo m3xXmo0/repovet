@@ -117,7 +117,7 @@
         {
           "ruleId": "RC-AGENT-002",
           "partialFingerprints": {
-            "primaryLocationLineHash": "repovet:v1:d0f39a164bed3a62b9ac266f969a6a7d211231b42ad8983ec2e2553e5a915437"
+            "primaryLocationLineHash": "repovet:location:v1:aaa9c948a0c12c3bce466ff0cab0e31962dc4f7d4cf6ecae51a4eac65e6555e5"
           },
           "level": "error",
           "message": {
@@ -150,7 +150,7 @@
         {
           "ruleId": "RC-AUTO-090",
           "partialFingerprints": {
-            "primaryLocationLineHash": "repovet:v1:585f60e0dd37a3a63c80d8a893de639169d03181ecd285f6db083714d01b713c"
+            "primaryLocationLineHash": "repovet:location:v1:316739c4cf87b9fb4c2f461240ef82ed31fc6e964d8ac3440a422dcffaf7eb13"
           },
           "level": "error",
           "message": {
@@ -230,7 +230,7 @@
         {
           "ruleId": "RC-AGENT-020",
           "partialFingerprints": {
-            "primaryLocationLineHash": "repovet:v1:ccd2f2992fb4b677a0c65d6b39f18138cfc41c44b368385fe19e9c64cada4d05"
+            "primaryLocationLineHash": "repovet:location:v1:b928902db397e1147fc061aea0aab4f5b9c8e30165f4672f29b5fb592cea8851"
           },
           "level": "error",
           "message": {
@@ -263,7 +263,7 @@
         {
           "ruleId": "RC-AGENT-020",
           "partialFingerprints": {
-            "primaryLocationLineHash": "repovet:v1:e94439484767cc27b620d5bf9afa12d60ad253d880d71b89e59e7f190a7c03ba"
+            "primaryLocationLineHash": "repovet:location:v1:b0035bdf63515a1b97daffc92b1cc8850df9a72c4a2dcd3c6b70348ebfe4b99a"
           },
           "level": "error",
           "message": {
@@ -296,7 +296,7 @@
         {
           "ruleId": "RC-AUTO-001",
           "partialFingerprints": {
-            "primaryLocationLineHash": "repovet:v1:476063a58f1165e9dd2f59657070b64af58faa4363bffd81116913d73ae2cdd7"
+            "primaryLocationLineHash": "repovet:location:v1:4cb914b745ba9565a60abbef136e1cd5a2aae974d2a61ac52f2ddc0950748843"
           },
           "level": "warning",
           "message": {
@@ -327,7 +327,7 @@
         {
           "ruleId": "RC-DLX-001",
           "partialFingerprints": {
-            "primaryLocationLineHash": "repovet:v1:b913e3ba23d3c92c40269fbf1c64e137cf5bdab32f5ffc1b54aca2f8f0058101"
+            "primaryLocationLineHash": "repovet:location:v1:ede9ae0216ae176a81a76ad6522dc9de19ef34990d5e5bb2c4d3e3450970393e"
           },
           "level": "warning",
           "message": {
@@ -360,7 +360,7 @@
         {
           "ruleId": "RC-TRUST-001",
           "partialFingerprints": {
-            "primaryLocationLineHash": "repovet:v1:55aabeb3bfb52daa42319a7ba3590126554e3ecd3cb2e7b9ee31bfb30ed3e6ad"
+            "primaryLocationLineHash": "repovet:location:v1:147bee52cfa7a113ac3269f71278aaea6c887f605f637cc3d2e6098f5006c5eb"
           },
           "level": "note",
           "message": {
@@ -376,7 +376,7 @@
         {
           "ruleId": "RC-AGENT-001",
           "partialFingerprints": {
-            "primaryLocationLineHash": "repovet:v1:10e98a33489f17f7a472da19ca9f434c8fed94233215d0f8b3097e9f3b2f6f6d"
+            "primaryLocationLineHash": "repovet:location:v1:92f59d796125a0b6b14402f10d037b13bc146e5c8b2350f5ab429685b418e289"
           },
           "level": "note",
           "message": {
@@ -406,7 +406,7 @@
         {
           "ruleId": "RC-AGENT-001",
           "partialFingerprints": {
-            "primaryLocationLineHash": "repovet:v1:10e98a33489f17f7a472da19ca9f434c8fed94233215d0f8b3097e9f3b2f6f6d"
+            "primaryLocationLineHash": "repovet:location:v1:1232d9abeee0bcd485e303e6444b8fdc40e5510bca2c46be8a73882fc75c5feb"
           },
           "level": "note",
           "message": {

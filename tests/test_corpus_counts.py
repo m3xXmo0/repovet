@@ -279,7 +279,7 @@ def test_ambiguous_occurrences_are_not_a_success(capsys: Capture) -> None:
         }
     )
     assert corpus_counts.print_finding_changes(before, after) == EXIT_ABORTED
-    assert "unresolved comparison" in capsys.readouterr().out
+    assert "alpha: comparison issues: 1 blocking, 0 not checked" in capsys.readouterr().out
 
 
 def test_payload_text_in_stored_baseline_is_rejected(tmp_path: Path) -> None:
@@ -438,7 +438,7 @@ def test_changed_capped_entry_uses_shared_coverage_gate(capsys: Capture) -> None
         __version__, DIGEST, {"alpha": []}, {"alpha": [gap]}, {"alpha": git_snapshot("2")}
     )
     assert corpus_counts.print_finding_changes(old, new) == EXIT_ABORTED
-    assert "unresolved comparison" in capsys.readouterr().out
+    assert "alpha: comparison issues: 1 blocking, 0 not checked" in capsys.readouterr().out
 
 
 def test_unchanged_capped_entry_does_not_block(capsys: Capture) -> None:
@@ -447,7 +447,10 @@ def test_unchanged_capped_entry_does_not_block(capsys: Capture) -> None:
         __version__, DIGEST, {"alpha": []}, {"alpha": [gap]}, {"alpha": git_snapshot("1")}
     )
     assert corpus_counts.print_finding_changes(old, old) == 0
-    assert "unresolved comparison" in capsys.readouterr().out
+    # A gap that did not change is listed but does not block the comparison.
+    out = capsys.readouterr().out
+    assert "alpha: comparison issues: 0 blocking, 1 not checked" in out
+    assert "unresolved" not in out
 
 
 def test_missing_snapshot_is_explicit_without_inventing_changed_paths(capsys: Capture) -> None:

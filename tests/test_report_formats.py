@@ -16,7 +16,8 @@ from jsonschema import Draft4Validator, Draft202012Validator
 from helpers import builtin_rules, materialize
 from repovet.cli import EXIT_FINDINGS, EXIT_OK, EXIT_USAGE, main
 from repovet.engine.loader import Rule
-from repovet.models import Location, Severity
+from repovet.identity import fingerprint
+from repovet.models import Finding, Location, Severity
 from repovet.report import json_out, sarif
 from test_terminal import sample_findings, sample_result
 
@@ -159,6 +160,39 @@ def test_sarif_uris_are_percent_encoded() -> None:
     assert location["region"] == {"startLine": 1}
     assert result["properties"]["fileLevel"] is True
     validate_sarif(report)
+
+
+def _line_hashes(findings: list[Finding], rule_id: str) -> list[str]:
+    report: Any = sarif.build(sample_result(findings), sample_rules())
+    return [
+        r["partialFingerprints"]["primaryLocationLineHash"]
+        for r in report["runs"][0]["results"]
+        if r["ruleId"] == rule_id
+    ]
+
+
+def test_sarif_fingerprint_differs_per_file() -> None:
+    # GitHub code scanning merges results with the same hash into one alert.
+    hashes = _line_hashes(sample_findings(), "RC-AGENT-001")  # AGENTS.md and CLAUDE.md
+    assert len(hashes) == 2
+    assert hashes[0] != hashes[1]
+
+
+def test_sarif_fingerprint_is_stable_for_the_same_path() -> None:
+    first = _line_hashes(sample_findings(), "RC-AGENT-001")
+    shifted = [
+        replace(f, location=Location(f.location.path, 40)) if f.location else f
+        for f in sample_findings()
+    ]
+    assert _line_hashes(sample_findings(), "RC-AGENT-001") == first
+    assert _line_hashes(shifted, "RC-AGENT-001") == first
+
+
+def test_diff_fingerprint_still_ignores_the_path() -> None:
+    agents, claude = [f for f in sample_findings() if f.rule_id == "RC-AGENT-001"]
+    assert fingerprint(agents) == fingerprint(claude)
+    report: Any = json_out.build(sample_result([agents, claude]))
+    assert [f["fingerprint"] for f in report["findings"]] == [fingerprint(agents)] * 2
 
 
 def test_root_uri() -> None:
