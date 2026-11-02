@@ -49,6 +49,12 @@ Fingerprints reduce matching noise; they are not a tamper-proof content attestat
 
 - A changed file that exceeds a size, line, parse or match limit is unknown and
   blocks with exit 3, even if Base only had low findings in that file.
+- Exception: a changed or new image is listed under "Not checked" without blocking.
+  Its first bytes must carry a PNG, JPEG, GIF, WebP, BMP or ICO signature that matches
+  its extension, it may only be unchecked because it is binary or larger than the
+  size limit, and it must have no finding in Head. Only the file header is read, so
+  this does not depend on the file size. A wrong extension, an unknown binary or an
+  image that a rule flags still blocks.
 - A previous finding outside the current rule's scope is unknown, not absent.
 - Equal unchecked scopes with unchanged contents are warnings and do not block.
 - Growing coverage can expose an old finding; it is conservatively treated as new.

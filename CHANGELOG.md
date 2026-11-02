@@ -7,8 +7,17 @@ exit codes and the JSON report (`schema_version`) are stable interfaces.
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-11-02
+
 ### Changed
 
+- `repovet diff` no longer ends with exit code 3 only because a changed or new image
+  could not be checked. A file whose first bytes carry a PNG, JPEG, GIF, WebP, BMP or
+  ICO signature matching its extension, that is unchecked only because it is binary or
+  larger than the size limit and that has no finding, is listed under "Not checked"
+  and does not block. A mismatched extension, an unknown binary, an over-long line, an
+  oversized text file or an image a rule flags still blocks. In a benchmark of 24
+  comparisons on 12 public repositories, exit 3 fell from 5 to 2.
 - `repovet diff` no longer offers the URL-only options `--ref`, `--max-clone-size` and
   `--clone-timeout`; `diff` only accepts a local Git repository. `--offline` is still
   accepted and has no effect, because `diff` never queries the GitHub API.
@@ -346,7 +355,9 @@ First release.
   threshold, 2 usage error, 3 analysis aborted.
 - Windows, macOS and Linux with Python 3.12 and 3.13.
 
-[Unreleased]: https://github.com/m3xXmo0/repovet/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/m3xXmo0/repovet/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/m3xXmo0/repovet/compare/v0.5.0...v0.5.1
+[0.5.0]: https://github.com/m3xXmo0/repovet/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/m3xXmo0/repovet/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/m3xXmo0/repovet/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/m3xXmo0/repovet/compare/v0.3.0...v0.3.1

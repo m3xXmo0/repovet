@@ -52,6 +52,8 @@ class ComparisonScope:
     after_coverage: Sequence[CoverageItem] = ()
     # (rule id, path in the base) when the current counterpart was outside that rule.
     scope_lost: frozenset[tuple[str, str]] = frozenset()
+    # Head files whose only gap is the content of a verified image: listed, not blocking.
+    images: frozenset[str] = frozenset()
 
 
 @dataclass
@@ -278,7 +280,7 @@ def _coverage_issues(scope: ComparisonScope) -> list[ComparisonIssue]:
     for path, reasons in sorted(after_gaps.items()):
         touched = _changed_inside(changed, path)
         newly_unchecked = not reasons <= before_gaps.get(path, set())
-        if touched or newly_unchecked:
+        if (touched or newly_unchecked) and path not in scope.images:
             issues.append(ComparisonIssue((path,), "; ".join(sorted(reasons))))
         else:
             issues.append(ComparisonIssue((path,), "; ".join(sorted(reasons)), False))

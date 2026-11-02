@@ -15,6 +15,12 @@ from repovet.sources.tree import FileTree, RepoFile, basename, decode_text
 
 _PLACEHOLDER_REF = re.compile(r"\{\{([A-Za-z_][A-Za-z0-9_]*)\}\}")
 _LINE_BREAK = re.compile(r"\r\n|\r|\n")
+REASON_BINARY = "Binary files, content not checked (only file signatures are checked)"
+
+
+def reason_too_large(limit: int) -> str:
+    """The coverage reason for files whose content exceeds the size limit."""
+    return f"Files larger than {format_size(limit)}, content not checked"
 
 
 class CheckError(ValueError):
@@ -264,10 +270,7 @@ class FileView:
     def _load_text(self) -> str | None:
         limit = self.limits.max_file_size
         if self.file.size > limit:
-            self.note(
-                CoverageStatus.SKIPPED,
-                f"Files larger than {format_size(limit)}, content not checked",
-            )
+            self.note(CoverageStatus.SKIPPED, reason_too_large(limit))
             return None
         data = self._read_full()
         if data is None:
@@ -278,10 +281,7 @@ class FileView:
             return None
         decoded = decode_text(data)
         if decoded is None:
-            self.note(
-                CoverageStatus.SKIPPED,
-                "Binary files, content not checked (only file signatures are checked)",
-            )
+            self.note(CoverageStatus.SKIPPED, REASON_BINARY)
             return None
         if decoded.fallback:
             self.note(CoverageStatus.PARTIAL, "Not UTF-8 or UTF-16, decoded as Latin-1")

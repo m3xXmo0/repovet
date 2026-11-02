@@ -369,8 +369,8 @@ def render_markdown(data: Mapping[str, Any]) -> str:
     grouped: dict[tuple[str, str, str, str], list[Mapping[str, Any]]] = {}
     for run in runs:
         for issue in run["issues"]:
-            key = (run["repo"], run["range"], issue["cause"], issue["reason"])
-            grouped.setdefault(key, []).append(issue)
+            group = (run["repo"], run["range"], issue["cause"], issue["reason"])
+            grouped.setdefault(group, []).append(issue)
     if grouped:
         lines += [
             "| Repository | Range | Cause | Issues | Example | Reason |",

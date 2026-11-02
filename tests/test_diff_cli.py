@@ -378,3 +378,79 @@ def test_saved_baseline_rejects_noncanonical_machine_uri(tmp_path: Path, capsys:
     code = main(["diff", str(root), "--base-report", str(saved), "--format", "json"])
     capsys.readouterr()
     assert code == 2
+
+
+PNG = b"\x89PNG\r\n\x1a\n\x00\x00\x00\x0dIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00"
+
+
+def test_changed_image_is_not_checked_but_does_not_block(tmp_path: Path, capsys: Capture) -> None:
+    before = {"README.md": "Fixture\n", "assets/logo.png": PNG + b"\x00" * 16}
+    after = before | {"assets/logo.png": PNG + b"\x01" * 16}
+    root, ids = repository(tmp_path, [before, after])
+    code, report = diff_json(root, ids[0], capsys)
+    assert code == 0
+    issues = [issue for issue in report["issues"] if "assets/logo.png" in issue["paths"]]
+    assert issues and not any(issue["blocking"] for issue in issues)
+    assert main(["diff", str(root), "--base", ids[0]]) == 0
+    text = capsys.readouterr().out
+    assert any(line.startswith("Not checked:") and "logo.png" in line for line in text.splitlines())
+
+
+def test_new_image_over_the_size_limit_does_not_block(tmp_path: Path, capsys: Capture) -> None:
+    big = PNG + b"\x00" * (2 * 1024 * 1024 + 16)
+    root, ids = repository(
+        tmp_path, [{"README.md": "Fixture\n"}, {"README.md": "Fixture\n", "big.png": big}]
+    )
+    code, report = diff_json(root, ids[0], capsys)
+    assert code == 0
+    assert any("big.png" in issue["paths"] and not issue["blocking"] for issue in report["issues"])
+
+
+def test_image_extension_without_image_signature_still_blocks(
+    tmp_path: Path, capsys: Capture
+) -> None:
+    fake = b"\x00\x01DUMMY_PAYLOAD\x00" * 8
+    root, ids = repository(
+        tmp_path, [{"README.md": "Fixture\n"}, {"README.md": "Fixture\n", "logo.png": fake}]
+    )
+    code, report = diff_json(root, ids[0], capsys)
+    assert code == 3
+    assert any("logo.png" in issue["paths"] and issue["blocking"] for issue in report["issues"])
+
+
+def test_image_signature_with_other_extension_still_blocks(tmp_path: Path, capsys: Capture) -> None:
+    root, ids = repository(
+        tmp_path, [{"README.md": "Fixture\n"}, {"README.md": "Fixture\n", "logo.gif": PNG}]
+    )
+    code, _report = diff_json(root, ids[0], capsys)
+    assert code == 3
+
+
+def test_new_file_with_overlong_line_still_blocks(tmp_path: Path, capsys: Capture) -> None:
+    long_line = "echo " + "A" * 20_001 + "\n"
+    root, ids = repository(
+        tmp_path, [{"README.md": "Fixture\n"}, {"README.md": "Fixture\n", "src/run.sh": long_line}]
+    )
+    code, report = diff_json(root, ids[0], capsys)
+    assert code == 3
+    assert any("src/run.sh" in issue["paths"] and issue["blocking"] for issue in report["issues"])
+
+
+@pytest.mark.parametrize(
+    ("header", "expected"),
+    [
+        (PNG, "png"),
+        (b"\xff\xd8\xff\xe0\x00\x10JFIF\x00", "jpeg"),
+        (b"GIF89a\x01\x00\x01\x00", "gif"),
+        (b"RIFF\x24\x00\x00\x00WEBPVP8 ", "webp"),
+        (b"BM" + b"\x00" * 12 + b"\x28\x00\x00\x00", "bmp"),
+        (b"\x00\x00\x01\x00\x01\x00\x10\x10\x00\x00", "ico"),
+        (b"BM" + b"\x00" * 16, None),
+        (b"\x00\x00\x01\x00\x00\x00\x10\x10\x00\x00", None),
+        (b"DUMMY_PAYLOAD", None),
+    ],
+)
+def test_image_signatures(header: bytes, expected: str | None) -> None:
+    from repovet.differencing import image_type
+
+    assert image_type(header) == expected

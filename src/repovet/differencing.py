@@ -5,20 +5,34 @@ import time
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from repovet.comparison import ComparisonScope, DiffResult, compare_findings
+from repovet.engine.checks.base import REASON_BINARY, reason_too_large
 from repovet.engine.loader import RuleSet
 from repovet.github import target as github_target
 from repovet.limits import Limits
-from repovet.models import CoverageCollector, ScanResult
+from repovet.models import CoverageCollector, CoverageStatus, ScanResult
 from repovet.report.json_in import scan_from_data
 from repovet.scanning import ScanOptions, UsageError, _analyze, _prepare, is_url, local_root
 from repovet.sources import gitmeta, revisions
-from repovet.sources.gitobjects import is_hex_id
+from repovet.sources.gitobjects import GitObjectError, GitObjects, is_hex_id
 from repovet.sources.gittree import GitTree
 
 _MAX_REPORT = 64 * 1024 * 1024
+_IMAGE_HEADER = 32
+_IMAGE_EXTENSIONS = {
+    ".png": "png",
+    ".jpg": "jpeg",
+    ".jpeg": "jpeg",
+    ".gif": "gif",
+    ".webp": "webp",
+    ".bmp": "bmp",
+    ".ico": "ico",
+}
+# Sizes of the BMP info headers (BITMAPCOREHEADER up to BITMAPV5HEADER).
+_BMP_HEADERS = {12, 16, 40, 52, 56, 64, 108, 124}
+_REGULAR_MODES = {"100644", "100755"}
 
 
 @dataclass
@@ -83,6 +97,61 @@ def _revision(
     return RevisionReport(text, scanned.result)
 
 
+def image_type(header: bytes) -> str | None:
+    """The image format whose signature starts ``header``, or None."""
+    if header.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "png"
+    if header.startswith(b"\xff\xd8\xff"):
+        return "jpeg"
+    if header[:6] in (b"GIF87a", b"GIF89a"):
+        return "gif"
+    if header[:4] == b"RIFF" and header[8:12] == b"WEBP":
+        return "webp"
+    if header[:2] == b"BM" and int.from_bytes(header[14:18], "little") in _BMP_HEADERS:
+        return "bmp"
+    # Reserved 0, type 1 (icon), at least one image, first entry's reserved byte 0.
+    if header[:4] == b"\x00\x00\x01\x00" and header[4:6] != b"\x00\x00" and header[9:10] == b"\x00":
+        return "ico"
+    return None
+
+
+def _images(
+    objects: GitObjects, before: ScanResult, after: ScanResult, limits: Limits
+) -> frozenset[str]:
+    """Changed Head files that are unchecked only because they are binary or too large,
+    carry an image signature that matches their extension and have no finding. Only
+    the first bytes are read, whatever the file size."""
+    accepted = {
+        (CoverageStatus.SKIPPED, REASON_BINARY),
+        (CoverageStatus.SKIPPED, reason_too_large(limits.max_file_size)),
+    }
+    gaps: dict[str, set[tuple[CoverageStatus, str]]] = defaultdict(set)
+    for item in after.coverage:
+        if item.scope in {"file", "git:submodules"}:
+            for path in item.paths or item.sample:
+                gaps[path].add((item.status, item.reason))
+    flagged = {f.location.path for f in after.findings if f.location is not None}
+    old, new = before.snapshot or {}, after.snapshot or {}
+    images = set()
+    for path, reasons in gaps.items():
+        entry = new.get(path)
+        expected = _IMAGE_EXTENSIONS.get(PurePosixPath(path).suffix.lower())
+        if entry is None or old.get(path) == entry or expected is None:
+            continue
+        if path in flagged or not reasons <= accepted:
+            continue
+        mode, _, sha = entry.partition(":")
+        if mode not in _REGULAR_MODES or not is_hex_id(sha):
+            continue
+        try:
+            header = objects.read_prefix(sha.encode("ascii"), _IMAGE_HEADER)
+        except GitObjectError:
+            continue
+        if image_type(header) == expected:
+            images.add(path)
+    return frozenset(images)
+
+
 def _scope_lost(
     before: ScanResult, after: ScanResult, rules: RuleSet
 ) -> frozenset[tuple[str, str]]:
@@ -134,6 +203,7 @@ def compare_revisions(
                 )
         before = saved or _revision(pair.source, pair.base, rules, limits, root)
         after = _revision(pair.source, pair.head, rules, limits, root)
+        images = _images(pair.source.objects, before.result, after.result, limits)
     warnings = []
     if before.result.tool_version != after.result.tool_version:
         warnings.append("Saved baseline and Head use different repovet versions")
@@ -147,6 +217,7 @@ def compare_revisions(
         before.result.coverage,
         after.result.coverage,
         _scope_lost(before.result, after.result, rules),
+        images,
     )
     comparison = compare_findings(before.result.findings, after.result.findings, scope)
     return ComparedScan(before, after, rules, comparison, warnings)
